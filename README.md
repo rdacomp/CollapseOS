@@ -97,42 +97,47 @@ and prove useless to many post-collapse communities.
 But nevertheless, this idea seems too powerful to not try it. And even if it
 proves futile, it sounds like a lot of fun to try.
 
+## Organisation of this repository
+
+There's very little done so far, but here's how it's organized:
+
+* `parts`: Pieces of code to be assembled by the user into an OS.
+* `recipes`: collection of recipes that assemble parts together on a specific
+             machine.
+
+Each folder has a README with more details.
+
 ## Roadmap
 
 I'm still fiddling with things, honing my skills and knowledge, so the
 project's roadmap is still hazy.
 
-Initially, I wanted to start the implementation in AVR because that's the only
-MCU I know and because I like it, but AVR's architecture doesn't fit well with
-the idea of an OS. Very limited RAM and no reasonable way of running programs
-from RAM.
-
-I've been looking at z80 and it's very interesting. There's a good amount of
-great z80-related hacks all around the internet, and the z80 CPU is very
-scavenge-friendly: it's been (and is) included in tons of devices.
-
-[KnightOS][knightos] is a very good starting point. Of course, it can't be
-directly used in the context of Collapse OS because it's an OS for a specific
-set of machines rather than improvised designs, but there are many interesting
-bits and pieces of assembly in there that can be used.
-
-The first question that needs answering is: how feasible is it to write a
-self-assembling z80 assembler that runs on 56K of RAM and compiles an OS? Once
-that question is answered positively, then the project becomes much more solid.
+The primary target for Collapse OS is the z80 architecture. There's a good
+amount of great z80-related hacks all around the internet, and the z80 CPU is
+very scavenge-friendly: it's been (and is) included in tons of devices.
 
 After a good proof of concept is done in z80, then more architectures can be
 added into the mix. I have the intuition that we can mix AVR and z80 in a very
 elegant minimal and powerful machine and it would be great if a Collapse OS
 spawn could be built for such machine.
 
-Of course, there are so many PIC chips around that the project would be much
-more useful with a way to program some of them, so there's also that to do.
+I'm planning to go forward with this project by doing three things:
 
-Then comes the thinking about how to anticipate the need for ad-hoc terminals
-and storage devices. Modern computer screens are rather fragile and will be
-hard to repair. Post-collapse engineers will need to hack their way around
-scavenged display devices. What kind of tools will they need? Same question for
-storage.
+1. Gather knowledge and hone skills.
+2. Build useful parts of code to be assembled into an OS by the user.
+3. Write "recipes", examples of assembly on real machines using parts I wrote
+   to serve as a guide for post-collapse assembly.
+
+Recipes should contain both "pre-collapse" instructions (how to build Collapse
+OS from a "modern" system) and "post-collapse" instructions (how to build
+Collapse OS from itself).
+
+Initially, we of course only have "pre-collapse" instructions, but as tooling
+improve, the "post-collapse" part will become more and more complete. When we
+have complete "post-collapse" recipes, we can call it a win.
+
+If you're interested in being part of this project, I have no idea how to
+include you, but please, let me know, we'll manage something.
 
 ## 32-bit? 16-bit?
 
@@ -151,6 +156,25 @@ programming an ARM or RISC-V chip.
 
 That being said, the MSP430 seems like a really nice and widely used chip...
 
+## Prior art
+
+I've spent some time doing software archeology and see if something that was
+already made could be used. There are some really nice and well-made programs
+out there, such as CP/M, but as far as I know (please, let me know if I'm wrong,
+I don't know this world very well), these old OS weren't made to be
+self-replicating. CP/M is now open source, but I don't think we can recompile
+CP/M from CP/M.
+
+Then comes the idea of piggy-backing from an existing BASIC interpreter and
+make a shell out of it. Interesting idea, and using Grant Searle's modified
+nascom basic would be a good starting point, but I see two problems with this.
+First, the interpreter is already 8k. That's a lot. Second, it's
+copyright-ladden (by Searle *and* Microsoft) and can't be licensed as open
+source.
+
+Nah, maybe I'm working needlessly, but I'll start from scratch. But if someone
+has a hint about useful prior art, please let me know.
+
 ## Risking ridicule
 
 Why publish this hazy roadmap now and risk ridicule? Because I'm confident
@@ -164,4 +188,3 @@ sound more or less crazy to you than what you've been reading in this text so
 far?), I will probably need help to pull this off.
 
 [searle]: http://searle.hostei.com/grant/z80/SimpleZ80.html
-[knightos]: https://knightos.org/
