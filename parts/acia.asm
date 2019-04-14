@@ -115,7 +115,7 @@ aciaGetC:
 	call	aciaIncIndex
 	ld	(ACIA_BUFRDIDX), a
 
-	; And finially, fetch the value.
+	; And finally, fetch the value.
 	ld	a, (de)
 
 	pop	de

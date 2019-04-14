@@ -1,19 +1,22 @@
 ; shell
 ;
-; Runs a shell over an asynchronous communication interface adapter (ACIA).
-; for now, this unit is tightly coupled to acia.asm, but it will eventually be
-; more general than that.
+; Runs a shell over an block device interface.
 
 ; Status: incomplete. As it is now, it spits a welcome prompt, wait for input
 ; and compare the first 4 chars of the input with a command table and call the
 ; appropriate routine if it's found, an error if it's not.
 ;
-; Commands, for now, are dummy.
+; Commands, for now, are partially implemented.
 ;
 ; See constants below for error codes.
 ;
 ; All numerical values in the Collapse OS shell are represented and parsed in
 ; hexadecimal form, without prefix or suffix.
+
+; *** DEFINES ***
+; SHELL_GETC: Macro that calls a GetC routine
+; SHELL_PUTC: Macro that calls a PutC routine
+; SHELL_RAMSTART
 
 ; *** CONSTS ***
 
@@ -61,7 +64,7 @@ shellInit:
 
 shellLoop:
 	; First, let's wait until something is typed.
-	call	aciaGetC
+	SHELL_GETC
 	; got it. Now, is it a CR or LF?
 	cp	ASCII_CR
 	jr	z, .do		; char is CR? do!
@@ -100,9 +103,9 @@ shellLoop:
 
 printcrlf:
 	ld	a, ASCII_CR
-	call	aciaPutC
+	SHELL_PUTC
 	ld	a, ASCII_LF
-	call	aciaPutC
+	SHELL_PUTC
 	ret
 
 ; Parse command (null terminated) at HL and calls it

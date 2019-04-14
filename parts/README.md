@@ -35,4 +35,18 @@ Thus, code that glue parts together coould look like:
     MOD2_RAMSTART .equ MOD1_RAMEND
     #include "mod2.asm"
 
+## Code style
+
+The asm code used in these parts is heavily dependent on what scas offers. I
+try to be as "low-tech" as possible because the implementation of the assembler
+to be implemented for the z80 will likely be more limited. For example, I try
+to avoid macros.
+
+One exception, however, is for the routine hooks (`SHELL_GETC` for example). At
+first, I wanted to assign a label to a const (`SHELL_GETC .equ aciaGetC` for
+example), but it turns out that scas doesn't support this (but it could: label
+addresses are known at compile time and thus can be consts (maybe at the cost
+of an extra pass though)). I went for macros instead, but that doesn't mean
+that the z80 assembler will need to support macros. It just need to support
+labels-as-consts.
 [scas]: https://github.com/KnightOS/scas
