@@ -101,8 +101,8 @@ parseHexPair:
 	ld	b, a
 	inc	hl
 	ld	a, (hl)
-	;cp	0x21
-	;jr	c, .single	; special char? single digit
+	cp	0x21
+	jr	c, .single	; special char? single digit
 	call	parseHex
 	jr	c, .end		; error?
 	or	b		; join left-shifted + new. we're done!

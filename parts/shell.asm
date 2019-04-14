@@ -166,22 +166,25 @@ shellPrintErr:
 ; When these commands are called, DE points to the first character of the
 ; command args.
 
-; Set memory pointer to the specified address.
+; Set memory pointer to the specified address (word).
 ; Example: seek 01fe
 
 shellSeek:
+	push	af
 	push	de
 	push	hl
 
 	ex	de, hl
 	call	parseHexPair
 	jr	c, .error
-	ld	(SHELL_MEM_PTR), a
+	; z80 is little endian. in a "ld hl, (nn)" op, L is loaded from the
+	; first byte, H is loaded from the second
+	ld	(SHELL_MEM_PTR+1), a
 	inc	hl
 	inc	hl
 	call	parseHexPair
 	jr	c, .error
-	ld	(SHELL_MEM_PTR+1), a
+	ld	(SHELL_MEM_PTR), a
 	jr	.success
 
 .error:
@@ -190,12 +193,12 @@ shellSeek:
 	jr	.end
 
 .success:
-	ld	a, (SHELL_MEM_PTR)
+	ld	a, (SHELL_MEM_PTR+1)
 	ld	hl, SHELL_HEX_FMT
 	call	fmtHexPair
 	ld	a, 2
 	call	printnstr
-	ld	a, (SHELL_MEM_PTR+1)
+	ld	a, (SHELL_MEM_PTR)
 	call	fmtHexPair
 	ld	a, 2
 	call	printnstr
@@ -204,23 +207,55 @@ shellSeek:
 .end:
 	pop	hl
 	pop	de
+	pop	af
 	ret
 
 
-; peek byte where memory pointer points to aby display its value
+; peek byte where memory pointer points to any display its value. If the
+; optional numerical byte arg is supplied, this number of bytes will be printed
+;
+; Example: peek 2 (will print 2 bytes)
 shellPeek:
 	push	af
+	push	bc
+	push	de
 	push	hl
 
+	ld	b, 1		; by default, we run the loop once
+	ld	a, (de)
+	cp	0
+	jr	z, .success	; no arg? don't try to parse
+
+	ex	de, hl
+	call	parseHexPair
+	jr	c, .error
+	cp	0
+	jr	z, .error	; zero isn't a good arg, error
+	ld	b, a		; loop the number of times specified in arg
+	jr	.success
+
+.error:
+	ld	a, SHELL_ERR_BAD_ARGS
+	call	shellPrintErr
+	jr	.end
+
+.success:
 	ld	hl, (SHELL_MEM_PTR)
-	ld	a, (hl)
+.loop:	ld	a, (hl)
+	ex	hl, de
 	ld	hl, SHELL_HEX_FMT
 	call	fmtHexPair
 	ld	a, 2
 	call	printnstr
+	ex	hl, de
+	inc	hl
+	djnz	.loop
 	call	printcrlf
 
+.end:
 	pop	hl
+	pop	de
+	pop	bc
 	pop	af
 	ret
 
