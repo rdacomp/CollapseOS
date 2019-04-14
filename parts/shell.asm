@@ -1,6 +1,6 @@
 ; shell
 ;
-; Runs a shell over an block device interface.
+; Runs a shell over a block device interface.
 
 ; Status: incomplete. As it is now, it spits a welcome prompt, wait for input
 ; and compare the first 4 chars of the input with a command table and call the
@@ -69,6 +69,9 @@ shellLoop:
 	jr	z, .do		; char is CR? do!
 	cp	ASCII_LF
 	jr	z, .do		; char is LF? do!
+
+	; Echo the received character right away so that we see what we type
+	SHELL_PUTC
 
 	; Ok, gotta add it do the buffer
 	; save char for later

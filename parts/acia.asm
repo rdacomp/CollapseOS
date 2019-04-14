@@ -85,7 +85,7 @@ aciaInt:
 	call	aciaIncIndex
 	ld	(ACIA_BUFWRIDX), a
 
-	; And finially, fetch the value and write it.
+	; And finally, fetch the value and write it.
 	in	a, (ACIA_IO)
 	ld	(de), a
 
