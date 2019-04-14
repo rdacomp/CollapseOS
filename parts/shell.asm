@@ -11,6 +11,9 @@
 ; Commands, for now, are dummy.
 ;
 ; See constants below for error codes.
+;
+; All numerical values in the Collapse OS shell are represented and parsed in
+; hexadecimal form, without prefix or suffix.
 
 ; *** CONSTS ***
 
@@ -46,23 +49,11 @@ shellInit:
 	.db	"Collapse OS", 0
 
 shellLoop:
-	call	chkbuf
-	jr	shellLoop
-
-
-printcrlf:
-	ld	a, ASCII_CR
-	call	aciaPutC
-	ld	a, ASCII_LF
-	call	aciaPutC
-	ret
-
-; check if the input buffer is full or ends in CR or LF. If it does, prints it
-; back and empty it.
-chkbuf:
+	; check if the input buffer is full or ends in CR or LF. If it does,
+	; prints it back and empty it.
 	call	aciaBufPtr
 	cp	0
-	ret	z		; BUFIDX is zero? nothing to check.
+	jr	z, shellLoop	; BUFIDX is zero? nothing to check.
 
 	cp	ACIA_BUFSIZE
 	jr	z, .do		; if BUFIDX == BUFSIZE? do!
@@ -78,8 +69,7 @@ chkbuf:
 	jr	z, .do		; char is LF? do!
 
 	; nothing matched? don't do anything
-	ret
-
+	jr	shellLoop
 .do:
 	; terminate our string with 0
 	xor	a
@@ -90,6 +80,13 @@ chkbuf:
 	; alright, let's go!
 	ld	hl, ACIA_BUF
 	call	shellParse
+	jr	shellLoop
+
+printcrlf:
+	ld	a, ASCII_CR
+	call	aciaPutC
+	ld	a, ASCII_LF
+	call	aciaPutC
 	ret
 
 ; Parse command (null terminated) at HL and calls it
