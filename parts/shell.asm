@@ -26,18 +26,29 @@ SHELL_ERR_UNKNOWN_CMD	.equ	0x01
 ; Arguments for the command weren't properly formatted
 SHELL_ERR_BAD_ARGS	.equ	0x02
 
+; Size of the shell command buffer. If a typed command reaches this size, the
+; command is flushed immediately (same as pressing return).
+SHELL_BUFSIZE		.equ	0x20
+
 ; *** VARIABLES ***
 ; Memory address that the shell is currently "pointing at" for peek and deek
 ; operations. Set with seek.
 SHELL_MEM_PTR	.equ	SHELL_RAMSTART
 ; Used to store formatted hex values just before printing it.
 SHELL_HEX_FMT	.equ	SHELL_MEM_PTR+2
-SHELL_RAMEND	.equ	SHELL_HEX_FMT+2
+
+; Command buffer. We read types chars into this buffer until return is pressed
+; This buffer is null-terminated and we don't keep an index around: we look
+; for the null-termination every time we write to it. Simpler that way.
+SHELL_BUF	.equ	SHELL_HEX_FMT+2
+
+SHELL_RAMEND	.equ	SHELL_BUF+SHELL_BUFSIZE
 
 ; *** CODE ***
 shellInit:
 	xor	a
 	ld	(SHELL_MEM_PTR), a
+	ld	(SHELL_BUF), a
 
 	; print prompt
 	ld	hl, .prompt
@@ -49,37 +60,42 @@ shellInit:
 	.db	"Collapse OS", 0
 
 shellLoop:
-	; check if the input buffer is full or ends in CR or LF. If it does,
-	; prints it back and empty it.
-	call	aciaBufPtr
-	cp	0
-	jr	z, shellLoop	; BUFIDX is zero? nothing to check.
-
-	cp	ACIA_BUFSIZE
-	jr	z, .do		; if BUFIDX == BUFSIZE? do!
-
-	; our previous char is in BUFIDX - 1. Fetch this
-	dec	hl
-	ld	a, (hl)		; now, that's our char we have in A
-	inc	hl		; put HL back where it was
-
+	; First, let's wait until something is typed.
+	call	aciaGetC
+	; got it. Now, is it a CR or LF?
 	cp	ASCII_CR
 	jr	z, .do		; char is CR? do!
 	cp	ASCII_LF
 	jr	z, .do		; char is LF? do!
 
-	; nothing matched? don't do anything
-	jr	shellLoop
-.do:
-	; terminate our string with 0
+	; Ok, gotta add it do the buffer
+	; save char for later
+	ex	af, af'
+	ld	hl, SHELL_BUF
+	call	findnull	; HL points to where we need to write
+				; A is the number of chars in the buf
+	cp	SHELL_BUFSIZE
+	jr	z, .do		; A == bufsize? then our buffer is full. do!
+
+	; bring the char back in A
+	ex	af, af'
+	; Buffer not full, not CR or LF. Let's put that char in our buffer and
+	; read again.
+	ld	(hl), a
+	; Now, write a zero to the next byte to properly terminate our string.
+	inc	hl
 	xor	a
 	ld	(hl), a
-	; reset buffer index
-	ld	(ACIA_BUFIDX), a
 
-	; alright, let's go!
-	ld	hl, ACIA_BUF
+	jr	shellLoop
+
+.do:
+	ld	hl, SHELL_BUF
 	call	shellParse
+	; empty our buffer by writing a zero to its first char
+	xor	a
+	ld	(hl), a
+
 	jr	shellLoop
 
 printcrlf:

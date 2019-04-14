@@ -18,6 +18,26 @@ addDE:
 	ld	e, a
 	ret
 
+; Increase HL until the memory address it points to is null for a maximum of
+; 0xff bytes. Returns the new HL value as well as the number of bytes iterated
+; in A.
+findnull:
+	push	bc
+	ld	a, 0xff
+	ld	b, a
+
+.loop:	ld	a, (hl)
+	cp	0
+	jr	z, .end
+	inc	hl
+	djnz	.loop
+.end:
+	; We ran 0xff-B loops. That's the result that goes in A.
+	ld	a, 0xff
+	sub	a, b
+	pop	bc
+	ret
+
 ; Format the lower nibble of A into a hex char and stores the result in A.
 fmtHex:
 	and	a, 0xf
@@ -191,3 +211,4 @@ upcase:
 	; 'a' - 'A' == 0x20
 	sub	0x20
 	ret
+

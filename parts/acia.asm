@@ -14,23 +14,29 @@
 ;                RAM.
 
 ; *** CONSTS ***
-; size of the input buffer. If our input goes over this size, we echo
-; immediately.
+; size of the input buffer. If our input goes over this size, we start losing
+; data.
 ACIA_BUFSIZE	.equ	0x20
 
 ; *** VARIABLES ***
-; Our input buffer starts there
+; Our input buffer starts there. This is a circular buffer.
 ACIA_BUF	.equ	ACIA_RAMSTART
 
-; index, in the buffer, where our next character will go. 0 when the buffer is
-; empty, BUFSIZE-1 when it's almost full.
-ACIA_BUFIDX	.equ	ACIA_BUF+ACIA_BUFSIZE
-ACIA_RAMEND	.equ	ACIA_BUFIDX+1
+; The "read" index of the circular buffer. It points to where the next char
+; should be read. If rd == wr, the buffer is empty. Not touched by the
+; interrupt.
+ACIA_BUFRDIDX	.equ	ACIA_BUF+ACIA_BUFSIZE
+; The "write" index of the circular buffer. Points to where the next char
+; should be written. Should only be touched by the interrupt. if wr == rd-1,
+; the interrupt will *not* write in the buffer until some space has been freed.
+ACIA_BUFWRIDX	.equ	ACIA_BUFRDIDX+1
+ACIA_RAMEND	.equ	ACIA_BUFWRIDX+1
 
 aciaInit:
 	; initialize variables
 	xor	a
-	ld	(ACIA_BUFIDX), a	; starts at 0
+	ld	(ACIA_BUFRDIDX), a	; starts at 0
+	ld	(ACIA_BUFWRIDX), a
 
 	; setup ACIA
 	; CR7 (1) - Receive Interrupt enabled
@@ -39,6 +45,16 @@ aciaInit:
 	; CR1:0 (10) - Counter divide: 64
 	ld	a, 0b10010110
 	out	(ACIA_CTL), a
+	ret
+
+; Increase the circular buffer index in A, properly considering overflow.
+; returns value in A.
+aciaIncIndex:
+	inc	a
+	cp	ACIA_BUFSIZE
+	ret	nz	; not equal? nothing to do
+	; equal? reset
+	xor	a
 	ret
 
 ; read char in the ACIA and put it in the read buffer
@@ -51,18 +67,27 @@ aciaInt:
 	bit	0, a		; is our ACIA rcv buffer full?
 	jr	z, .end		; no? a interrupt was triggered for nothing.
 
-	call	aciaBufPtr	; HL set, A set
-	; is our input buffer full? If yes, we don't read anything. Something
-	; is wrong: we don't process data fast enough.
-	cp	ACIA_BUFSIZE
-	jr	z, .end		; if BUFIDX == BUFSIZE, our buffer is full.
+	; Load both read and write indexes so we can compare them. To do so, we
+	; perform a "fake" read increase and see if it brings it to the same
+	; value as the write index.
+	ld	a, (ACIA_BUFRDIDX)
+	call	aciaIncIndex
+	ld	l, a
+	ld	a, (ACIA_BUFWRIDX)
+	cp	l
+	jr	z, .end		; Equal? buffer is full
 
+	; Alrighty, buffer not full. let's write.
+	ld	de, ACIA_BUF
+	; A already contains our write index, add it to DE
+	call	addDE
 	; increase our buf ptr while we still have it in A
-	inc	a
-	ld	(ACIA_BUFIDX), a
+	call	aciaIncIndex
+	ld	(ACIA_BUFWRIDX), a
 
+	; And finially, fetch the value and write it.
 	in	a, (ACIA_IO)
-	ld	(hl), a
+	ld	(de), a
 
 .end:
 	pop	hl
@@ -70,18 +95,30 @@ aciaInt:
 	ei
 	reti
 
-; Set current buffer pointer in HL. The buffer pointer is where our *next* char
-; will be written. A is set to the value of (BUFIDX)
-aciaBufPtr:
-	push	bc
+; Read a character from the input buffer. If the buffer is empty, loop until
+; there something to fetch. Returns value in A.
+aciaGetC:
+	push	de
 
-	ld	a, (ACIA_BUFIDX)
-	ld	hl, ACIA_BUF
-	xor	b
-	ld	c, a
-	add	hl, bc		; hl now points to INPTBUF + BUFIDX
+.loop:
+	ld	a, (ACIA_BUFWRIDX)
+	ld	e, a
+	ld	a, (ACIA_BUFRDIDX)
+	cp	e
+	jr	z, .loop	; equal? buffer empty, wait.
 
-	pop	bc
+	; Alrighty, buffer not empty. let's read.
+	ld	de, ACIA_BUF
+	; A already contains our read index, add it to DE
+	call	addDE
+	; increase our buf ptr while we still have it in A
+	call	aciaIncIndex
+	ld	(ACIA_BUFRDIDX), a
+
+	; And finially, fetch the value.
+	ld	a, (de)
+
+	pop	de
 	ret
 
 ; spits character in A in port SER_OUT
