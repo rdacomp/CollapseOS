@@ -21,7 +21,7 @@
 ; *** CONSTS ***
 
 ; number of entries in shellCmdTbl
-SHELL_CMD_COUNT	.equ	2
+SHELL_CMD_COUNT	.equ	3
 
 ; The command that was type isn't known to the shell
 SHELL_ERR_UNKNOWN_CMD	.equ	0x01
@@ -53,14 +53,13 @@ shellInit:
 	ld	(SHELL_MEM_PTR), a
 	ld	(SHELL_BUF), a
 
-	; print prompt
-	ld	hl, .prompt
+	; print welcome
+	ld	hl, .welcome
 	call	printstr
-	call	printcrlf
 	ret
 
-.prompt:
-	.db	"Collapse OS", 0
+.welcome:
+	.db	"Collapse OS", ASCII_CR, ASCII_LF, "> ", 0
 
 shellLoop:
 	; First, let's wait until something is typed.
@@ -93,13 +92,19 @@ shellLoop:
 	jr	shellLoop
 
 .do:
+	call	printcrlf
 	ld	hl, SHELL_BUF
 	call	shellParse
 	; empty our buffer by writing a zero to its first char
 	xor	a
 	ld	(hl), a
 
+	ld	hl, .prompt
+	call	printstr
 	jr	shellLoop
+
+.prompt:
+	.db	"> ", 0
 
 printcrlf:
 	ld	a, ASCII_CR
@@ -123,7 +128,7 @@ shellParse:
 	ld	a, 4		; 4 chars to compare
 	call	strncmp
 	jr	z, .found
-	ld	a, 6
+	ld	a, 7
 	call	addDE
 	djnz	.loop
 
@@ -278,10 +283,48 @@ shellPeek:
 	pop	af
 	ret
 
-; Format: 4 bytes name followed by 2 bytes jump. fill names with zeroes
+; Load the specified number of bytes (max 0xff) from IO and write them in the
+; current memory pointer (which doesn't change). For now, we can only load from
+; SHELL_GETC, but a method of selecting IO sources is coming, making this
+; command much more useful.
+; Control is returned to the shell only after all bytes are read.
+;
+; Example: load 42
+shellLoad:
+	push	af
+	push	bc
+	push	hl
+
+	ld	a, (de)
+	call	parseHex
+	jr	c, .error
+	jr	.success
+
+.error:
+	ld	a, SHELL_ERR_BAD_ARGS
+	call	shellPrintErr
+	jr	.end
+
+.success:
+	ld	b, a
+	ld	hl, (SHELL_MEM_PTR)
+.loop:  SHELL_GETC
+	ld	(hl), a
+	inc	hl
+	djnz	.loop
+
+.end:
+	pop	hl
+	pop	bc
+	pop	af
+	ret
+
+; Format: 4 bytes name followed by 3 bytes jump. fill names with zeroes
 shellCmdTbl:
 	.db	"seek"
-	jr	shellSeek
+	jp	shellSeek
 	.db	"peek"
-	jr	shellPeek
+	jp	shellPeek
+	.db	"load"
+	jp	shellLoad
 
