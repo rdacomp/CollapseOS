@@ -13,8 +13,6 @@
 ; See constants below for error codes.
 
 ; *** CONSTS ***
-CR	.equ	0x0d
-LF	.equ	0x0a
 
 ; number of entries in shellCmdTbl
 SHELL_CMD_COUNT	.equ	2
@@ -25,8 +23,19 @@ SHELL_ERR_UNKNOWN_CMD	.equ	0x01
 ; Arguments for the command weren't properly formatted
 SHELL_ERR_BAD_ARGS	.equ	0x02
 
+; *** VARIABLES ***
+; Memory address that the shell is currently "pointing at" for peek and deek
+; operations. Set with seek.
+SHELL_MEM_PTR	.equ	SHELL_RAMSTART
+; Used to store formatted hex values just before printing it.
+SHELL_HEX_FMT	.equ	SHELL_MEM_PTR+2
+SHELL_RAMEND	.equ	SHELL_HEX_FMT+2
+
 ; *** CODE ***
 shellInit:
+	xor	a
+	ld	(SHELL_MEM_PTR), a
+
 	; print prompt
 	ld	hl, .prompt
 	call	printstr
@@ -40,31 +49,13 @@ shellLoop:
 	call	chkbuf
 	jr	shellLoop
 
-; print null-terminated string pointed to by HL
-printstr:
-	push	af
-	push	hl
-
-.loop:
-	ld	a, (hl)		; load character to send
-	or	a		; is it zero?
-	jr	z, .end		; if yes, we're finished
-	call	aciaPutC
-	inc	hl
-	jr	.loop
-
-.end:
-	pop	hl
-	pop	af
-	ret
 
 printcrlf:
-	ld	a, CR
+	ld	a, ASCII_CR
 	call	aciaPutC
-	ld	a, LF
+	ld	a, ASCII_LF
 	call	aciaPutC
 	ret
-
 
 ; check if the input buffer is full or ends in CR or LF. If it does, prints it
 ; back and empty it.
@@ -81,9 +72,9 @@ chkbuf:
 	ld	a, (hl)		; now, that's our char we have in A
 	inc	hl		; put HL back where it was
 
-	cp	CR
+	cp	ASCII_CR
 	jr	z, .do		; char is CR? do!
-	cp	LF
+	cp	ASCII_LF
 	jr	z, .do		; char is LF? do!
 
 	; nothing matched? don't do anything
@@ -101,51 +92,12 @@ chkbuf:
 	call	shellParse
 	ret
 
-; Compares strings pointed to by HL and DE up to A count of characters. If
-; equal, Z is set. If not equal, Z is reset.
-strncmp:
-	push	bc
-	push	hl
-	push	de
-
-	ld	b, a
-.loop:
-	ld	a, (de)
-	cp	(hl)
-	jr	nz, .end	; not equal? break early
-	inc	hl
-	inc	de
-	djnz	.loop
-
-.end:
-	pop	de
-	pop	hl
-	pop	bc
-	; Because we don't call anything else than CP that modify the Z flag,
-	; our Z value will be that of the last cp (reset if we broke the loop
-	; early, set otherwise)
-	ret
-
-; add the value of A into DE
-addDE:
-	add	a, e
-	jr	nc, .end	; no carry? skip inc
-	inc	d
-.end:
-	ld	e, a
-	ret
-
-; jump to the location pointed to by HL. This allows us to call HL instead of
-; just jumping it.
-jumpHL:
-	jp	hl
-	ret
-
 ; Parse command (null terminated) at HL and calls it
 shellParse:
 	push	af
 	push	bc
 	push	de
+	push	hl
 
 	ld	de, shellCmdTbl
 	ld	a, SHELL_CMD_COUNT
@@ -165,19 +117,34 @@ shellParse:
 	jr	.end
 
 .found:
+	; all right, we're almost ready to call the cmd. Let's just have DE
+	; point to the cmd jump line.
 	ld	a, 4
 	call	addDE
-	ex	hl, de
+	; Now, let's swap HL and DE because, welll because that's how we're set.
+	ex	hl, de	; HL = jump line, DE = cmd str pointer
+
+	; Before we call our command, we want to set up the pointer to the arg
+	; list. Normally, it's DE+5 (DE+4 is the space) unless DE+4 is null,
+	; which means no arg.
+	ld	a, 4
+	call	addDE
+	ld	a, (DE)
+	cp	0
+	jr	z, .noarg	; char is null? we have no arg
+	inc	de
+.noarg:
+	; DE points to args, HL points to jump line. Ready to roll!
 	call	jumpHL
-	ex	hl, de
 
 .end:
+	pop	hl
 	pop	de
 	pop	bc
 	pop	af
 	ret
 
-; Print the error code set in A (doesn't work for codes > 9 yet...)
+; Print the error code set in A (in hex)
 shellPrintErr:
 	push	af
 	push	hl
@@ -185,9 +152,10 @@ shellPrintErr:
 	ld	hl, .str
 	call	printstr
 
-	; ascii for '0' is 0x30
-	add	a, 0x30
-	call	aciaPutC
+	ld	hl, SHELL_HEX_FMT
+	call	fmtHexPair
+	ld	a, 2
+	call	printnstr
 	call	printcrlf
 
 	pop	hl
@@ -198,19 +166,66 @@ shellPrintErr:
 	.db	"ERR ", 0
 
 ; *** COMMANDS ***
-shellSeek:
-	ld	hl, .str
-	call	printstr
-	ret
-.str:
-	.db	"seek called", CR, LF, 0
+; When these commands are called, DE points to the first character of the
+; command args.
 
-shellPeek:
-	ld	hl, .str
-	call	printstr
+; Set memory pointer to the specified address.
+; Example: seek 01fe
+
+shellSeek:
+	push	de
+	push	hl
+
+	ex	de, hl
+	call	parseHexPair
+	jr	c, .error
+	ld	(SHELL_MEM_PTR), a
+	inc	hl
+	inc	hl
+	call	parseHexPair
+	jr	c, .error
+	ld	(SHELL_MEM_PTR+1), a
+	jr	.success
+
+.error:
+	ld	a, SHELL_ERR_BAD_ARGS
+	call	shellPrintErr
+	jr	.end
+
+.success:
+	ld	a, (SHELL_MEM_PTR)
+	ld	hl, SHELL_HEX_FMT
+	call	fmtHexPair
+	ld	a, 2
+	call	printnstr
+	ld	a, (SHELL_MEM_PTR+1)
+	call	fmtHexPair
+	ld	a, 2
+	call	printnstr
+	call	printcrlf
+
+.end:
+	pop	hl
+	pop	de
 	ret
-.str:
-	.db	"peek called", CR, LF, 0
+
+
+; peek byte where memory pointer points to aby display its value
+shellPeek:
+	push	af
+	push	hl
+
+	ld	hl, (SHELL_MEM_PTR)
+	ld	a, (hl)
+	ld	hl, SHELL_HEX_FMT
+	call	fmtHexPair
+	ld	a, 2
+	call	printnstr
+	call	printcrlf
+
+	pop	hl
+	pop	af
+	ret
 
 ; Format: 4 bytes name followed by 2 bytes jump. fill names with zeroes
 shellCmdTbl:
