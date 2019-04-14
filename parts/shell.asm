@@ -21,7 +21,7 @@
 ; *** CONSTS ***
 
 ; number of entries in shellCmdTbl
-SHELL_CMD_COUNT	.equ	3
+SHELL_CMD_COUNT	.equ	4
 
 ; The command that was type isn't known to the shell
 SHELL_ERR_UNKNOWN_CMD	.equ	0x01
@@ -122,6 +122,7 @@ shellParse:
 	push	bc
 	push	de
 	push	hl
+	push	ix
 
 	ld	de, shellCmdTbl
 	ld	a, SHELL_CMD_COUNT
@@ -145,8 +146,10 @@ shellParse:
 	; point to the cmd jump line.
 	ld	a, 4
 	call	addDE
-	; Now, let's swap HL and DE because, welll because that's how we're set.
-	ex	hl, de	; HL = jump line, DE = cmd str pointer
+	ld	ixh, d
+	ld	ixl, e
+	; Now, let's swap HL and DE because, well because that's how we're set.
+	ex	hl, de	; DE = cmd str pointer
 
 	; Before we call our command, we want to set up the pointer to the arg
 	; list. Normally, it's DE+5 (DE+4 is the space) unless DE+4 is null,
@@ -158,10 +161,11 @@ shellParse:
 	jr	z, .noarg	; char is null? we have no arg
 	inc	de
 .noarg:
-	; DE points to args, HL points to jump line. Ready to roll!
-	call	jumpHL
+	; DE points to args, IX points to jump line. Ready to roll!
+	call	callIX
 
 .end:
+	pop	ix
 	pop	hl
 	pop	de
 	pop	bc
@@ -202,16 +206,14 @@ shellSeek:
 	push	hl
 
 	ex	de, hl
-	call	parseHexPair
+	ld	de, SHELL_MEM_PTR
+	ld	a, 2
+	call	parseHexChain
 	jr	c, .error
 	; z80 is little endian. in a "ld hl, (nn)" op, L is loaded from the
-	; first byte, H is loaded from the second
-	ld	(SHELL_MEM_PTR+1), a
-	inc	hl
-	inc	hl
-	call	parseHexPair
-	jr	c, .error
-	ld	(SHELL_MEM_PTR), a
+	; first byte, H is loaded from the second. We have to swap our result.
+	ld	hl, SHELL_MEM_PTR
+	call	swapBytes
 	jr	.success
 
 .error:
@@ -322,6 +324,78 @@ shellLoad:
 	pop	af
 	ret
 
+; Calls the routine where the memory pointer currently points. This can take two
+; parameters, A and HL. The first one is a byte, the second, a word. These are
+; the values that A and HL are going to be set to just before calling.
+; Example: run 42 cafe
+shellCall:
+	push	af
+	push	de
+	push	hl
+
+	ld	a, (de)
+	cp	0
+	jr	z, .defA	; no arg? don't try to parse
+	call	parseHex
+	jr	c, .error
+	; We have a proper A arg, in A. We push it for later use, just before
+	; the actual call.
+	push	af
+
+	; Let's try DE parsing now
+	inc	de
+	inc	de
+	ld	a, (de)
+	cp	0
+	jr	z, .defDE	; no arg? don't try to parse
+	inc	de		; we're on a space (maybe...) we parse the
+				; next char
+	ex	hl, de		; we need HL to point to our hex str for
+				; parseHexChain
+	; We need a tmp 2 bytes space for our result. Let's use SHELL_HEX_FMT.
+	ld	de, SHELL_HEX_FMT
+	ld	a, 2
+	call	parseHexChain
+	jr	c, .error
+	ex	hl, de		; result is in DE, we need it in HL
+	call	swapBytes
+	; Alright, we have a proper address in (SHELL_HEX_FMT), let's push it
+	; to the stack
+	ld	hl, (SHELL_HEX_FMT)
+	push	hl
+	jr	.success
+
+.error:
+	ld	a, SHELL_ERR_BAD_ARGS
+	call	shellPrintErr
+	jr	.end
+
+.defA:
+	xor	a
+	push	af
+.defDE:
+	ld	hl, 0
+	push	hl
+.success:
+	; Let's recap here. At this point, we have:
+	; 1. The address we want to execute in (SHELL_MEM_PTR)
+	; 2. our HL arg on top of the stack
+	; 3. our A arg underneath.
+	; Ready, set, go!
+	ld	a, (SHELL_MEM_PTR)
+	ld	ixl, a
+	ld	a, (SHELL_MEM_PTR+1)
+	ld	ixh, a
+	pop	hl
+	pop	af
+	call	callIX
+
+.end:
+	pop	hl
+	pop	de
+	pop	af
+	ret
+
 ; Format: 4 bytes name followed by 3 bytes jump. fill names with zeroes
 shellCmdTbl:
 	.db	"seek"
@@ -330,4 +404,6 @@ shellCmdTbl:
 	jp	shellPeek
 	.db	"load"
 	jp	shellLoad
+	.db	"call"
+	jp	shellCall
 

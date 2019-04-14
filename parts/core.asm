@@ -18,6 +18,12 @@ addDE:
 	ld	e, a
 	ret
 
+; jump to the location pointed to by IX. This allows us to call IX instead of
+; just jumping it. We use IX because we never use this for arguments.
+callIX:
+	jp	(ix)
+	ret
+
 ; Increase HL until the memory address it points to is null for a maximum of
 ; 0xff bytes. Returns the new HL value as well as the number of bytes iterated
 ; in A.
@@ -69,12 +75,6 @@ fmtHexPair:
 	ld	(hl), a
 
 	pop	af
-	ret
-
-; jump to the location pointed to by HL. This allows us to call HL instead of
-; just jumping it.
-jumpHL:
-	jp	hl
 	ret
 
 ; Parse the hex char at A and extract it's 0-15 numerical value. Put the result
@@ -141,6 +141,30 @@ parseHexPair:
 	pop	bc
 	ret
 
+; Parse a series of A hex pairs from (HL) and put the result in (DE)
+parseHexChain:
+	push	af
+	push	bc
+	push	de
+	push	hl
+
+	ld	b, a
+.loop:
+	call	parseHexPair
+	jr	c, .end		; error?
+	ld	(de), a
+	inc	hl
+	inc	hl
+	inc	de
+	djnz	.loop
+
+.end:
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ret
+
 ; print null-terminated string pointed to by HL
 printstr:
 	push	af
@@ -187,10 +211,17 @@ strncmp:
 .loop:
 	ld	a, (de)
 	cp	(hl)
-	jr	nz, .end	; not equal? break early
+	jr	nz, .end	; not equal? break early. NZ is carried out
+				; to the called
+	cp	0		; If our chars are null, stop the cmp
+	jr	z, .end		; The positive result will be carried to the
+	                        ; caller
 	inc	hl
 	inc	de
 	djnz	.loop
+	; We went through all chars with success, but our current Z flag is
+	; unset because of the cp 0. Let's do a dummy CP to set the Z flag.
+	cp	a
 
 .end:
 	pop	de
@@ -199,6 +230,21 @@ strncmp:
 	; Because we don't call anything else than CP that modify the Z flag,
 	; our Z value will be that of the last cp (reset if we broke the loop
 	; early, set otherwise)
+	ret
+
+; Swap the two bytes at (HL)
+swapBytes:
+	push	af
+	ld	a, (hl)
+	ex	af, af'
+	inc	hl
+	ld	a, (hl)
+	ex	af, af'
+	ld	(hl), a
+	dec	hl
+	ex	af, af'
+	ld	(hl), a
+	pop	af
 	ret
 
 ; Transforms the character in A, if it's in the a-z range, into its upcase
