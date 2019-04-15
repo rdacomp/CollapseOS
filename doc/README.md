@@ -7,4 +7,4 @@ properly running.
 ## Table of Contents
 
 * [The shell](shell.md)
-
+* [Load code in RAM and run it](load-run-code.md)
