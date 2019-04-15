@@ -41,6 +41,18 @@ addHL:
 	ld	l, a
 	ret
 
+
+; Write the contents of HL in (DE)
+writeHLinDE:
+	push	af
+	ld	a, l
+	ld	(de), a
+	inc	de
+	ld	a, h
+	ld	(de), a
+	pop	af
+	ret
+
 ; jump to the location pointed to by IX. This allows us to call IX instead of
 ; just jumping it. We use IX because we never use this for arguments.
 callIX:

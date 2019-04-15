@@ -14,14 +14,17 @@
 ; hexadecimal form, without prefix or suffix.
 
 ; *** DEFINES ***
-; SHELL_GETC: Macro that calls a GetC routine
-; SHELL_PUTC: Macro that calls a PutC routine
+; SHELL_GETC: Macro that calls a GetC routine for tty interface
+; SHELL_PUTC: Macro that calls a PutC routine for tty interface
+; SHELL_IO_GETC: Macro that calls a GetC routine for I/O ("load" cmd)
+; SHELL_EXTRA_CMD_COUNT: Number of extra cmds to be expected after the regular
+;                        ones. See comment in COMMANDS section for details.
 ; SHELL_RAMSTART
 
 ; *** CONSTS ***
 
 ; number of entries in shellCmdTbl
-SHELL_CMD_COUNT	.equ	4
+SHELL_CMD_COUNT	.equ	4+SHELL_EXTRA_CMD_COUNT
 
 ; maximum number of bytes to receive as args in all commands. Determines the
 ; size of the args variable.
@@ -143,6 +146,7 @@ shellParse:
 	call	strncmp
 	pop	de
 	jr	z, .found
+	inc	de
 	inc	de
 	djnz	.loop
 
@@ -313,7 +317,12 @@ shellParseArgs:
 ;
 ; When these commands are called, HL points to the first byte of the
 ; parsed command args.
-
+;
+; Extra commands: Other parts might define new commands. You can add these
+;                 commands to your shell. First, set SHELL_EXTRA_CMD_COUNT to
+;                 the number of extra commands to add, then add a ".dw"
+;                 directive *just* after your '#include "shell.asm"'. Voila!
+;
 
 ; Set memory pointer to the specified address (word).
 ; Example: seek 01fe
@@ -388,9 +397,9 @@ shellPeek:
 	ret
 
 ; Load the specified number of bytes (max 0xff) from IO and write them in the
-; current memory pointer (which doesn't change). For now, we can only load from
-; SHELL_GETC, but a method of selecting IO sources is coming, making this
-; command much more useful.
+; current memory pointer (which doesn't change). This gets chars from
+; SHELL_IO_GETC, which can be different from SHELL_GETC. Coupled with the
+; "blockdev" part, this allows you to dynamically select your IO source.
 ; Control is returned to the shell only after all bytes are read.
 ;
 ; Example: load 42
@@ -404,7 +413,7 @@ shellLoad:
 	ld	a, (hl)
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
-.loop:  SHELL_GETC
+.loop:  SHELL_IO_GETC
 	ld	(hl), a
 	inc	hl
 	djnz	.loop
@@ -455,6 +464,8 @@ shellCall:
 	pop	af
 	ret
 
+; This table is at the very end of the file on purpose. The idea is to be able
+; to graft extra commands easily after an include in the glue file.
 shellCmdTbl:
 	.dw shellSeekCmd, shellPeekCmd, shellLoadCmd, shellCallCmd
 
