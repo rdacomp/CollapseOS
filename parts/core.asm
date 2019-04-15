@@ -18,6 +18,15 @@ addDE:
 	ld	e, a
 	ret
 
+; add the value of A into HL
+addHL:
+	add	a, l
+	jr	nc, .end	; no carry? skip inc
+	inc	h
+.end:
+	ld	l, a
+	ret
+
 ; jump to the location pointed to by IX. This allows us to call IX instead of
 ; just jumping it. We use IX because we never use this for arguments.
 callIX:
@@ -108,11 +117,11 @@ parseHex:
 ; Parses 2 characters of the string pointed to by HL and returns the numerical
 ; value in A. If the second character is a "special" character (<0x21) we don't
 ; error out: the result will be the one from the first char only.
+; HL is set to point to the last char of the pair.
 ;
 ; On success, the carry flag is reset. On error, it is set.
 parseHexPair:
 	push	bc
-	push	hl
 
 	ld	a, (hl)
 	call	parseHex
@@ -135,34 +144,10 @@ parseHexPair:
 	ld	a, b
 	and	a, 0xf0
 	rra \ rra \ rra \ rra
+	dec	hl
 
 .end:
-	pop	hl
 	pop	bc
-	ret
-
-; Parse a series of A hex pairs from (HL) and put the result in (DE)
-parseHexChain:
-	push	af
-	push	bc
-	push	de
-	push	hl
-
-	ld	b, a
-.loop:
-	call	parseHexPair
-	jr	c, .end		; error?
-	ld	(de), a
-	inc	hl
-	inc	hl
-	inc	de
-	djnz	.loop
-
-.end:
-	pop	hl
-	pop	de
-	pop	bc
-	pop	af
 	ret
 
 ; print null-terminated string pointed to by HL
@@ -230,21 +215,6 @@ strncmp:
 	; Because we don't call anything else than CP that modify the Z flag,
 	; our Z value will be that of the last cp (reset if we broke the loop
 	; early, set otherwise)
-	ret
-
-; Swap the two bytes at (HL)
-swapBytes:
-	push	af
-	ld	a, (hl)
-	ex	af, af'
-	inc	hl
-	ld	a, (hl)
-	ex	af, af'
-	ld	(hl), a
-	dec	hl
-	ex	af, af'
-	ld	(hl), a
-	pop	af
 	ret
 
 ; Transforms the character in A, if it's in the a-z range, into its upcase

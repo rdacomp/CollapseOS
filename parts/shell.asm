@@ -23,6 +23,10 @@
 ; number of entries in shellCmdTbl
 SHELL_CMD_COUNT	.equ	4
 
+; maximum number of bytes to receive as args in all commands. Determines the
+; size of the args variable.
+SHELL_CMD_ARGS_MAXSIZE	.equ	3
+
 ; The command that was type isn't known to the shell
 SHELL_ERR_UNKNOWN_CMD	.equ	0x01
 
@@ -34,16 +38,20 @@ SHELL_ERR_BAD_ARGS	.equ	0x02
 SHELL_BUFSIZE		.equ	0x20
 
 ; *** VARIABLES ***
-; Memory address that the shell is currently "pointing at" for peek and deek
+; Memory address that the shell is currently "pointing at" for peek, load, call
 ; operations. Set with seek.
 SHELL_MEM_PTR	.equ	SHELL_RAMSTART
 ; Used to store formatted hex values just before printing it.
 SHELL_HEX_FMT	.equ	SHELL_MEM_PTR+2
 
+; Places where we store arguments specifiers and where resulting values are
+; written to after parsing.
+SHELL_CMD_ARGS	.equ	SHELL_HEX_FMT+2
+
 ; Command buffer. We read types chars into this buffer until return is pressed
 ; This buffer is null-terminated and we don't keep an index around: we look
 ; for the null-termination every time we write to it. Simpler that way.
-SHELL_BUF	.equ	SHELL_HEX_FMT+2
+SHELL_BUF	.equ	SHELL_CMD_ARGS+SHELL_CMD_ARGS_MAXSIZE
 
 SHELL_RAMEND	.equ	SHELL_BUF+SHELL_BUFSIZE
 
@@ -132,7 +140,7 @@ shellParse:
 	ld	a, 4		; 4 chars to compare
 	call	strncmp
 	jr	z, .found
-	ld	a, 7
+	ld	a, 7 + SHELL_CMD_ARGS_MAXSIZE
 	call	addDE
 	djnz	.loop
 
@@ -142,28 +150,31 @@ shellParse:
 	jr	.end
 
 .found:
-	; all right, we're almost ready to call the cmd. Let's just have DE
-	; point to the cmd jump line.
+	; we found our command. Now, let's parse our args.
 	ld	a, 4
+	call	addHL
+	; Now, let's have DE point to the argspecs
+	ld	a, 4
+	call	addDE
+	; We're ready to parse args
+	call	shellParseArgs
+	cp	0
+	jr	nz, .parseerror
+
+	ld	hl, SHELL_CMD_ARGS
+	; Args parsed, now we can load the routine address and call it.
+	; let's have DE point to the jump line
+	ld	a, SHELL_CMD_ARGS_MAXSIZE
 	call	addDE
 	ld	ixh, d
 	ld	ixl, e
-	; Now, let's swap HL and DE because, well because that's how we're set.
-	ex	hl, de	; DE = cmd str pointer
-
-	; Before we call our command, we want to set up the pointer to the arg
-	; list. Normally, it's DE+5 (DE+4 is the space) unless DE+4 is null,
-	; which means no arg.
-	ld	a, 4
-	call	addDE
-	ld	a, (DE)
-	cp	0
-	jr	z, .noarg	; char is null? we have no arg
-	inc	de
-.noarg:
-	; DE points to args, IX points to jump line. Ready to roll!
+	; Ready to roll!
 	call	callIX
+	jr	.end
 
+.parseerror:
+	ld	a, SHELL_ERR_BAD_ARGS
+	call	shellPrintErr
 .end:
 	pop	ix
 	pop	hl
@@ -193,9 +204,99 @@ shellPrintErr:
 .str:
 	.db	"ERR ", 0
 
+; Parse arguments at (HL) with specifiers at (DE) into (SHELL_CMD_ARGS).
+; (HL) should point to the character *just* after the name of the command
+; because we verify, in the case that we have args, that we have a space there.
+;
+; Args specifiers are a series of flag for each arg:
+; Bit 0 - arg present: if unset, we stop parsing there
+; Bit 1 - is word: this arg is a word rather than a byte. Because our
+;                  destination are bytes anyway, this doesn't change much except
+;                  for whether we expect a space between the hex pairs. If set,
+;                  you still need to have a specifier for the second part of
+;                  the multibyte.
+; Bit 2 - optional: If set and not present during parsing, we don't error out
+;		    and write zero
+;
+; Sets A to nonzero if there was an error during parsing, zero otherwise.
+; If there was an error during parsing, carry is set.
+shellParseArgs:
+	push	bc
+	push	de
+	push	hl
+	push	ix
+
+	ld	ix, SHELL_CMD_ARGS
+	ld	a, SHELL_CMD_ARGS_MAXSIZE
+	ld	b, a
+	xor	c
+.loop:
+	; init the arg value to a default 0
+	xor	a
+	ld	(ix), a
+
+	ld	a, (hl)
+	; is this the end of the line?
+	cp	0
+	jr	z, .endofargs
+
+	; do we have a proper space char?
+	cp	' '
+	jr	z, .hasspace	; We're fine
+
+	; is our previous arg a multibyte? (argspec still in C)
+	bit	1, c
+	jr	z, .error	; bit not set? error
+	dec	hl		; offset the "inc hl" below
+
+.hasspace:
+	; Get the specs
+	ld	a, (de)
+	bit	0, a		; do we have an arg?
+	jr	z, .error	; not set? then we have too many args
+	ld	c, a		; save the specs for the next loop
+	inc	hl		; (hl) points to a space, go next
+	call	parseHexPair
+	jr	c, .error
+	; we have a good arg and we need to write A in (IX).
+	ld	(ix), a
+
+	; Good! increase counters
+	inc	de
+	inc	ix
+	inc	hl		; get to following char (generally a space)
+	djnz	.loop
+	; If we get here, it means that our next char *has* to be a null char
+	ld	a, (hl)
+	cp	0
+	jr	z, .success	; zero? great!
+	jr	.error
+
+.endofargs:
+	; We encountered our null char. Let's verify that we either have no
+	; more args or that they are optional
+	ld	a, (de)
+	cp	0
+	jr	z, .success	; no arg? success
+	bit	2, a
+	jr	nz, .success	; if set, arg is optional. success
+	jr	.error
+
+.success:
+	xor	a
+	jr	.end
+.error:
+	inc	a
+.end:
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	ret
+
 ; *** COMMANDS ***
-; When these commands are called, DE points to the first character of the
-; command args.
+; When these commands are called, HL points to the first byte of the
+; parsed command args.
 
 ; Set memory pointer to the specified address (word).
 ; Example: seek 01fe
@@ -205,35 +306,26 @@ shellSeek:
 	push	de
 	push	hl
 
-	ex	de, hl
-	ld	de, SHELL_MEM_PTR
-	ld	a, 2
-	call	parseHexChain
-	jr	c, .error
 	; z80 is little endian. in a "ld hl, (nn)" op, L is loaded from the
-	; first byte, H is loaded from the second. We have to swap our result.
-	ld	hl, SHELL_MEM_PTR
-	call	swapBytes
-	jr	.success
+	; first byte, H is loaded from the second.
+	ld	a, (hl)
+	ld	(SHELL_MEM_PTR+1), a
+	inc	hl
+	ld	a, (hl)
+	ld	(SHELL_MEM_PTR), a
 
-.error:
-	ld	a, SHELL_ERR_BAD_ARGS
-	call	shellPrintErr
-	jr	.end
-
-.success:
-	ld	a, (SHELL_MEM_PTR+1)
+	ld	de, (SHELL_MEM_PTR)
 	ld	hl, SHELL_HEX_FMT
+	ld	a, d
 	call	fmtHexPair
 	ld	a, 2
 	call	printnstr
-	ld	a, (SHELL_MEM_PTR)
+	ld	a, e
 	call	fmtHexPair
 	ld	a, 2
 	call	printnstr
 	call	printcrlf
 
-.end:
 	pop	hl
 	pop	de
 	pop	af
@@ -250,25 +342,12 @@ shellPeek:
 	push	de
 	push	hl
 
-	ld	b, 1		; by default, we run the loop once
-	ld	a, (de)
+	ld	a, (hl)
 	cp	0
-	jr	z, .success	; no arg? don't try to parse
-
-	ex	de, hl
-	call	parseHexPair
-	jr	c, .error
-	cp	0
-	jr	z, .error	; zero isn't a good arg, error
-	ld	b, a		; loop the number of times specified in arg
-	jr	.success
-
-.error:
-	ld	a, SHELL_ERR_BAD_ARGS
-	call	shellPrintErr
-	jr	.end
-
-.success:
+	jr	nz, .arg1isset	; if arg1 is set, no need for a default
+	ld	a, 1		; default for arg1
+.arg1isset:
+	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
 .loop:	ld	a, (hl)
 	ex	hl, de
@@ -300,17 +379,7 @@ shellLoad:
 	push	bc
 	push	hl
 
-	ld	a, (de)
-	call	parseHex
-	jr	c, .error
-	jr	.success
-
-.error:
-	ld	a, SHELL_ERR_BAD_ARGS
-	call	shellPrintErr
-	jr	.end
-
-.success:
+	ld	a, (hl)
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
 .loop:  SHELL_GETC
@@ -330,80 +399,47 @@ shellLoad:
 ; Example: run 42 cafe
 shellCall:
 	push	af
-	push	de
 	push	hl
+	push	ix
 
-	ld	a, (de)
-	cp	0
-	jr	z, .defA	; no arg? don't try to parse
-	call	parseHex
-	jr	c, .error
-	; We have a proper A arg, in A. We push it for later use, just before
-	; the actual call.
-	push	af
-
-	; Let's try DE parsing now
-	inc	de
-	inc	de
-	ld	a, (de)
-	cp	0
-	jr	z, .defDE	; no arg? don't try to parse
-	inc	de		; we're on a space (maybe...) we parse the
-				; next char
-	ex	hl, de		; we need HL to point to our hex str for
-				; parseHexChain
-	; We need a tmp 2 bytes space for our result. Let's use SHELL_HEX_FMT.
-	ld	de, SHELL_HEX_FMT
-	ld	a, 2
-	call	parseHexChain
-	jr	c, .error
-	ex	hl, de		; result is in DE, we need it in HL
-	call	swapBytes
-	; Alright, we have a proper address in (SHELL_HEX_FMT), let's push it
-	; to the stack
-	ld	hl, (SHELL_HEX_FMT)
-	push	hl
-	jr	.success
-
-.error:
-	ld	a, SHELL_ERR_BAD_ARGS
-	call	shellPrintErr
-	jr	.end
-
-.defA:
-	xor	a
-	push	af
-.defDE:
-	ld	hl, 0
-	push	hl
-.success:
 	; Let's recap here. At this point, we have:
 	; 1. The address we want to execute in (SHELL_MEM_PTR)
-	; 2. our HL arg on top of the stack
-	; 3. our A arg underneath.
+	; 2. our A arg as the first byte of (HL)
+	; 2. our HL arg as (HL+1) and (HL+2)
 	; Ready, set, go!
 	ld	a, (SHELL_MEM_PTR)
 	ld	ixl, a
 	ld	a, (SHELL_MEM_PTR+1)
 	ld	ixh, a
-	pop	hl
-	pop	af
+	ld	a, (hl)
+	ex	af, af'
+	inc	hl
+	ld	a, (hl)
+	exx
+	ld	h, a
+	exx
+	inc	hl
+	ld	a, (hl)
+	exx
+	ld	l, a
+	ex	af, af'
 	call	callIX
 
 .end:
+	pop	ix
 	pop	hl
-	pop	de
 	pop	af
 	ret
 
-; Format: 4 bytes name followed by 3 bytes jump. fill names with zeroes
+; Format: 4 bytes name followed by SHELL_CMD_ARGS_MAXSIZE bytes specifiers,
+;         followed by 3 bytes jump. fill names with zeroes
 shellCmdTbl:
-	.db	"seek"
+	.db	"seek", 0b011, 0b001, 0
 	jp	shellSeek
-	.db	"peek"
+	.db	"peek", 0b101, 0, 0
 	jp	shellPeek
-	.db	"load"
+	.db	"load", 0b001, 0, 0
 	jp	shellLoad
-	.db	"call"
+	.db	"call", 0b101, 0b111, 0b001
 	jp	shellCall
 
