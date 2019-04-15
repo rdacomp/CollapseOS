@@ -104,13 +104,17 @@ There's very little done so far, but here's how it's organized:
 * `parts`: Pieces of code to be assembled by the user into an OS.
 * `recipes`: collection of recipes that assemble parts together on a specific
              machine.
+* `doc`: User guide for when you've successfully installed Collapse OS.
 
 Each folder has a README with more details.
 
 ## Roadmap
 
-I'm still fiddling with things, honing my skills and knowledge, so the
-project's roadmap is still hazy.
+The project is progressing well and I already have a working shell (see `doc`
+to see what it can do) on a classic RC2014.
+
+However, such a vast project involves quite a lot of fiddling and I can't really
+have a precise roadmap, only a general direction:
 
 The primary target for Collapse OS is the z80 architecture. There's a good
 amount of great z80-related hacks all around the internet, and the z80 CPU is
