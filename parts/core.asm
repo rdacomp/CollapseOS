@@ -18,6 +18,20 @@ addDE:
 	ld	e, a
 	ret
 
+; copy (DE) into DE, little endian style (addresses in z80 are always have
+; their LSB before their MSB)
+intoDE:
+	push	af
+	ld	a, (de)
+	inc	de
+	ex	af, af'
+	ld	a, (de)
+	ld	d, a
+	ex	af, af'
+	ld	e, a
+	pop	af
+	ret
+
 ; add the value of A into HL
 addHL:
 	add	a, l

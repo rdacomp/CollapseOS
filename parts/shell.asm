@@ -137,11 +137,13 @@ shellParse:
 	ld	b, a
 
 .loop:
+	push	de		; we need to keep that table entry around...
+	call	intoDE		; Jump from the table entry to the cmd addr.
 	ld	a, 4		; 4 chars to compare
 	call	strncmp
+	pop	de
 	jr	z, .found
-	ld	a, 7 + SHELL_CMD_ARGS_MAXSIZE
-	call	addDE
+	inc	de
 	djnz	.loop
 
 	; exhausted loop? not found
@@ -150,12 +152,18 @@ shellParse:
 	jr	.end
 
 .found:
-	; we found our command. Now, let's parse our args.
+	; we found our command. DE points to its table entry. Now, let's parse
+	; our args.
+	call	intoDE		; Jump from the table entry to the cmd addr.
+
+	; advance the HL pointer to the beginning of the args.
 	ld	a, 4
 	call	addHL
+
 	; Now, let's have DE point to the argspecs
 	ld	a, 4
 	call	addDE
+
 	; We're ready to parse args
 	call	shellParseArgs
 	cp	0
@@ -295,12 +303,22 @@ shellParseArgs:
 	ret
 
 ; *** COMMANDS ***
+; A command is a 4 char names, followed by a SHELL_CMD_ARGS_MAXSIZE bytes of
+; argument specs, followed by the routine. Then, a simple table of addresses
+; is compiled in a block and this is what is iterated upon when we want all
+; available commands.
+;
+; Format: 4 bytes name followed by SHELL_CMD_ARGS_MAXSIZE bytes specifiers,
+;         followed by 3 bytes jump. fill names with zeroes
+;
 ; When these commands are called, HL points to the first byte of the
 ; parsed command args.
 
+
 ; Set memory pointer to the specified address (word).
 ; Example: seek 01fe
-
+shellSeekCmd:
+	.db	"seek", 0b011, 0b001, 0
 shellSeek:
 	push	af
 	push	de
@@ -336,6 +354,8 @@ shellSeek:
 ; optional numerical byte arg is supplied, this number of bytes will be printed
 ;
 ; Example: peek 2 (will print 2 bytes)
+shellPeekCmd:
+	.db	"peek", 0b101, 0, 0
 shellPeek:
 	push	af
 	push	bc
@@ -374,6 +394,8 @@ shellPeek:
 ; Control is returned to the shell only after all bytes are read.
 ;
 ; Example: load 42
+shellLoadCmd:
+	.db	"load", 0b001, 0, 0
 shellLoad:
 	push	af
 	push	bc
@@ -397,6 +419,8 @@ shellLoad:
 ; parameters, A and HL. The first one is a byte, the second, a word. These are
 ; the values that A and HL are going to be set to just before calling.
 ; Example: run 42 cafe
+shellCallCmd:
+	.db	"call", 0b101, 0b111, 0b001
 shellCall:
 	push	af
 	push	hl
@@ -431,15 +455,6 @@ shellCall:
 	pop	af
 	ret
 
-; Format: 4 bytes name followed by SHELL_CMD_ARGS_MAXSIZE bytes specifiers,
-;         followed by 3 bytes jump. fill names with zeroes
 shellCmdTbl:
-	.db	"seek", 0b011, 0b001, 0
-	jp	shellSeek
-	.db	"peek", 0b101, 0, 0
-	jp	shellPeek
-	.db	"load", 0b001, 0, 0
-	jp	shellLoad
-	.db	"call", 0b101, 0b111, 0b001
-	jp	shellCall
+	.dw shellSeekCmd, shellPeekCmd, shellLoadCmd, shellCallCmd
 
