@@ -20,7 +20,7 @@ increase a number at memory address `0xa100`. First, compile it:
 
 Now, we'll send that code to address `0xa000`:
 
-    > seek a000
+    > mptr a000
     A000
     > load 8 (resulting binary is 8 bytes long)
 
@@ -41,17 +41,17 @@ transfer was successful with:
 Good! Now, we can try to run it. Before we run it, let's peek at the value at
 `0xa100` (being RAM, it's random):
 
-    > seek a100
+    > mptr a100
     A100
     > peek
     61
 
 So, we'll expect this to become `62` after we run the code. Let's go:
 
-    > seek a000
+    > mptr a000
     A000
     > call 00 0000
-    > seek a100
+    > mptr a100
     A100
     > peek
     62

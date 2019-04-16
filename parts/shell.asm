@@ -42,7 +42,7 @@ SHELL_BUFSIZE		.equ	0x20
 
 ; *** VARIABLES ***
 ; Memory address that the shell is currently "pointing at" for peek, load, call
-; operations. Set with seek.
+; operations. Set with mptr.
 SHELL_MEM_PTR	.equ	SHELL_RAMSTART
 ; Used to store formatted hex values just before printing it.
 SHELL_HEX_FMT	.equ	SHELL_MEM_PTR+2
@@ -330,10 +330,10 @@ shellParseArgs:
 ;
 
 ; Set memory pointer to the specified address (word).
-; Example: seek 01fe
-shellSeekCmd:
-	.db	"seek", 0b011, 0b001, 0
-shellSeek:
+; Example: mptr 01fe
+shellMptrCmd:
+	.db	"mptr", 0b011, 0b001, 0
+shellMptr:
 	push	de
 	push	hl
 
@@ -468,5 +468,5 @@ shellCall:
 ; This table is at the very end of the file on purpose. The idea is to be able
 ; to graft extra commands easily after an include in the glue file.
 shellCmdTbl:
-	.dw shellSeekCmd, shellPeekCmd, shellLoadCmd, shellCallCmd
+	.dw shellMptrCmd, shellPeekCmd, shellLoadCmd, shellCallCmd
 

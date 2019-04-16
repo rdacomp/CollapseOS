@@ -17,7 +17,7 @@ numerical arguments have to be typed in hexadecimal form, without prefix or
 suffix. Lowercase is fine. Single digit is fine for byte (not word) arguments
 smaller than `0x10`. Example calls:
 
-    seek 01ff
+    mptr 01ff
     peek 4
     load 1f
     call 00 0123
@@ -33,14 +33,14 @@ table describes those codes:
 | `02` | Badly formatted arguments |
 | `03` | Out of bounds             |
 
-## seek
+## mptr
 
 The shell has a global memory pointer (let's call it `memptr`) that is used by
 other commands. This pointer is 2 bytes long and starts at `0x0000`. To move
-it, you use the seek command with the new pointer position. The command
+it, you use the mptr command with the new pointer position. The command
 prints out the new `memptr` (just to confirm that it has run). Example:
 
-    > seek 42ff
+    > mptr 42ff
     42FF
 
 ## peek
@@ -49,7 +49,7 @@ Read memory targeted by `memptr` and prints its contents in hexadecimal form.
 This command takes one byte argument (optional, default to 1), the number of
 bytes we want to read. Example:
 
-    > seek 0040
+    > mptr 0040
     0040
     > peek 2
     ED56
@@ -83,11 +83,11 @@ return if you don't want to break your system.
 The following example works in the case where you've made yourself a jump table
 in your glue code a `jp printstr` at `0x0004`:
 
-    > seek a000
+    > mptr a000
     A000
     > load 6
     Hello\0 (you can send a null char through a terminal with CTRL+@)
-    > seek 0004
+    > mptr 0004
     0004
     > call 00 a000
     Hello> 
