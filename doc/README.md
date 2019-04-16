@@ -3,6 +3,7 @@
 ## Assembly guide
 
 * [Writing the glue code](glue-code.md)
+* [Running Collapse OS on an emulated RC2014](emulate.md)
 
 ## User guide
 
