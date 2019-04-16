@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "libz80/z80.h"
-#include "wrapper.h"
+#include "kernel.h"
 #include "zasm.h"
 
 /* zasm is a "pure memory" application. It starts up being told memory location
@@ -12,9 +12,10 @@
  * spit the contents of the dest memory to stdout.
  */
 
-// in sync with wrapper.asm
-#define READFROM 0x9000
-#define WRITETO 0xc000
+// in sync with glue.asm
+#define READFROM 0xa000
+#define WRITETO 0xd000
+#define ZASM_CODE_OFFSET 0x8000
 
 static Z80Context cpu;
 static uint8_t mem[0xffff];
@@ -48,13 +49,11 @@ static void mem_write(int unused, uint16_t addr, uint8_t val)
 int main()
 {
     // initialize memory
-    int wrapperlen = sizeof(WRAPPER);
-    for (int i=0; i<wrapperlen; i++) {
-        mem[i] = WRAPPER[i];
+    for (int i=0; i<sizeof(KERNEL); i++) {
+        mem[i] = KERNEL[i];
     }
-    int zasm = sizeof(ZASM);
-    for (int i=0; i<zasm; i++) {
-        mem[i+wrapperlen] = ZASM[i];
+    for (int i=0; i<sizeof(ZASM); i++) {
+        mem[i+ZASM_CODE_OFFSET] = ZASM[i];
     }
     int ptr = READFROM;
     int c = getchar();
