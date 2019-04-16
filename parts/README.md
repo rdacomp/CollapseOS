@@ -49,4 +49,5 @@ addresses are known at compile time and thus can be consts (maybe at the cost
 of an extra pass though)). I went for macros instead, but that doesn't mean
 that the z80 assembler will need to support macros. It just need to support
 labels-as-consts.
+
 [scas]: https://github.com/KnightOS/scas

@@ -78,24 +78,21 @@ enough to steadily improve your technological situation, build more
 sophisticated machines from more sophisticated scavenged parts and, who knows,
 in a couple of decades, build a new IC fab (or bring an old one back to life).
 
-## Futile?
+## Status
 
-For now, this is nothing more than an idea, and a fragile one. This project is
-only relevant if the collapse is of a specific magnitude. A weak-enough
-collapse and it's useless (just a few fabs that close down, a few wars here and
-there, hunger, disease, but people are nevertheless able to maintain current
-technology levels). A big enough collapse and it's even more useless (who needs
-microcontrollers when you're running away from cannibals).
+The project is progressing well and I already have a working shell (see `doc`
+to see what it can do) on a classic RC2014. Highlights:
 
-But if the collapse magnitude is right, then this project will change the
-course of our history, which makes it worth trying.
-
-This idea is also fragile because it might not be feasible. It's also difficult
-to predict post-collapse conditions, so the "self-contained" part might fail
-and prove useless to many post-collapse communities.
-
-But nevertheless, this idea seems too powerful to not try it. And even if it
-proves futile, it sounds like a lot of fun to try.
+* Extremely flexible: this is not an OS, but a meta OS. You build your own OS
+  through glue code.
+* 1K binary (but size vary wildly depending on what parts you include. 1K is for
+  a shell using all parts)
+* Built with minimal tooling: only [scas][scas] is needed
+* Can read and write to memory through shell
+* Can run arbitrary routine from arbitrary address with arbitrary arguments
+  from shell.
+* Can "upload" code from serial link into memory and execute it.
+* Can manage multiple "block devices"
 
 ## Organisation of this repository
 
@@ -110,11 +107,8 @@ Each folder has a README with more details.
 
 ## Roadmap
 
-The project is progressing well and I already have a working shell (see `doc`
-to see what it can do) on a classic RC2014.
-
-However, such a vast project involves quite a lot of fiddling and I can't really
-have a precise roadmap, only a general direction:
+Such a vast project involves quite a lot of fiddling and I can't really have a
+precise roadmap, only a general direction:
 
 The primary target for Collapse OS is the z80 architecture. There's a good
 amount of great z80-related hacks all around the internet, and the z80 CPU is
@@ -143,7 +137,28 @@ have complete "post-collapse" recipes, we can call it a win.
 If you're interested in being part of this project, I have no idea how to
 include you, but please, let me know, we'll manage something.
 
-## 32-bit? 16-bit?
+## Open questions
+
+### Futile?
+
+For now, this is nothing more than an idea, and a fragile one. This project is
+only relevant if the collapse is of a specific magnitude. A weak-enough
+collapse and it's useless (just a few fabs that close down, a few wars here and
+there, hunger, disease, but people are nevertheless able to maintain current
+technology levels). A big enough collapse and it's even more useless (who needs
+microcontrollers when you're running away from cannibals).
+
+But if the collapse magnitude is right, then this project will change the
+course of our history, which makes it worth trying.
+
+This idea is also fragile because it might not be feasible. It's also difficult
+to predict post-collapse conditions, so the "self-contained" part might fail
+and prove useless to many post-collapse communities.
+
+But nevertheless, this idea seems too powerful to not try it. And even if it
+proves futile, it sounds like a lot of fun to try.
+
+### 32-bit? 16-bit?
 
 Why go as far as 8-bit machines? There are some 32-bit ARM chips around that
 are protoboard-friendly.
@@ -160,7 +175,7 @@ programming an ARM or RISC-V chip.
 
 That being said, the MSP430 seems like a really nice and widely used chip...
 
-## Prior art
+### Prior art
 
 I've spent some time doing software archeology and see if something that was
 already made could be used. There are some really nice and well-made programs
@@ -179,7 +194,7 @@ source.
 Nah, maybe I'm working needlessly, but I'll start from scratch. But if someone
 has a hint about useful prior art, please let me know.
 
-## Risking ridicule
+### Risking ridicule
 
 Why publish this hazy roadmap now and risk ridicule? Because I'm confident
 enough that I want to pour significant efforts into this in the next few years
@@ -192,3 +207,4 @@ sound more or less crazy to you than what you've been reading in this text so
 far?), I will probably need help to pull this off.
 
 [searle]: http://searle.hostei.com/grant/z80/SimpleZ80.html
+[scas]: https://github.com/KnightOS/scas
