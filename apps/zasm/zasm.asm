@@ -5,9 +5,9 @@ ld	b, 0
 ld	c, a	; written bytes
 ret
 
-; Sets Z is A is ' ', CR, LF, or null.
-isSep:
-	cp	' '
+; Sets Z is A is ';', CR, LF, or null.
+isLineEnd:
+	cp	';'
 	ret	z
 	cp	0
 	ret	z
@@ -16,17 +16,28 @@ isSep:
 	cp	0x0a
 	ret
 
-; read word in (HL) and put it in curWord, null terminated. A is the read
-; length.
+; Sets Z is A is ' ' or ','
+isSep:
+	cp	' '
+	ret	z
+	cp	','
+	ret
+
+; Sets Z is A is ' ', ',', ';', CR, LF, or null.
+isSepOrLineEnd:
+	call	isSep
+	ret	z
+	call	isLineEnd
+	ret
+
+; read word in (HL) and put it in (DE), null terminated. A is the read
+; length. HL is advanced to the next separator char.
 readWord:
 	push	bc
-	push	de
-	push	hl
-	ld	de, curWord
 	ld	b, 4
 .loop:
 	ld	a, (hl)
-	call	isSep
+	call	isSepOrLineEnd
 	jr	z, .success
 	call	JUMP_UPCASE
 	ld	(de), a
@@ -43,25 +54,93 @@ readWord:
 	xor	a
 	ld	(de), a
 .end:
-	pop	hl
-	pop	de
 	pop	bc
+	ret
+
+; (HL) being a string, advance it to the next non-sep character.
+; Set Z if we could do it before the line ended, reset Z if we couldn't.
+toWord:
+.loop:
+	ld	a, (hl)
+	call	isLineEnd
+	jr	z, .error
+	call	isSep
+	jr	nz, .success
+	inc	hl
+	jr	.loop
+.error:
+	; we need the Z flag to be unset and it is set now. Let's CP with
+	; something it can't be equal to, something not a line end.
+	cp	'a'	; Z flag unset
+	ret
+.success:
+	; We need the Z flag to be set and it is unset. Let's compare it with
+	; itself to return a set Z
+	cp	a
+	ret
+
+
+readLine:
+	push	de
+	xor	a
+	ld	(curWord), a
+	ld	(curArg1), a
+	ld	(curArg2), a
+	ld	de, curWord
+	call	readWord
+	call	toWord
+	jr	nz, .end
+	ld	de, curArg1
+	call	readWord
+	call	toWord
+	jr	nz, .end
+	ld	de, curArg2
+	call	readWord
+.end:
+	pop	de
+	ret
+
+; match argument string at (HL) with argspec A.
+; Set Z/NZ on match
+matchArg:
+	cp	0
+	jr	z, .matchnone
+	; Z is unset. TODO: implement rest
+	jr	.end
+.matchnone:
+	ld	a, (hl)
+	cp	0	; arg must be null to match
+.end:
 	ret
 
 ; Compare primary row at (DE) with string at curWord. Sets Z flag if there's a
 ; match, reset if not.
 matchPrimaryRow:
 	push	hl
+	push	ix
 	ld	hl, curWord
 	ld	a, 4
 	call	JUMP_STRNCMP
+	jr	nz, .end
+	; name matches, let's see the rest
+	ld	ixh, d
+	ld	ixl, e
+	ld	hl, curArg1
+	ld	a, (ix+4)
+	call	matchArg
+	jr	nz, .end
+	ld	hl, curArg2
+	ld	a, (ix+5)
+	call	matchArg
+.end:
+	pop	ix
 	pop	hl
 	ret
 
 ; Parse line at (HL) and write resulting opcode(s) in (DE). Returns the number
 ; of bytes written in A.
 parseLine:
-	call	readWord
+	call	readLine
 	push	de
 	ld	de, instTBlPrimary
 .loop:
@@ -86,6 +165,30 @@ parseLine:
 	ld	(de), a
 	ld	a, 1
 	ret
+
+; In instruction metadata below, argument types arge indicated with a single
+; char mnemonic that is called "argspec". This is the table of correspondance.
+; Single letters are represented by themselves, so we don't need as much
+; metadata.
+
+argspecsSingle:
+	.db	"ABCDEHL", 0
+
+; Format: 1 byte argspec + 4 chars string
+argspecTbl:
+	.db	'h', "HL", 0, 0
+	.db	'l', "(HL)"
+	.db	'd', "DE", 0, 0
+	.db	'e', "(DE)"
+	.db	'b', "BC", 0, 0
+	.db	'c', "(BC)"
+	.db	'a', "AF", 0, 0
+	.db	'f', "AF'", 0
+	.db	'x', "(IX)"
+	.db	'y', "(IY)"
+	.db	's', "SP", 0, 0
+	.db	'p', "(SP)"
+	.db	0
 
 ; This is a list of primary instructions (single upcode) that lead to a
 ; constant (no group code to insert).
@@ -147,5 +250,9 @@ instTBlPrimary:
 ; *** Variables ***
 ; enough space for 4 chars and a null
 curWord:
+	.db	0, 0, 0, 0, 0
+curArg1:
+	.db	0, 0, 0, 0, 0
+curArg2:
 	.db	0, 0, 0, 0, 0
 
