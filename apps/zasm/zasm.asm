@@ -1,4 +1,6 @@
 ; dummy code, to test emulator
-ld	a, 0x42
-ld	(0x100), a
+ld	a, (hl)
+inc	a
+ld	(de), a
+ld	bc, 1
 ret

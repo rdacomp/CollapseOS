@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include "libz80/z80.h"
 #include "wrapper.h"
 #include "zasm.h"
@@ -10,9 +11,17 @@
  * zasm in a special wrapper, wait until we receive the stop signal, then
  * spit the contents of the dest memory to stdout.
  */
+
+// in sync with wrapper.asm
+#define READFROM 0x9000
+#define WRITETO 0xc000
+
 static Z80Context cpu;
 static uint8_t mem[0xffff];
 static int running;
+// Number of bytes written to WRITETO
+// We receive that result from an OUT (C), A call. C contains LSB, A is MSB.
+static uint16_t written;
 
 
 static uint8_t io_read(int unused, uint16_t addr)
@@ -22,8 +31,7 @@ static uint8_t io_read(int unused, uint16_t addr)
 
 static void io_write(int unused, uint16_t addr, uint8_t val)
 {
-    // zasm doesn't do any IO. If we receive any IO, it means that we're done
-    // because the wrapper told us through an "out"
+    written = (val << 8) + (addr & 0xff);
     running = 0;
 }
 
@@ -48,6 +56,13 @@ int main()
     for (int i=0; i<zasm; i++) {
         mem[i+wrapperlen] = ZASM[i];
     }
+    int ptr = READFROM;
+    int c = getchar();
+    while (c != EOF) {
+        mem[ptr] = c;
+        ptr++;
+        c = getchar();
+    }
     // Run!
     running = 1;
     Z80RESET(&cpu);
@@ -59,6 +74,9 @@ int main()
     while (running) {
         Z80Execute(&cpu);
     }
-    printf("and... %d!\n", mem[0x100]);
+
+    for (int i=0; i<written; i++) {
+        putchar(mem[WRITETO+i]);
+    }
     return 0;
 }

@@ -4,10 +4,12 @@ ld	sp, hl
 ; zasm input
 ld	hl, 0x9000
 ; zasm output
-ld	hl, 0xc000
+ld	de, 0xc000
 call	zasm
 ; signal the emulator we're done
-out	(0), a
+; BC contains the number of written bytes
+ld	a, b
+out	(c), a
 halt
 zasm:
 ; beginning of the code
