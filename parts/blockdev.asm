@@ -14,6 +14,7 @@
 
 ; *** CONSTS ***
 BLOCKDEV_ERR_OUT_OF_BOUNDS	.equ	0x03
+BLOCKDEV_ERR_UNSUPPORTED	.equ	0x04
 
 ; *** VARIABLES ***
 ; A memory pointer to a device table. A device table is a list of addresses
@@ -60,7 +61,6 @@ blkSel:
 
 blkBselCmd:
 	.db	"bsel", 0b001, 0, 0
-blkBsel:
 	ld	a, (hl)	; argument supplied
 	cp	BLOCKDEV_COUNT
 	jr	nc, .error	; if selection >= device count, error
@@ -70,6 +70,7 @@ blkBsel:
 .error:
 	ld	a, BLOCKDEV_ERR_OUT_OF_BOUNDS
 	ret
+
 
 ; In those routines below, IY is destroyed (we don't push it to the stack). We
 ; seldom use it anyways...
@@ -91,20 +92,50 @@ _blkCall:
 	ld	ixh, d
 	ld	ixl, e
 	pop	de
+	; Before we call... is it zero? We don't want to call a zero.
+	push	af
+	ld	a, ixh
+	add	a, ixl
+	jr	c, .ok		; if there's a carry, it isn't zero
+	cp	0
+	jr	z, .error	; if no carry and zero, then both numbers are
+				; zero
+.ok:
+	pop	af
 	call	callIX
+	jr	.end
+
+.error:
+	pop	af
+	ld	a, BLOCKDEV_ERR_UNSUPPORTED
+.end:
 	pop	ix
 	ret
 
-; Reads one character from blockdev ID specified at A and returns its value
-; in A. Always returns a character and waits until read if it has to.
+; Reads one character from selected device and returns its value in A. Always
+; returns a character and waits until read if it has to.
 blkGetC:
 	ld	iyl, 0
 	jr	_blkCall
 
+; Writes character in A in current position in the selected device
 blkPutC:
 	ld	iyl, 2
 	jr	_blkCall
 
+blkSeekCmd:
+	.db	"seek", 0b011, 0b001, 0
+	; HL points to two bytes that contain out address. Seek expects HL
+	; to directly contain that address.
+	ld	a, (hl)
+	ex	af, af'
+	inc	hl
+	ld	a, (hl)
+	ld	l, a
+	ex	af, af'
+	ld	h, a
+	xor	a
+; Set position of selected device to the value specified in HL
 blkSeek:
 	ld	iyl, 4
 	jr	_blkCall

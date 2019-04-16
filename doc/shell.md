@@ -32,6 +32,7 @@ table describes those codes:
 | `01` | Unknown command           |
 | `02` | Badly formatted arguments |
 | `03` | Out of bounds             |
+| `04` | Unsupported command       |
 
 ## mptr
 
