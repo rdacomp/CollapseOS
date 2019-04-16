@@ -152,8 +152,7 @@ shellParse:
 
 	; exhausted loop? not found
 	ld	a, SHELL_ERR_UNKNOWN_CMD
-	call	shellPrintErr
-	jr	.end
+	jr	.error
 
 .found:
 	; we found our command. DE points to its table entry. Now, let's parse
@@ -182,10 +181,13 @@ shellParse:
 	ld	ixl, e
 	; Ready to roll!
 	call	callIX
+	cp	0
+	jr	nz, .error	; if A is non-zero, we have an error
 	jr	.end
 
 .parseerror:
 	ld	a, SHELL_ERR_BAD_ARGS
+.error:
 	call	shellPrintErr
 .end:
 	pop	ix
@@ -318,6 +320,9 @@ shellParseArgs:
 ; When these commands are called, HL points to the first byte of the
 ; parsed command args.
 ;
+; If the command is a success, it should set A to zero. If the command results
+; in an error, it should set an error code in A.
+;
 ; Extra commands: Other parts might define new commands. You can add these
 ;                 commands to your shell. First, set SHELL_EXTRA_CMD_COUNT to
 ;                 the number of extra commands to add, then add a ".dw"
@@ -329,7 +334,6 @@ shellParseArgs:
 shellSeekCmd:
 	.db	"seek", 0b011, 0b001, 0
 shellSeek:
-	push	af
 	push	de
 	push	hl
 
@@ -355,7 +359,7 @@ shellSeek:
 
 	pop	hl
 	pop	de
-	pop	af
+	xor	a
 	ret
 
 
@@ -366,7 +370,6 @@ shellSeek:
 shellPeekCmd:
 	.db	"peek", 0b101, 0, 0
 shellPeek:
-	push	af
 	push	bc
 	push	de
 	push	hl
@@ -393,7 +396,7 @@ shellPeek:
 	pop	hl
 	pop	de
 	pop	bc
-	pop	af
+	xor	a
 	ret
 
 ; Load the specified number of bytes (max 0xff) from IO and write them in the
@@ -406,7 +409,6 @@ shellPeek:
 shellLoadCmd:
 	.db	"load", 0b001, 0, 0
 shellLoad:
-	push	af
 	push	bc
 	push	hl
 
@@ -421,7 +423,7 @@ shellLoad:
 .end:
 	pop	hl
 	pop	bc
-	pop	af
+	xor	a
 	ret
 
 ; Calls the routine where the memory pointer currently points. This can take two
@@ -431,7 +433,6 @@ shellLoad:
 shellCallCmd:
 	.db	"call", 0b101, 0b111, 0b001
 shellCall:
-	push	af
 	push	hl
 	push	ix
 
@@ -461,7 +462,7 @@ shellCall:
 .end:
 	pop	ix
 	pop	hl
-	pop	af
+	xor	a
 	ret
 
 ; This table is at the very end of the file on purpose. The idea is to be able

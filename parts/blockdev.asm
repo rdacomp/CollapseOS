@@ -13,6 +13,8 @@
 ; BLOCKDEV_COUNT: The number of devices we manage.
 
 ; *** CONSTS ***
+BLOCKDEV_ERR_OUT_OF_BOUNDS	.equ	0x03
+
 ; *** VARIABLES ***
 ; A memory pointer to a device table. A device table is a list of addresses
 ; pointing to GetC and PutC routines.
@@ -73,14 +75,14 @@ blkSel:
 blkBselCmd:
 	.db	"bsel", 0b001, 0, 0
 blkBsel:
-	ret
-	push	af
 	ld	a, (hl)	; argument supplied
 	cp	BLOCKDEV_COUNT
-	ret	nz	; if selection >= device count, don't do anything
-			; (will devise a unified cmd error system later)
+	jr	nc, .error	; if selection >= device count, error
 	call	blkSel
-	pop	af
+	xor	a
+	ret
+.error:
+	ld	a, BLOCKDEV_ERR_OUT_OF_BOUNDS
 	ret
 
 ; Reads one character from blockdev ID specified at A and returns its value
