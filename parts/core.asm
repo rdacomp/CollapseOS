@@ -176,41 +176,6 @@ parseHexPair:
 	pop	bc
 	ret
 
-; print null-terminated string pointed to by HL
-printstr:
-	push	af
-	push	hl
-
-.loop:
-	ld	a, (hl)		; load character to send
-	or	a		; is it zero?
-	jr	z, .end		; if yes, we're finished
-	call	aciaPutC
-	inc	hl
-	jr	.loop
-
-.end:
-	pop	hl
-	pop	af
-	ret
-
-; print A characters from string that HL points to
-printnstr:
-	push	bc
-	push	hl
-
-	ld	b, a
-.loop:
-	ld	a, (hl)		; load character to send
-	call	aciaPutC
-	inc	hl
-	djnz	.loop
-
-.end:
-	pop	hl
-	pop	bc
-	ret
-
 ; Compares strings pointed to by HL and DE up to A count of characters. If
 ; equal, Z is set. If not equal, Z is reset.
 strncmp:

@@ -123,6 +123,41 @@ shellLoop:
 .prompt:
 	.db	"> ", 0
 
+; print null-terminated string pointed to by HL
+printstr:
+	push	af
+	push	hl
+
+.loop:
+	ld	a, (hl)		; load character to send
+	or	a		; is it zero?
+	jr	z, .end		; if yes, we're finished
+	SHELL_PUTC
+	inc	hl
+	jr	.loop
+
+.end:
+	pop	hl
+	pop	af
+	ret
+
+; print A characters from string that HL points to
+printnstr:
+	push	bc
+	push	hl
+
+	ld	b, a
+.loop:
+	ld	a, (hl)		; load character to send
+	SHELL_PUTC
+	inc	hl
+	djnz	.loop
+
+.end:
+	pop	hl
+	pop	bc
+	ret
+
 printcrlf:
 	ld	a, ASCII_CR
 	SHELL_PUTC
