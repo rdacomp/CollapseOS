@@ -1,0 +1,3 @@
+RAMSTART	.equ	0x8000
+RAMEND		.equ	0xffff
+USER_CODE	.equ	RAMSTART

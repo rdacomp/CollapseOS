@@ -8,4 +8,4 @@ kernel.h: glue.asm
 	scas -o - $< | ./bin2c.sh KERNEL > $@
 
 zasm.h: ../zasm.asm
-	scas -o - $< | ./bin2c.sh ZASM > $@
+	scas -o - -I ./emul $< | ./bin2c.sh ZASM > $@
