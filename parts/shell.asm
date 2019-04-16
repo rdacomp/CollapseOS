@@ -127,6 +127,18 @@ printcrlf:
 	SHELL_PUTC
 	ret
 
+; Print the hex char in A
+printHex:
+	push	af
+	push	hl
+	ld	hl, SHELL_HEX_FMT
+	call	fmtHexPair
+	ld	a, 2
+	call	printnstr
+	pop	hl
+	pop	af
+	ret
+
 ; Parse command (null terminated) at HL and calls it
 shellParse:
 	push	af
@@ -204,11 +216,7 @@ shellPrintErr:
 
 	ld	hl, .str
 	call	printstr
-
-	ld	hl, SHELL_HEX_FMT
-	call	fmtHexPair
-	ld	a, 2
-	call	printnstr
+	call	printHex
 	call	printcrlf
 
 	pop	hl
@@ -334,31 +342,23 @@ shellParseArgs:
 shellMptrCmd:
 	.db	"mptr", 0b011, 0b001, 0
 shellMptr:
-	push	de
 	push	hl
 
-	; z80 is little endian. in a "ld hl, (nn)" op, L is loaded from the
-	; first byte, H is loaded from the second.
+	; reminder: z80 is little-endian
 	ld	a, (hl)
 	ld	(SHELL_MEM_PTR+1), a
 	inc	hl
 	ld	a, (hl)
 	ld	(SHELL_MEM_PTR), a
 
-	ld	de, (SHELL_MEM_PTR)
-	ld	hl, SHELL_HEX_FMT
-	ld	a, d
-	call	fmtHexPair
-	ld	a, 2
-	call	printnstr
-	ld	a, e
-	call	fmtHexPair
-	ld	a, 2
-	call	printnstr
+	ld	hl, (SHELL_MEM_PTR)
+	ld	a, h
+	call	printHex
+	ld	a, l
+	call	printHex
 	call	printcrlf
 
 	pop	hl
-	pop	de
 	xor	a
 	ret
 
@@ -382,12 +382,7 @@ shellPeek:
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
 .loop:	ld	a, (hl)
-	ex	hl, de
-	ld	hl, SHELL_HEX_FMT
-	call	fmtHexPair
-	ld	a, 2
-	call	printnstr
-	ex	hl, de
+	call	printHex
 	inc	hl
 	djnz	.loop
 	call	printcrlf
