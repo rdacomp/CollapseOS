@@ -1,10 +1,10 @@
-# User Guide
+# Collapse OS documentation
 
-This collection of document is intended to be a user guide, not assembly
-instructions. It is therefore assumed that you have a machine with Collapse OS
-properly running.
+## Assembly guide
 
-## Table of Contents
+* [Writing the glue code](glue-code.md)
+
+## User guide
 
 * [The shell](shell.md)
 * [Load code in RAM and run it](load-run-code.md)
