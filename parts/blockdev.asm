@@ -17,46 +17,31 @@ BLOCKDEV_ERR_OUT_OF_BOUNDS	.equ	0x03
 BLOCKDEV_ERR_UNSUPPORTED	.equ	0x04
 
 ; *** VARIABLES ***
-; A memory pointer to a device table. A device table is a list of addresses
-; pointing to GetC, PutC and Seek routines.
-BLOCKDEV_TBL		.equ	BLOCKDEV_RAMSTART
 ; Pointer to the selected block device. A block device is a 6 bytes block of
 ; memory with pointers to GetC, PutC and Seek routines, in that order. 0 means
 ; unsupported.
-BLOCKDEV_SEL		.equ	BLOCKDEV_TBL+(BLOCKDEV_COUNT*2)
+BLOCKDEV_SEL		.equ	BLOCKDEV_RAMSTART
 BLOCKDEV_RAMEND		.equ	BLOCKDEV_SEL+2
 
 ; *** CODE ***
-; set DE to point to the table entry at index A.
-blkFind:
-	ld	de, BLOCKDEV_TBL
+; Select block index specified in A
+blkSel:
+	push	af
+	push	hl
+	ld	hl, blkDevTbl
 	cp	0
-	ret	z	; index is zero? don't loop
+	jr	z, .afterloop	; index is zero? don't loop
 	push	bc
 	ld	b, a
 .loop:
-	inc	de
-	inc	de
+	ld	a, 6
+	call	addHL
 	djnz	.loop
 	pop	bc
-	ret
-
-; Set the pointer of device id A to the value in HL
-blkSet:
-	call	blkFind
-	call	writeHLinDE
-	ret
-
-; Select block index specified in A
-blkSel:
-	push	de
-	push	hl
-	call	blkFind
-	ld	hl, BLOCKDEV_SEL
-	ex	hl, de
-	ldi
-	pop	hl
-	pop	de
+.afterloop:
+	ld	(BLOCKDEV_SEL), hl
+	pop	Hl
+	pop	af
 	ret
 
 blkBselCmd:
@@ -140,3 +125,8 @@ blkSeek:
 	ld	iyl, 4
 	jr	_blkCall
 
+; This label is at the end of the file on purpose: the glue file should include
+; a list of device routine table entries just after the include. Each line
+; has 3 word addresses: GetC, PutC and Seek. An entry could look like:
+; .dw     mmapGetC, mmapPutC, mmapSeek
+blkDevTbl:
