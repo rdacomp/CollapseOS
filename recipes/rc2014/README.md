@@ -37,40 +37,9 @@ device I use in this recipe.
 * [GNU screen][screen]
 * A FTDI-to-TTL cable to connect to the Serial I/O module of the RC2014
 
-### Write main.asm
+### Write glue.asm
 
-This is what your glue code would look like:
-
-```
-#include "platforms/rc2014.inc"
-
-	jr	init
-
-.fill	0x38-$
-	jp	aciaInt
-
-init:
-	di
-
-	; setup stack
-	ld	hl, RAMEND
-	ld	sp, hl
-
-	im	1
-
-	call	aciaInit
-	call	shellInit
-	ei
-	call	shellLoop
-
-#include "core.asm"
-ACIA_RAMSTART	.equ	RAMSTART
-#include "acia.asm"
-SHELL_RAMSTART	.equ	ACIA_RAMEND
-.define SHELL_GETC	call aciaGetC
-.define SHELL_PUTC	call aciaPutC
-#include "shell.asm"
-```
+[This is what your glue code would look like.](glue.asm)
 
 The `platform.inc` include is there to load all platform-specific constants
 (such as `RAMSTART` and `RAMEND`).
@@ -99,7 +68,7 @@ is decoupled from the ACIA and can get its IO from anything. See
 
 We only have the shell to build, so it's rather straightforward:
 
-    scas -I /path/to/parts -o rom.bin main.asm
+    scas -I /path/to/parts -o rom.bin glue.asm
 
 ### Write to the ROM
 
