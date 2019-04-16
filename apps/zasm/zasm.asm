@@ -5,60 +5,6 @@ ld	b, 0
 ld	c, a	; written bytes
 ret
 
-; CORE COPY PASTE - TODO: call in kernel
-; Compares strings pointed to by HL and DE up to A count of characters. If
-; equal, Z is set. If not equal, Z is reset.
-strncmp:
-	push	bc
-	push	hl
-	push	de
-
-	ld	b, a
-.loop:
-	ld	a, (de)
-	cp	(hl)
-	jr	nz, .end	; not equal? break early. NZ is carried out
-				; to the called
-	cp	0		; If our chars are null, stop the cmp
-	jr	z, .end		; The positive result will be carried to the
-	                        ; caller
-	inc	hl
-	inc	de
-	djnz	.loop
-	; We went through all chars with success, but our current Z flag is
-	; unset because of the cp 0. Let's do a dummy CP to set the Z flag.
-	cp	a
-
-.end:
-	pop	de
-	pop	hl
-	pop	bc
-	; Because we don't call anything else than CP that modify the Z flag,
-	; our Z value will be that of the last cp (reset if we broke the loop
-	; early, set otherwise)
-	ret
-
-; add the value of A into DE
-addDE:
-	add	a, e
-	jr	nc, .end	; no carry? skip inc
-	inc	d
-.end:
-	ld	e, a
-	ret
-
-; Transforms the character in A, if it's in the a-z range, into its upcase
-; version.
-upcase:
-	cp	'a'
-	ret	c	; A < 'a'. nothing to do
-	cp	'z'+1
-	ret	nc	; A >= 'z'+1. nothing to do
-	; 'a' - 'A' == 0x20
-	sub	0x20
-	ret
-
-; ZASM code
 ; Sets Z is A is ' ', CR, LF, or null.
 isSep:
 	cp	' '
@@ -82,7 +28,7 @@ readWord:
 	ld	a, (hl)
 	call	isSep
 	jr	z, .success
-	call	upcase
+	call	JUMP_UPCASE
 	ld	(de), a
 	inc	hl
 	inc	de
@@ -108,7 +54,7 @@ matchPrimaryRow:
 	push	hl
 	ld	hl, curWord
 	ld	a, 4
-	call	strncmp
+	call	JUMP_STRNCMP
 	pop	hl
 	ret
 
@@ -125,7 +71,7 @@ parseLine:
 	call	matchPrimaryRow
 	jr	z, .match
 	ld	a, 7
-	call	addDE
+	call	JUMP_ADDDE
 	jr	.loop
 
 .nomatch:
@@ -134,7 +80,7 @@ parseLine:
 	ret
 .match:
 	ld	a, 6	; upcode is on 7th byte
-	call	addDE
+	call	JUMP_ADDDE
 	ld	a, (de)
 	pop	de
 	ld	(de), a

@@ -3,7 +3,12 @@
 ZASM_INPUT	.equ	0xa000
 ZASM_OUTPUT	.equ	0xd000
 
-jr	init
+jr	init	; 2 bytes
+; *** JUMP TABLE ***
+jp	strncmp
+jp	addDE
+jp	upcase
+
 init:
 	di
 	ld	hl, RAMEND
