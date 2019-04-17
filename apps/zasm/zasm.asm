@@ -1,9 +1,14 @@
 #include "user.inc"
 
 ; *** Consts ***
+; Number of rows in the "single" argspec string
 ARGSPEC_SINGLE_CNT	.equ	7
+; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	12
-INSTR_TBL_PRIMARYC_CNT	.equ	25
+; Number of rows in the primary instructions table
+INSTR_TBLP_CNT		.equ	30
+; size in bytes of each row in the primary instructions table
+INSTR_TBLP_ROWSIZE	.equ	8
 
 ; *** Code ***
 .org	USER_CODE
@@ -11,6 +16,24 @@ call	parseLine
 ld	b, 0
 ld	c, a	; written bytes
 ret
+
+unsetZ:
+	push	bc
+	ld	b, a
+	inc	b
+	cp	b
+	pop	bc
+	ret
+
+; run RLA the number of times specified in B
+rlaX:
+	; first, see if B == 0 to see if we need to bail out
+	dec	b
+	ret	c	; C flag means we went negative. nothing to do
+	inc	b
+.loop:	rla
+	djnz	.loop
+	ret
 
 ; Sets Z is A is ';', CR, LF, or null.
 isLineEnd:
@@ -95,7 +118,7 @@ readArg:
 	call	readWord
 	push	hl
 	ld	hl, tmpVal
-	call	matchArg
+	call	parseArg
 	pop	hl
 	pop	de
 	ld	(de), a
@@ -144,9 +167,10 @@ strlen:
 	ret
 
 ; find argspec for string at (HL). Returns matching argspec in A.
-; Return value 1 holds a special meaning: arg is not empty, but doesn't match
-; any argspec (A == 0 means arg is empty). A return value of 1 means an error.
-matchArg:
+; Return value 0xff holds a special meaning: arg is not empty, but doesn't match
+; any argspec (A == 0 means arg is empty). A return value of 0xff means an
+; error.
+parseArg:
 	call	strlen
 	cp	0
 	ret	z		; empty string? A already has our result: 0
@@ -174,7 +198,7 @@ matchArg:
 	djnz	.loop1
 	; exhausted? we have a problem os specifying a wrong argspec. This is
 	; an internal consistency error.
-	ld	a, 1
+	ld	a, 0xff
 	jr	.end
 .found:
 	; found the matching argspec row. Our result is one byte left of DE.
@@ -194,13 +218,90 @@ matchArg:
 	jr	.loop2
 .loop2notfound:
 	; something's wrong. error
-	ld	a, 1
+	ld	a, 0xff
 	jr	.end
 
 .end:
 	pop	hl
 	pop	de
 	pop	bc
+	ret
+
+; Returns, with Z, whether A is a groupId
+isGroupId:
+	cp	0xc	; max group id + 1
+	jr	nc, .notgroup	; >= 0xc? not a group
+	cp	0
+	jr	z, .notgroup	; 0? not supposed to happen. something's wrong.
+	; A is a group. ensure Z is set
+	cp	a
+	ret
+.notgroup:
+	call	unsetZ
+	ret
+
+; Find argspec A in group id H.
+; Set Z according to whether we found the argspec
+; If found, the value in A is the argspec value in the group (it's index).
+findInGroup:
+	push	bc
+	push	hl
+	cp	0	; is our arg empty? If yes, we have nothing to do
+	jr	z, .notfound
+
+	push	de
+	ld	de, argGrpTbl
+	; group ids start at 1. decrease it, then multiply by two to have a
+	; proper offset in argGrpTbl
+	dec	h
+	push	af
+	ld	a, h
+	add	a, a
+	call	JUMP_ADDDE	; At this point, DE points to our group
+	pop	af
+	ex	hl, de
+	pop	de
+
+	ld	bc, 4
+.loop:
+	cpi
+	jr	z, .found
+	jp	po, .notfound
+	jr	.loop
+.found:
+	; we found our result! Now, what we want to put in A is the index of
+	; the found argspec. We have this in C (4 - C + 1). The +1 is because
+	; cpi always decreases BC, whether we match or not.
+	ld	a, 3	; 4 - 1
+	sub	c
+	cp	a	; ensure Z is set
+	jr	.end
+.notfound:
+	call	unsetZ
+.end:
+	pop	hl
+	pop	bc
+	ret
+
+; Compare argspec from instruction table in A with argument in (HL).
+; For constant args, it's easy: if A == (HL), it's a success.
+; If A is a group ID, we do something else: we check that (HL) exists in the
+; groupspec (argGrpTbl)
+matchArg:
+	cp	a, (hl)
+	ret	z
+	; A bit of a delicate situation here: we want A to go in H but also
+	; (HL) to go in A. If not careful, we overwrite each other. EXX is
+	; necessary to avoid invoving other registers.
+	push	hl
+	exx
+	ld	h, a
+	push	hl
+	exx
+	ld	a, (hl)
+	pop	hl
+	call	findInGroup
+	pop	hl
 	ret
 
 ; Compare primary row at (DE) with string at curWord. Sets Z flag if there's a
@@ -215,11 +316,13 @@ matchPrimaryRow:
 	; name matches, let's see the rest
 	ld	ixh, d
 	ld	ixl, e
-	ld	a, (curArg1)
-	cp	(ix+4)
+	ld	hl, curArg1
+	ld	a, (ix+4)
+	call	matchArg
 	jr	nz, .end
-	ld	a, (curArg2)
-	cp	(ix+5)
+	ld	hl, curArg2
+	ld	a, (ix+5)
+	call	matchArg
 .end:
 	pop	ix
 	pop	hl
@@ -230,13 +333,13 @@ matchPrimaryRow:
 parseLine:
 	call	readLine
 	push	de
-	ld	de, instrTBlPrimaryC
-	ld	b, INSTR_TBL_PRIMARYC_CNT
+	ld	de, instrTBlPrimary
+	ld	b, INSTR_TBLP_CNT
 .loop:
 	ld	a, (de)
 	call	matchPrimaryRow
 	jr	z, .match
-	ld	a, 7
+	ld	a, INSTR_TBLP_ROWSIZE
 	call	JUMP_ADDDE
 	djnz	.loop
 	; no match
@@ -244,9 +347,46 @@ parseLine:
 	pop	de
 	ret
 .match:
-	ld	a, 6	; upcode is on 7th byte
-	call	JUMP_ADDDE
-	ld	a, (de)
+	; We have our matching instruction row. We're getting pretty near our
+	; goal here!
+	; First, let's go in IX mode. It's easier to deal with offsets here.
+	push	ix
+	ld	ixh, d
+	ld	ixl, e
+	; First, let's see if we're dealing with a group here
+	ld	a, (ix+4)	; first argspec
+	call	isGroupId
+	jr	nz, .notgroup
+	; A is a group, good, now let's get its value
+	push	hl
+	ld	h, a
+	ld	a, (curArg1)
+	call	findInGroup	; we don't check for match, it's supposed to
+				; always match. Something is very wrong if it
+				; doesn't
+	; Now, we have our arg "group value" in A. Were going to need to
+	; displace it left by the number of steps specified in the table.
+	push	bc
+	push	af
+	ld	a, (ix+6)	; displacement bit
+	ld	b, a
+	pop	af
+	call	rlaX
+	pop	bc
+
+	; At this point, we have a properly displaced value in A. We'll want
+	; to OR it with the opcode.
+	or	(ix+7)		; upcode
+	pop	hl
+
+	; Success!
+	jr	.end
+.notgroup:
+	; not a group? easy as pie: we return the opcode directly.
+	ld	a, (ix+7)	; upcode is on 8th byte
+.end:
+	; At the end, we have our final opcode in A!
+	pop	ix
 	pop	de
 	ld	(de), a
 	ld	a, 1
@@ -256,6 +396,10 @@ parseLine:
 ; char mnemonic that is called "argspec". This is the table of correspondance.
 ; Single letters are represented by themselves, so we don't need as much
 ; metadata.
+; Special meaning:
+; 0 : no arg
+; 1-10 : group id (see Groups section)
+; 0xff: error
 
 argspecsSingle:
 	.db	"ABCDEHL"
@@ -274,6 +418,35 @@ argspecTbl:
 	.db	'y', "(IY)"
 	.db	's', "SP", 0, 0
 	.db	'p', "(SP)"
+; we also need argspecs for the condition flags
+	.db	'Z', "Z", 0, 0, 0
+	.db	'z', "NZ",   0, 0
+	.db	'^', "C", 0, 0, 0
+	.db	'=', "NC",   0, 0
+	.db	'+', "P", 0, 0, 0
+	.db	'-', "M", 0, 0, 0
+	.db	'1', "PO",   0, 0
+	.db	'2', "PE",   0, 0
+
+; argspecs not in the list:
+; N -> NN
+; n -> (NN)
+
+; Groups
+; Groups are specified by strings of argspecs. To facilitate jumping to them,
+; we have a fixed-sized table. Because most of them are 2 or 4 bytes long, we
+; have a table that is 4 in size to minimize consumed space. We treat the two
+; groups that take 8 bytes in a special way.
+;
+; The table below is in order, starting with group 0x01
+argGrpTbl:
+	.db	"bdha"		; 0x01
+	.db	"Zz^="		; 0x02
+
+argGrpCC:
+	.db	"Zz^=+-12"	; 0xa
+argGrpABCDEHL:
+	.db	"BCDEHL_A"	; 0xb
 
 ; This is a list of primary instructions (single upcode) that lead to a
 ; constant (no group code to insert). Format:
@@ -281,33 +454,40 @@ argspecTbl:
 ; 4 bytes for the name (fill with zero)
 ; 1 byte for arg constant
 ; 1 byte for 2nd arg constant
+; 1 byte displacement for group arguments
 ; 1 byte for upcode
-instrTBlPrimaryC:
-	.db "ADD", 0, 'A', 'h', 0x86		; ADD A, HL
-	.db "CCF", 0, 0,   0,   0x3f		; CCF
-	.db "CPL", 0, 0,   0,   0x2f		; CPL
-	.db "DAA", 0, 0,   0,   0x27		; DAA
-	.db "DI",0,0, 0,   0,   0xf3		; DI
-	.db "EI",0,0, 0,   0,   0xfb		; EI
-	.db "EX",0,0, 'p', 'h', 0xe3		; EX (SP), HL
-	.db "EX",0,0, 'a', 'f', 0x08		; EX AF, AF'
-	.db "EX",0,0, 'd', 'h', 0xeb		; EX DE, HL
-	.db "EXX", 0, 0,   0,   0xd9		; EXX
-	.db "HALT",   0,   0,   0x76		; HALT
-	.db "INC", 0, 'l', 0,   0x34		; INC (HL)
-	.db "JP",0,0, 'l', 0,   0xe9		; JP (HL)
-	.db "LD",0,0, 'c', 'A', 0x02		; LD (BC), A
-	.db "LD",0,0, 'e', 'A', 0x12		; LD (DE), A
-	.db "LD",0,0, 'A', 'c', 0x0a		; LD A, (BC)
-	.db "LD",0,0, 'A', 'e', 0x0a		; LD A, (DE)
-	.db "LD",0,0, 's', 'h', 0x0a		; LD SP, HL
-	.db "NOP", 0, 0,   0,   0x00		; NOP
-	.db "RET", 0, 0,   0,   0xc9		; RET
-	.db "RLA", 0, 0,   0,   0x17		; RLA
-	.db "RLCA",   0,   0,   0x07		; RLCA
-	.db "RRA", 0, 0,   0,   0x1f		; RRA
-	.db "RRCA",   0,   0,   0x0f		; RRCA
-	.db "SCF", 0, 0,   0,   0x37		; SCF
+instrTBlPrimary:
+	.db "ADD", 0, 'A', 'h', 0, 0x86		; ADD A, HL
+	.db "AND", 0, 'l', 0,   0, 0xa6		; AND (HL)
+	.db "AND", 0, 0xa, 0,   0, 0b10100000	; AND r
+	.db "CCF", 0, 0,   0,   0, 0x3f		; CCF
+	.db "CPL", 0, 0,   0,   0, 0x2f		; CPL
+	.db "DAA", 0, 0,   0,   0, 0x27		; DAA
+	.db "DI",0,0, 0,   0,   0, 0xf3		; DI
+	.db "EI",0,0, 0,   0,   0, 0xfb		; EI
+	.db "EX",0,0, 'p', 'h', 0, 0xe3		; EX (SP), HL
+	.db "EX",0,0, 'a', 'f', 0, 0x08		; EX AF, AF'
+	.db "EX",0,0, 'd', 'h', 0, 0xeb		; EX DE, HL
+	.db "EXX", 0, 0,   0,   0, 0xd9		; EXX
+	.db "HALT",   0,   0,   0, 0x76		; HALT
+	.db "INC", 0, 'l', 0,   0, 0x34		; INC (HL)
+	.db "JP",0,0, 'l', 0,   0, 0xe9		; JP (HL)
+	.db "LD",0,0, 'c', 'A', 0, 0x02		; LD (BC), A
+	.db "LD",0,0, 'e', 'A', 0, 0x12		; LD (DE), A
+	.db "LD",0,0, 'A', 'c', 0, 0x0a		; LD A, (BC)
+	.db "LD",0,0, 'A', 'e', 0, 0x0a		; LD A, (DE)
+	.db "LD",0,0, 's', 'h', 0, 0x0a		; LD SP, HL
+	.db "NOP", 0, 0,   0,   0, 0x00		; NOP
+	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
+	.db "POP", 0, 0x1, 0,   4, 0b11000001	; POP qq
+	.db "RET", 0, 0,   0,   0, 0xc9		; RET
+	.db "RET", 0, 0xb, 0,   3, 0b11000000	; RET cc
+	.db "RLA", 0, 0,   0,   0, 0x17		; RLA
+	.db "RLCA",   0,   0,   0, 0x07		; RLCA
+	.db "RRA", 0, 0,   0,   0, 0x1f		; RRA
+	.db "RRCA",   0,   0,   0, 0x0f		; RRCA
+	.db "SCF", 0, 0,   0,   0, 0x37		; SCF
+
 
 ; *** Variables ***
 ; enough space for 4 chars and a null
