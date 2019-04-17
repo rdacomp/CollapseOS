@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	27
 ; Number of rows in the primary instructions table
-INSTR_TBLP_CNT		.equ	58
+INSTR_TBLP_CNT		.equ	64
 ; size in bytes of each row in the primary instructions table
 INSTR_TBLP_ROWSIZE	.equ	8
 
@@ -541,6 +541,7 @@ parseLine:
 	push	bc
 	push	af
 	ld	a, (ix+6)	; displacement bit
+	and	a, 0xf		; we only use the lower nibble.
 	ld	b, a
 	pop	af
 	call	rlaX
@@ -593,7 +594,15 @@ parseLine:
 	dec	hl	; HL now points to LSB
 	cp	0
 	jr	nz, .numberTruncated
-	; Clear to proceed. HL already points to our number
+	; HL points to our number
+	; one last thing to check. Is the 7th bit on the displacement value set?
+	; if yes, we have to decrease our value by 2. Uses for djnz and jr.
+	bit	7, (ix+6)
+	jr	z, .skipDecrease
+	; Yup, it's set.
+	dec	(hl)
+	dec	(hl)
+.skipDecrease:
 	inc	de
 	ldi
 	ld	a, 2
@@ -684,8 +693,14 @@ argGrpABCDEHL:
 ; 4 bytes for the name (fill with zero)
 ; 1 byte for arg constant
 ; 1 byte for 2nd arg constant
-; 1 byte displacement for group arguments
+; 1 byte displacement for group arguments + flags
 ; 1 byte for upcode
+;
+; The displacement bit is split in 2 nibbles: lower nibble is the displacement
+; value, upper nibble is for flags. There is one flag currently, on bit 7, that
+; indicates that the numerical argument is of the 'e' type and has to be
+; decreased by 2 (djnz, jr).
+
 instrTBlPrimary:
 	.db "ADD", 0, 'A', 'h', 0, 0x86		; ADD A, HL
 	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	; ADD A, r
@@ -703,6 +718,7 @@ instrTBlPrimary:
 	.db "DEC", 0, 'l', 0,   0, 0x35		; DEC (HL)
 	.db "DEC", 0, 0xb, 0,   3, 0b00000101	; DEC r
 	.db "DEC", 0, 0x3, 0,   4, 0b00001011	; DEC s
+	.db "DJNZ",   'n', 0,0x80, 0x10		; DJNZ e
 	.db "EI",0,0, 0,   0,   0, 0xfb		; EI
 	.db "EX",0,0, 'p', 'h', 0, 0xe3		; EX (SP), HL
 	.db "EX",0,0, 'a', 'f', 0, 0x08		; EX AF, AF'
@@ -715,6 +731,11 @@ instrTBlPrimary:
 	.db "INC", 0, 0x3, 0,   4, 0b00000011	; INC s
 	.db "JP",0,0, 'l', 0,   0, 0xe9		; JP (HL)
 	.db "JP",0,0, 'N', 0,   0, 0xc3		; JP NN
+	.db "JR",0,0, 'n', 0,0x80, 0x18		; JR e
+	.db "JR",0,0,'^','n',0x80, 0x38		; JR C, e
+	.db "JR",0,0,'=','n',0x80, 0x30		; JR NC, e
+	.db "JR",0,0,'Z','n',0x80, 0x28		; JR Z, e
+	.db "JR",0,0,'z','n',0x80, 0x20		; JR NZ, e
 	.db "LD",0,0, 'c', 'A', 0, 0x02		; LD (BC), A
 	.db "LD",0,0, 'e', 'A', 0, 0x12		; LD (DE), A
 	.db "LD",0,0, 'A', 'c', 0, 0x0a		; LD A, (BC)
