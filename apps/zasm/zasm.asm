@@ -1,4 +1,10 @@
 #include "user.inc"
+
+; *** Consts ***
+ARGSPEC_SINGLE_CNT	.equ	7
+ARGSPEC_TBL_CNT	.equ	12
+
+; *** Code ***
 .org	USER_CODE
 call	parseLine
 ld	b, 0
@@ -103,14 +109,61 @@ readLine:
 ; match argument string at (HL) with argspec A.
 ; Set Z/NZ on match
 matchArg:
+	push	bc
+	push	de
+	push	ix
+
 	cp	0
 	jr	z, .matchnone
-	; Z is unset. TODO: implement rest
+	; Let's see if our argspec is a "single" one.
+	ex	hl, de		; For "simple" cmp, we don't need HL. But we'll
+				; need it later.
+	ld	hl, argspecsSingle
+	ld	bc, ARGSPEC_SINGLE_CNT
+.loop1:
+	cpi
+	jr	z, .matchsingle		; our argspec in the "single" list
+	jp	po, .loop1end
+	jr	.loop1
+.loop1end:
+	; Not a "single" arg. Do the real thing then.
+	ex	hl, de		; now we need HL back...
+	ld	de, argspecTbl
+	ld	b, ARGSPEC_TBL_CNT
+.loop2:
+	ld	ixl, a
+	ld	a, (de)
+	cp	ixl
+	jr	z, .found		; got it!
+	ld	a, 5
+	call	JUMP_ADDDE
+	ld	a, ixl
+	djnz	.loop2
+	; exhausted? we have a problem os specifying a wrong argspec. This is
+	; an internal consistency error.
 	jr	.end
+.found:
+	; found the matching argspec row. Let's compare the strings now.
+	inc	de	; the string starts on the 2nd byte of the row
+	ld	a, 4
+	call	JUMP_STRNCMP	; Z is set
+	jr	.end
+
+.matchsingle:
+	; single match is easy: compare A with (HL). They must be equal.
+	ex	hl, de
+	ld	b, a
+	ld	a, (hl)
+	cp	b	; Z set if A == B
+	jr	.end
+
 .matchnone:
 	ld	a, (hl)
 	cp	0	; arg must be null to match
 .end:
+	pop	ix
+	pop	de
+	pop	bc
 	ret
 
 ; Compare primary row at (DE) with string at curWord. Sets Z flag if there's a
@@ -172,7 +225,7 @@ parseLine:
 ; metadata.
 
 argspecsSingle:
-	.db	"ABCDEHL", 0
+	.db	"ABCDEHL"
 
 ; Format: 1 byte argspec + 4 chars string
 argspecTbl:
@@ -188,7 +241,6 @@ argspecTbl:
 	.db	'y', "(IY)"
 	.db	's', "SP", 0, 0
 	.db	'p', "(SP)"
-	.db	0
 
 ; This is a list of primary instructions (single upcode) that lead to a
 ; constant (no group code to insert).
