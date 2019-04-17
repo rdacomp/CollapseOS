@@ -28,9 +28,9 @@ unsetZ:
 ; run RLA the number of times specified in B
 rlaX:
 	; first, see if B == 0 to see if we need to bail out
-	dec	b
-	ret	c	; C flag means we went negative. nothing to do
 	inc	b
+	dec	b
+	ret	z	; Z flag means we had B = 0
 .loop:	rla
 	djnz	.loop
 	ret
@@ -242,13 +242,22 @@ isGroupId:
 
 ; Find argspec A in group id H.
 ; Set Z according to whether we found the argspec
-; If found, the value in A is the argspec value in the group (it's index).
+; If found, the value in A is the argspec value in the group (its index).
 findInGroup:
 	push	bc
 	push	hl
+
 	cp	0	; is our arg empty? If yes, we have nothing to do
 	jr	z, .notfound
 
+	push	af
+	ld	a, h
+	cp	0xa
+	jr	z, .specialGroupCC
+	cp	0xb
+	jr	z, .specialGroupABCDEHL
+	pop	af
+	; regular group
 	push	de
 	ld	de, argGrpTbl
 	; group ids start at 1. decrease it, then multiply by two to have a
@@ -259,10 +268,25 @@ findInGroup:
 	add	a, a
 	call	JUMP_ADDDE	; At this point, DE points to our group
 	pop	af
-	ex	hl, de
+	ex	hl, de		; And now, HL points to the group
 	pop	de
 
 	ld	bc, 4
+	jr	.find
+
+.specialGroupCC:
+	ld	hl, argGrpCC
+	jr	.specialGroupEnd
+.specialGroupABCDEHL:
+	ld	hl, argGrpABCDEHL
+.specialGroupEnd:
+	pop	af	; from the push af just before the special group check
+	ld	bc, 8
+
+.find:
+	; This part is common to regular and special group. We expect HL to
+	; point to the group and BC to contain its length.
+	push	bc		; save the start value loop index so we can sub
 .loop:
 	cpi
 	jr	z, .found
@@ -270,13 +294,17 @@ findInGroup:
 	jr	.loop
 .found:
 	; we found our result! Now, what we want to put in A is the index of
-	; the found argspec. We have this in C (4 - C + 1). The +1 is because
-	; cpi always decreases BC, whether we match or not.
-	ld	a, 3	; 4 - 1
+	; the found argspec.
+	pop	hl	; we pop from the "push bc" above. L is now 4 or 8
+	ld	a, l
 	sub	c
+	dec	a	; cpi DECs BC even when there's a match, so C == the
+			; number of iterations we've made. But our index is
+			; zero-based (1 iteration == 0 index).
 	cp	a	; ensure Z is set
 	jr	.end
 .notfound:
+	pop	bc	; from the push bc in .find
 	call	unsetZ
 .end:
 	pop	hl
@@ -356,11 +384,22 @@ parseLine:
 	; First, let's see if we're dealing with a group here
 	ld	a, (ix+4)	; first argspec
 	call	isGroupId
+	jr	z, .firstArgIsGroup
+	; First arg not a group. Maybe second is?
+	ld	a, (ix+5)	; 2nd argspec
+	call	isGroupId
 	jr	nz, .notgroup
-	; A is a group, good, now let's get its value
+	; Second arg is group
+	ld	de, curArg2
+	jr	.isGroup
+.firstArgIsGroup:
+	ld	de, curArg1
+.isGroup:
+	; A is a group, good, now let's get its value. DE is pointing to
+	; the argument.
 	push	hl
 	ld	h, a
-	ld	a, (curArg1)
+	ld	a, (de)
 	call	findInGroup	; we don't check for match, it's supposed to
 				; always match. Something is very wrong if it
 				; doesn't
@@ -477,6 +516,7 @@ instrTBlPrimary:
 	.db "LD",0,0, 'A', 'c', 0, 0x0a		; LD A, (BC)
 	.db "LD",0,0, 'A', 'e', 0, 0x0a		; LD A, (DE)
 	.db "LD",0,0, 's', 'h', 0, 0x0a		; LD SP, HL
+	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	; LD (HL), r
 	.db "NOP", 0, 0,   0,   0, 0x00		; NOP
 	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
 	.db "POP", 0, 0x1, 0,   4, 0b11000001	; POP qq
