@@ -32,7 +32,7 @@ static uint8_t io_read(int unused, uint16_t addr)
 
 static void io_write(int unused, uint16_t addr, uint8_t val)
 {
-    written = (val << 8) + (addr & 0xff);
+    written = ((addr & 0xff) << 8) + (val & 0xff);
     running = 0;
 }
 

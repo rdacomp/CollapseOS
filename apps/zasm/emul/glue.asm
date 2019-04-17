@@ -18,7 +18,8 @@ init:
 	call	USER_CODE
 	; signal the emulator we're done
 	; BC contains the number of written bytes
-	ld	a, b
+	ld	a, c
+	ld	c, b
 	out	(c), a
 	halt
 
