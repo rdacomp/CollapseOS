@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	27
 ; Number of rows in the primary instructions table
-INSTR_TBLP_CNT		.equ	64
+INSTR_TBLP_CNT		.equ	74
 ; size in bytes of each row in the primary instructions table
 INSTR_TBLP_ROWSIZE	.equ	8
 
@@ -167,11 +167,12 @@ isSepOrLineEnd:
 	call	isLineEnd
 	ret
 
-; read word in (HL) and put it in (DE), null terminated. A is the read
-; length. HL is advanced to the next separator char.
+; read word in (HL) and put it in (DE), null terminated, for a maximum of A
+; characters. As a result, A is the read length. HL is advanced to the next
+; separator char.
 readWord:
 	push	bc
-	ld	b, 4
+	ld	b, a
 .loop:
 	ld	a, (hl)
 	call	isSepOrLineEnd
@@ -222,6 +223,7 @@ toWord:
 readArg:
 	push	de
 	ld	de, tmpBuf
+	ld	a, 6
 	call	readWord
 	push	hl
 	ld	hl, tmpBuf
@@ -250,6 +252,7 @@ readLine:
 	ld	(curArg1), a
 	ld	(curArg2), a
 	ld	de, curWord
+	ld	a, 4
 	call	readWord
 	call	toWord
 	jr	nz, .end
@@ -426,15 +429,15 @@ matchArg:
 	ret	z
 	; not an exact match, let's check for numerical constants.
 	call	JUMP_UPCASE
-	cp	'N'
-	jr	z, .expectsNumber
-	cp	'M'
+	call	checkNOrM
 	jr	z, .expectsNumber
 	jr	.notNumber
 .expectsNumber:
-	ld	a, (hl)
-	call	checkNOrM	; In parsed arg, we don't have 'n' or 'm', only
-				; 'N' and 'M'
+	; Our argument is a number N or M. Never a lower-case version. At this
+	; point in the processing, we don't care about whether N or M is upper,
+	; we do truncation tests later. So, let's just perform the same == test
+	; but in a case-insensitive way instead
+	cp	a, (hl)
 	ret			; whether we match or not, the result of Z is
 				; the good one.
 .notNumber:
@@ -702,16 +705,22 @@ argGrpABCDEHL:
 ; decreased by 2 (djnz, jr).
 
 instrTBlPrimary:
+	.db "ADC", 0, 'A', 'h', 0, 0x8e		; ADC A, HL
+	.db "ADC", 0, 'A', 0xb, 0, 0b10001000	; ADC A, r
+	.db "ADC", 0, 'A', 'n', 0, 0xce		; ADC A, n
 	.db "ADD", 0, 'A', 'h', 0, 0x86		; ADD A, HL
 	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	; ADD A, r
 	.db "ADD", 0, 'A', 'n', 0, 0xc6 	; ADD A, n
-	.db "ADC", 0, 'A', 'h', 0, 0x8e		; ADC A, HL
-	.db "ADC", 0, 'A', 0xb, 0, 0b10001000	; ADC A, r
+	.db "ADD", 0, 'h', 0x3, 4, 0b00001001 	; ADD HL, ss
 	.db "AND", 0, 'l', 0,   0, 0xa6		; AND (HL)
 	.db "AND", 0, 0xa, 0,   0, 0b10100000	; AND r
+	.db "AND", 0, 'n', 0,   0, 0xe6		; AND n
+	.db "CALL",   0xa, 'N', 3, 0b11000100	; CALL cc, NN
+	.db "CALL",   'N', 0,   0, 0xcd		; CALL NN
 	.db "CCF", 0, 0,   0,   0, 0x3f		; CCF
 	.db "CP",0,0, 'l', 0,   0, 0xbe		; CP (HL)
 	.db "CP",0,0, 0xb, 0,   0, 0b10111000	; CP r
+	.db "CP",0,0, 'n', 0,   0, 0xfe		; CP n
 	.db "CPL", 0, 0,   0,   0, 0x2f		; CPL
 	.db "DAA", 0, 0,   0,   0, 0x27		; DAA
 	.db "DI",0,0, 0,   0,   0, 0xf3		; DI
@@ -746,6 +755,10 @@ instrTBlPrimary:
 	.db "LD",0,0, 'l', 'n', 0, 0x36		; LD (HL), n
 	.db "LD",0,0, 0xb, 'n', 3, 0b00000110	; LD r, (HL)
 	.db "LD",0,0, 0x3, 'N', 4, 0b00000001	; LD dd, n
+	.db "LD",0,0, 'M', 'A', 0, 0x32		; LD (NN), A
+	.db "LD",0,0, 'A', 'M', 0, 0x3a		; LD A, (NN)
+	.db "LD",0,0, 'M', 'h', 0, 0x22		; LD (NN), HL
+	.db "LD",0,0, 'h', 'M', 0, 0x2a		; LD HL, (NN)
 	.db "NOP", 0, 0,   0,   0, 0x00		; NOP
 	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
 	.db "OR",0,0, 0xb, 0,   0, 0b10110000	; OR r
