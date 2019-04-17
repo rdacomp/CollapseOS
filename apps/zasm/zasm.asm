@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	27
 ; Number of rows in the primary instructions table
-INSTR_TBLP_CNT		.equ	56
+INSTR_TBLP_CNT		.equ	58
 ; size in bytes of each row in the primary instructions table
 INSTR_TBLP_ROWSIZE	.equ	8
 
@@ -33,6 +33,45 @@ rlaX:
 	djnz	.loop
 	ret
 
+; If string at (HL) starts with ( and ends with ), "enter" into the parens
+; (advance HL and put a null char at the end of the string) and set Z.
+; Otherwise, do nothing and reset Z.
+enterParens:
+	ld	a, (hl)
+	cp	'('
+	ret	nz		; nothing to do
+	push	hl
+	ld	a, 0	; look for null char
+	; advance until we get null
+.loop:
+	cpi
+	jp	z, .found
+	jr	.loop
+.found:
+	dec	hl	; cpi over-advances. go back to null-char
+	dec	hl	; looking at the last char before null
+	ld	a, (hl)
+	cp	')'
+	jr	nz, .doNotEnter
+	; We have parens. While we're here, let's put a null
+	xor	a
+	ld	(hl), a
+	pop	hl	; back at the beginning. Let's advance.
+	inc	hl
+	cp	a	; ensure Z
+	ret		; we're good!
+.doNotEnter:
+	pop	hl
+	call	unsetZ
+	ret
+
+; Checks whether A is 'N' or 'M'
+checkNOrM:
+	cp	'N'
+	ret	z
+	cp	'M'
+	ret
+
 ; Parse the decimal char at A and extract it's 0-9 numerical value. Put the
 ; result in A.
 ;
@@ -49,10 +88,20 @@ parseDecimal:
 ; Parses the string at (HL) and returns the 16-bit value in IX.
 ; As soon as the number doesn't fit 16-bit any more, parsing stops and the
 ; number is invalid. If the number is valid, Z is set, otherwise, unset.
+; If (HL) contains a number inside parens, we properly enter into it.
+; Upon successful return, A is set to 'N' for a parens-less number, 'M' for
+; a number inside parens.
 parseNumber:
 	push	hl
 	push	de
+	push	bc
 
+	; Let's see if we have parens and already set the A result in B.
+	ld	b, 'N'		; if no parens
+	call	enterParens
+	jr	nz, .noparens
+	ld	b, 'M'		; we have parens and entered it.
+.noparens:
 	ld	ix, 0
 .loop:
 	ld	a, (hl)
@@ -87,6 +136,8 @@ parseNumber:
 .error:
 	call	unsetZ
 .end:
+	ld	a, b
+	pop	bc
 	pop	de
 	pop	hl
 	ret
@@ -262,13 +313,12 @@ parseArg:
 	call	JUMP_ADDDE
 	djnz	.loop1
 
-	; We exhausted the argspecs. Let's see if it's a number
+	; We exhausted the argspecs. Let's see if it's a number. This sets
+	; A to 'N' or 'M'
 	call	parseNumber
-	jr	nz, .notanumber
-	; Alright, we have a parsed number in IX. We're done.
-	ld	a, 'N'
-	jr	.end
-.notanumber:
+	jr	z, .end		; Alright, we have a parsed number in IX. We're
+				; done.
+	; not a number
 	ld	a, 0xff
 	jr	.end
 .found:
@@ -375,16 +425,18 @@ matchArg:
 	cp	a, (hl)
 	ret	z
 	; not an exact match, let's check for numerical constants.
+	call	JUMP_UPCASE
 	cp	'N'
 	jr	z, .expectsNumber
-	cp	'n'
+	cp	'M'
 	jr	z, .expectsNumber
 	jr	.notNumber
 .expectsNumber:
 	ld	a, (hl)
-	cp	'N'	; In parsed arg, we don't have 'n', only 'N'
-	ret		; whether we match or not, the result of Z is the good
-			; one
+	call	checkNOrM	; In parsed arg, we don't have 'n' or 'm', only
+				; 'N' and 'M'
+	ret			; whether we match or not, the result of Z is
+				; the good one.
 .notNumber:
 	; A bit of a delicate situation here: we want A to go in H but also
 	; (HL) to go in A. If not careful, we overwrite each other. EXX is
@@ -516,15 +568,19 @@ parseLine:
 	push	hl	; we use HL to point to the currently read arg
 	ld	a, (ix+4)	; first argspec
 	ld	hl, curArg1
-	cp	'N'
+	call	checkNOrM
 	jr	z, .withWord
 	cp	'n'
 	jr	z, .withByte
+	cp	'm'
+	jr	z, .withByte
 	ld	a, (ix+5)	; second argspec
 	ld	hl, curArg2
-	cp	'N'
+	call	checkNOrM
 	jr	z, .withWord
 	cp	'n'
+	jr	z, .withByte
+	cp	'm'
 	jr	z, .withByte
 	; nope, no number, aright, only one opcode
 	ld	a, 1
@@ -653,6 +709,7 @@ instrTBlPrimary:
 	.db "EX",0,0, 'd', 'h', 0, 0xeb		; EX DE, HL
 	.db "EXX", 0, 0,   0,   0, 0xd9		; EXX
 	.db "HALT",   0,   0,   0, 0x76		; HALT
+	.db "IN",0,0, 'A', 'm', 0, 0xdb		; IN A, (n)
 	.db "INC", 0, 'l', 0,   0, 0x34		; INC (HL)
 	.db "INC", 0, 0xb, 0,   3, 0b00000100	; INC r
 	.db "INC", 0, 0x3, 0,   4, 0b00000011	; INC s
@@ -671,6 +728,7 @@ instrTBlPrimary:
 	.db "NOP", 0, 0,   0,   0, 0x00		; NOP
 	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
 	.db "OR",0,0, 0xb, 0,   0, 0b10110000	; OR r
+	.db "OUT", 0, 'm', 'A', 0, 0xd3		; OUT (n), A
 	.db "POP", 0, 0x1, 0,   4, 0b11000001	; POP qq
 	.db "PUSH",   0x1, 0,   4, 0b11000101	; PUSH qq
 	.db "RET", 0, 0xa, 0,   3, 0b11000000	; RET cc
