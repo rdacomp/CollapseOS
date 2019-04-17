@@ -86,6 +86,22 @@ toWord:
 	ret
 
 
+; Read arg from (HL) into argspec at (DE)
+; HL is advanced to the next word. Z is set if there's a next word.
+readArg:
+	push	de
+	ld	de, tmpVal
+	call	readWord
+	push	hl
+	ld	hl, tmpVal
+	call	matchArg
+	pop	hl
+	pop	de
+	ld	(de), a
+	call	toWord
+	ret
+
+; Read line from (HL) into (curWord), (curArg1) and (curArg2)
 readLine:
 	push	de
 	xor	a
@@ -97,71 +113,91 @@ readLine:
 	call	toWord
 	jr	nz, .end
 	ld	de, curArg1
-	call	readWord
-	call	toWord
+	call	readArg
 	jr	nz, .end
 	ld	de, curArg2
-	call	readWord
+	call	readArg
 .end:
 	pop	de
 	ret
 
-; match argument string at (HL) with argspec A.
-; Set Z/NZ on match
+; Returns length of string at (HL) in A.
+strlen:
+	push	bc
+	push	hl
+	ld	bc, 0
+	ld	a, 0	; look for null char
+.loop:
+	cpi
+	jp	z, .found
+	jr	.loop
+.found:
+	; How many char do we have? the (NEG BC)-1, which started at 0 and
+	; decreased at each CPI call. In this routine, we stay in the 8-bit
+	; realm, so C only.
+	ld	a, c
+	neg
+	dec	a
+	pop	hl
+	pop	bc
+	ret
+
+; find argspec for string at (HL). Returns matching argspec in A.
+; Return value 1 holds a special meaning: arg is not empty, but doesn't match
+; any argspec (A == 0 means arg is empty). A return value of 1 means an error.
 matchArg:
+	call	strlen
+	cp	0
+	ret	z		; empty string? A already has our result: 0
+
 	push	bc
 	push	de
-	push	ix
+	push	hl
 
-	cp	0
-	jr	z, .matchnone
-	; Let's see if our argspec is a "single" one.
-	ex	hl, de		; For "simple" cmp, we don't need HL. But we'll
-				; need it later.
-	ld	hl, argspecsSingle
-	ld	bc, ARGSPEC_SINGLE_CNT
-.loop1:
-	cpi
-	jr	z, .matchsingle		; our argspec in the "single" list
-	jp	po, .loop1end
-	jr	.loop1
-.loop1end:
+	cp	1
+	jr	z, .matchsingle	; Arg is one char? We have a "single" type.
+
 	; Not a "single" arg. Do the real thing then.
-	ex	hl, de		; now we need HL back...
 	ld	de, argspecTbl
+	; DE now points the the "argspec char" part of the entry, but what
+	; we're comparing in the loop is the string next to it. Let's offset
+	; DE by one so that the loop goes through strings.
+	inc	de
 	ld	b, ARGSPEC_TBL_CNT
-.loop2:
-	ld	ixl, a
-	ld	a, (de)
-	cp	ixl
+.loop1:
+	ld	a, 4
+	call	JUMP_STRNCMP
 	jr	z, .found		; got it!
 	ld	a, 5
 	call	JUMP_ADDDE
-	ld	a, ixl
-	djnz	.loop2
+	djnz	.loop1
 	; exhausted? we have a problem os specifying a wrong argspec. This is
 	; an internal consistency error.
+	ld	a, 1
 	jr	.end
 .found:
-	; found the matching argspec row. Let's compare the strings now.
-	inc	de	; the string starts on the 2nd byte of the row
-	ld	a, 4
-	call	JUMP_STRNCMP	; Z is set
+	; found the matching argspec row. Our result is one byte left of DE.
+	dec	de
+	ld	a, (de)
 	jr	.end
 
 .matchsingle:
-	; single match is easy: compare A with (HL). They must be equal.
-	ex	hl, de
-	ld	b, a
 	ld	a, (hl)
-	cp	b	; Z set if A == B
+	ld	hl, argspecsSingle
+	ld	bc, ARGSPEC_SINGLE_CNT
+.loop2:
+	cpi
+	jr	z, .end		; found! our result is already in A. go straight
+				; to end.
+	jp	po, .loop2notfound
+	jr	.loop2
+.loop2notfound:
+	; something's wrong. error
+	ld	a, 1
 	jr	.end
 
-.matchnone:
-	ld	a, (hl)
-	cp	0	; arg must be null to match
 .end:
-	pop	ix
+	pop	hl
 	pop	de
 	pop	bc
 	ret
@@ -178,13 +214,11 @@ matchPrimaryRow:
 	; name matches, let's see the rest
 	ld	ixh, d
 	ld	ixl, e
-	ld	hl, curArg1
-	ld	a, (ix+4)
-	call	matchArg
+	ld	a, (curArg1)
+	cp	(ix+4)
 	jr	nz, .end
-	ld	hl, curArg2
-	ld	a, (ix+5)
-	call	matchArg
+	ld	a, (curArg2)
+	cp	(ix+5)
 .end:
 	pop	ix
 	pop	hl
@@ -243,30 +277,8 @@ argspecTbl:
 	.db	'p', "(SP)"
 
 ; This is a list of primary instructions (single upcode) that lead to a
-; constant (no group code to insert).
-; That doesn't mean that they don't take any argument though. For example,
-; "DEC IX" leads to a special upcode. These kind of constants are indicated
-; as a single byte to save space. Meaning:
+; constant (no group code to insert). Format:
 ;
-; All single char registers (A/B/C etc) -> themselves
-; HL -> h
-; (HL) -> l
-; DE -> d
-; (DE) -> e
-; BC -> b
-; (BC) -> c
-; IX -> X
-; (IX) -> x
-; IY -> Y
-; (IY) -> y
-; AF -> a
-; AF' -> f
-; SP -> s
-; (SP) -> p
-; None -> 0
-;
-; This is a sorted list of "primary" (single byte) instructions along with
-; metadata
 ; 4 bytes for the name (fill with zero)
 ; 1 byte for arg constant
 ; 1 byte for 2nd arg constant
@@ -303,8 +315,15 @@ instTBlPrimary:
 ; enough space for 4 chars and a null
 curWord:
 	.db	0, 0, 0, 0, 0
+
+; Args are 3 bytes: argspec, then values of numerical constants (when that's
+; appropriate)
 curArg1:
-	.db	0, 0, 0, 0, 0
+	.db	0, 0, 0
 curArg2:
+	.db	0, 0, 0
+
+; space for tmp stuff
+tmpVal:
 	.db	0, 0, 0, 0, 0
 
