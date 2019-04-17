@@ -1,12 +1,10 @@
 #include "user.inc"
 
 ; *** Consts ***
-; Number of rows in the "single" argspec string
-ARGSPEC_SINGLE_CNT	.equ	7
 ; Number of rows in the argspec table
-ARGSPEC_TBL_CNT		.equ	12
+ARGSPEC_TBL_CNT		.equ	27
 ; Number of rows in the primary instructions table
-INSTR_TBLP_CNT		.equ	30
+INSTR_TBLP_CNT		.equ	33
 ; size in bytes of each row in the primary instructions table
 INSTR_TBLP_ROWSIZE	.equ	8
 
@@ -179,10 +177,6 @@ parseArg:
 	push	de
 	push	hl
 
-	cp	1
-	jr	z, .matchsingle	; Arg is one char? We have a "single" type.
-
-	; Not a "single" arg. Do the real thing then.
 	ld	de, argspecTbl
 	; DE now points the the "argspec char" part of the entry, but what
 	; we're comparing in the loop is the string next to it. Let's offset
@@ -204,23 +198,6 @@ parseArg:
 	; found the matching argspec row. Our result is one byte left of DE.
 	dec	de
 	ld	a, (de)
-	jr	.end
-
-.matchsingle:
-	ld	a, (hl)
-	ld	hl, argspecsSingle
-	ld	bc, ARGSPEC_SINGLE_CNT
-.loop2:
-	cpi
-	jr	z, .end		; found! our result is already in A. go straight
-				; to end.
-	jp	po, .loop2notfound
-	jr	.loop2
-.loop2notfound:
-	; something's wrong. error
-	ld	a, 0xff
-	jr	.end
-
 .end:
 	pop	hl
 	pop	de
@@ -360,6 +337,18 @@ matchPrimaryRow:
 ; of bytes written in A.
 parseLine:
 	call	readLine
+	; Check whether we have errors. We don't do any parsing if we do.
+	ld	a, (curArg1)
+	cp	0xff
+	jr	z, .error
+	ret	z
+	ld	a, (curArg2)
+	cp	0xff
+	jr	nz, .noerror
+.error:
+	ld	a, 0
+	ret
+.noerror:
 	push	de
 	ld	de, instrTBlPrimary
 	ld	b, INSTR_TBLP_CNT
@@ -440,11 +429,15 @@ parseLine:
 ; 1-10 : group id (see Groups section)
 ; 0xff: error
 
-argspecsSingle:
-	.db	"ABCDEHL"
-
 ; Format: 1 byte argspec + 4 chars string
 argspecTbl:
+	.db	'A', "A", 0, 0, 0
+	.db	'B', "B", 0, 0, 0
+	.db	'C', "C", 0, 0, 0
+	.db	'D', "D", 0, 0, 0
+	.db	'E', "E", 0, 0, 0
+	.db	'H', "H", 0, 0, 0
+	.db	'L', "L", 0, 0, 0
 	.db	'h', "HL", 0, 0
 	.db	'l', "(HL)"
 	.db	'd', "DE", 0, 0
@@ -517,11 +510,13 @@ instrTBlPrimary:
 	.db "LD",0,0, 'A', 'e', 0, 0x0a		; LD A, (DE)
 	.db "LD",0,0, 's', 'h', 0, 0x0a		; LD SP, HL
 	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	; LD (HL), r
+	.db "LD",0,0, 0xb, 'l', 3, 0b01000110	; LD r, (HL)
 	.db "NOP", 0, 0,   0,   0, 0x00		; NOP
 	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
+	.db "OR",0,0, 0xb, 0,   0, 0b10110000	; OR r
 	.db "POP", 0, 0x1, 0,   4, 0b11000001	; POP qq
+	.db "RET", 0, 0xa, 0,   3, 0b11000000	; RET cc
 	.db "RET", 0, 0,   0,   0, 0xc9		; RET
-	.db "RET", 0, 0xb, 0,   3, 0b11000000	; RET cc
 	.db "RLA", 0, 0,   0,   0, 0x17		; RLA
 	.db "RLCA",   0,   0,   0, 0x07		; RLCA
 	.db "RRA", 0, 0,   0,   0, 0x1f		; RRA
