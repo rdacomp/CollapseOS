@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	27
 ; Number of rows in the primary instructions table
-INSTR_TBLP_CNT		.equ	50
+INSTR_TBLP_CNT		.equ	56
 ; size in bytes of each row in the primary instructions table
 INSTR_TBLP_ROWSIZE	.equ	8
 
@@ -544,7 +544,9 @@ parseLine:
 	jr	.end
 
 .withWord:
+	inc	de
 	inc	hl	; HL now points to LSB
+	; Clear to proceed. HL already points to our number
 	ldi	; LSB written, we point to MSB now
 	ldi	; MSB written
 	ld	a, 3
@@ -583,8 +585,8 @@ argspecTbl:
 	.db	'c', "(BC)"
 	.db	'a', "AF", 0, 0
 	.db	'f', "AF'", 0
-	.db	'x', "(IX)"
-	.db	'y', "(IY)"
+	.db	'x', "(IX)"		; always come with displacement
+	.db	'y', "(IY)"		; with JP
 	.db	's', "SP", 0, 0
 	.db	'p', "(SP)"
 ; we also need argspecs for the condition flags
@@ -598,8 +600,10 @@ argspecTbl:
 	.db	'2', "PE",   0, 0
 
 ; argspecs not in the list:
+; n -> N
 ; N -> NN
-; n -> (NN)
+; m -> (N)  (running out of mnemonics. 'm' for 'memory pointer')
+; M -> (NN)
 
 ; Groups
 ; Groups are specified by strings of argspecs. To facilitate jumping to them,
@@ -629,6 +633,7 @@ argGrpABCDEHL:
 instrTBlPrimary:
 	.db "ADD", 0, 'A', 'h', 0, 0x86		; ADD A, HL
 	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	; ADD A, r
+	.db "ADD", 0, 'A', 'n', 0, 0xc6 	; ADD A, n
 	.db "ADC", 0, 'A', 'h', 0, 0x8e		; ADC A, HL
 	.db "ADC", 0, 'A', 0xb, 0, 0b10001000	; ADC A, r
 	.db "AND", 0, 'l', 0,   0, 0xa6		; AND (HL)
@@ -652,6 +657,7 @@ instrTBlPrimary:
 	.db "INC", 0, 0xb, 0,   3, 0b00000100	; INC r
 	.db "INC", 0, 0x3, 0,   4, 0b00000011	; INC s
 	.db "JP",0,0, 'l', 0,   0, 0xe9		; JP (HL)
+	.db "JP",0,0, 'N', 0,   0, 0xc3		; JP NN
 	.db "LD",0,0, 'c', 'A', 0, 0x02		; LD (BC), A
 	.db "LD",0,0, 'e', 'A', 0, 0x12		; LD (DE), A
 	.db "LD",0,0, 'A', 'c', 0, 0x0a		; LD A, (BC)
@@ -660,6 +666,8 @@ instrTBlPrimary:
 	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	; LD (HL), r
 	.db "LD",0,0, 0xb, 'l', 3, 0b01000110	; LD r, (HL)
 	.db "LD",0,0, 'l', 'n', 0, 0x36		; LD (HL), n
+	.db "LD",0,0, 0xb, 'n', 3, 0b00000110	; LD r, (HL)
+	.db "LD",0,0, 0x3, 'N', 4, 0b00000001	; LD dd, n
 	.db "NOP", 0, 0,   0,   0, 0x00		; NOP
 	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
 	.db "OR",0,0, 0xb, 0,   0, 0b10110000	; OR r
@@ -676,6 +684,7 @@ instrTBlPrimary:
 	.db "SCF", 0, 0,   0,   0, 0x37		; SCF
 	.db "SUB", 0, 'A', 'h', 0, 0x96		; SUB A, HL
 	.db "SUB", 0, 'A', 0xb, 0, 0b10010000	; SUB A, r
+	.db "SUB", 0, 'n', 0,   0, 0xd6 	; SUB n
 	.db "XOR", 0, 'l', 0,   0, 0xae		; XOR (HL)
 	.db "XOR", 0, 0xb, 0,   0, 0b10101000	; XOR r
 
