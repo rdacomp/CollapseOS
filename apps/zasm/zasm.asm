@@ -33,6 +33,64 @@ rlaX:
 	djnz	.loop
 	ret
 
+; Parse the decimal char at A and extract it's 0-9 numerical value. Put the
+; result in A.
+;
+; On success, the carry flag is reset. On error, it is set.
+parseDecimal:
+	; First, let's see if we have an easy 0-9 case
+	cp	'0'
+	ret	c	; if < '0', we have a problem
+	cp	'9'+1
+	; We are in the 0-9 range
+	sub	a, '0'		; C is clear
+	ret
+
+; Parses the string at (HL) and returns the 16-bit value in IX.
+; As soon as the number doesn't fit 16-bit any more, parsing stops and the
+; number is invalid. If the number is valid, Z is set, otherwise, unset.
+parseNumber:
+	push	hl
+	push	de
+
+	ld	ix, 0
+.loop:
+	ld	a, (hl)
+	cp	0
+	jr	z, .end	; success!
+	call	parseDecimal
+	jr	c, .error
+
+	; Now, let's add A to IX. First, multiply by 10.
+	ld	d, ixh	; we need a copy of the initial copy for later
+	ld	e, ixl
+	add	ix, ix	; x2
+	add	ix, ix	; x4
+	add	ix, ix	; x8
+	add	ix, de	; x9
+	add	ix, de	; x10
+	add	a, ixl
+	jr	nc, .nocarry
+	inc	ixh
+.nocarry:
+	ld	ixl, a
+
+	; We didn't bother checking for the C flag at each step because we
+	; check for overflow afterwards. If ixh < d, we overflowed
+	ld	a, ixh
+	cp	d
+	jr	c, .error	; carry is set? overflow
+
+	inc	hl
+	jr	.loop
+
+.error:
+	call	unsetZ
+.end:
+	pop	de
+	pop	hl
+	ret
+
 ; Sets Z is A is ';', CR, LF, or null.
 isLineEnd:
 	cp	';'
@@ -112,14 +170,24 @@ toWord:
 ; HL is advanced to the next word. Z is set if there's a next word.
 readArg:
 	push	de
-	ld	de, tmpVal
+	ld	de, tmpBuf
 	call	readWord
 	push	hl
-	ld	hl, tmpVal
+	ld	hl, tmpBuf
 	call	parseArg
 	pop	hl
 	pop	de
 	ld	(de), a
+	; When A is a number, IX is set with the value of that number. Because
+	; We don't use the space allocated to store those numbers in any other
+	; occasion, we store IX there unconditonally, LSB first.
+	inc	de
+	ld	a, ixl
+	ld	(de), a
+	inc	de
+	ld	a, ixh
+	ld	(de), a
+
 	call	toWord
 	ret
 
@@ -168,6 +236,9 @@ strlen:
 ; Return value 0xff holds a special meaning: arg is not empty, but doesn't match
 ; any argspec (A == 0 means arg is empty). A return value of 0xff means an
 ; error.
+;
+; If the parsed argument is a number constant, 'N' is returned and IX contains
+; the value of that constant.
 parseArg:
 	call	strlen
 	cp	0
@@ -190,8 +261,14 @@ parseArg:
 	ld	a, 5
 	call	JUMP_ADDDE
 	djnz	.loop1
-	; exhausted? we have a problem os specifying a wrong argspec. This is
-	; an internal consistency error.
+
+	; We exhausted the argspecs. Let's see if it's a number
+	call	parseNumber
+	jr	nz, .notanumber
+	; Alright, we have a parsed number in IX. We're done.
+	ld	a, 'N'
+	jr	.end
+.notanumber:
 	ld	a, 0xff
 	jr	.end
 .found:
@@ -291,11 +368,24 @@ findInGroup:
 
 ; Compare argspec from instruction table in A with argument in (HL).
 ; For constant args, it's easy: if A == (HL), it's a success.
+; If it's not this, then we check if it's a numerical arg.
 ; If A is a group ID, we do something else: we check that (HL) exists in the
 ; groupspec (argGrpTbl)
 matchArg:
 	cp	a, (hl)
 	ret	z
+	; not an exact match, let's check for numerical constants.
+	cp	'N'
+	jr	z, .expectsNumber
+	cp	'n'
+	jr	z, .expectsNumber
+	jr	.notNumber
+.expectsNumber:
+	ld	a, (hl)
+	cp	'N'	; In parsed arg, we don't have 'n', only 'N'
+	ret		; whether we match or not, the result of Z is the good
+			; one
+.notNumber:
 	; A bit of a delicate situation here: we want A to go in H but also
 	; (HL) to go in A. If not careful, we overwrite each other. EXX is
 	; necessary to avoid invoving other registers.
@@ -336,6 +426,8 @@ matchPrimaryRow:
 
 ; Parse line at (HL) and write resulting opcode(s) in (DE). Returns the number
 ; of bytes written in A.
+;
+; Overwrites IX
 parseLine:
 	call	readLine
 	; Check whether we have errors. We don't do any parsing if we do.
@@ -368,7 +460,6 @@ parseLine:
 	; We have our matching instruction row. We're getting pretty near our
 	; goal here!
 	; First, let's go in IX mode. It's easier to deal with offsets here.
-	push	ix
 	ld	ixh, d
 	ld	ixl, e
 	; First, let's see if we're dealing with a group here
@@ -409,17 +500,62 @@ parseLine:
 	pop	hl
 
 	; Success!
-	jr	.end
+	jr	.writeFirstOpcode
 .notgroup:
 	; not a group? easy as pie: we return the opcode directly.
 	ld	a, (ix+7)	; upcode is on 8th byte
-.end:
+.writeFirstOpcode:
 	; At the end, we have our final opcode in A!
-	pop	ix
 	pop	de
 	ld	(de), a
+
+	; Good, we are probably finished here for many primary opcodes. However,
+	; some primary opcodes take 8 or 16 bit constants as an argument and
+	; if that's the case here, we need to write it too.
+	; We still have our instruction row in IX. Let's revisit it.
+	push	hl	; we use HL to point to the currently read arg
+	ld	a, (ix+4)	; first argspec
+	ld	hl, curArg1
+	cp	'N'
+	jr	z, .withWord
+	cp	'n'
+	jr	z, .withByte
+	ld	a, (ix+5)	; second argspec
+	ld	hl, curArg2
+	cp	'N'
+	jr	z, .withWord
+	cp	'n'
+	jr	z, .withByte
+	; nope, no number, aright, only one opcode
 	ld	a, 1
+	jr	.end
+.withByte:
+	; verify that the MSB in argument is zero
+	inc	hl
+	inc	hl	; MSB is 2nd byte
+	ld	a, (hl)
+	dec	hl	; HL now points to LSB
+	cp	0
+	jr	nz, .numberTruncated
+	; Clear to proceed. HL already points to our number
+	inc	de
+	ldi
+	ld	a, 2
+	jr	.end
+
+.withWord:
+	inc	hl	; HL now points to LSB
+	ldi	; LSB written, we point to MSB now
+	ldi	; MSB written
+	ld	a, 3
+	jr	.end
+.numberTruncated:
+	; problem: not zero, so value is truncated. error
+	xor	a
+.end:
+	pop	hl
 	ret
+
 
 ; In instruction metadata below, argument types arge indicated with a single
 ; char mnemonic that is called "argspec". This is the table of correspondance.
@@ -523,6 +659,7 @@ instrTBlPrimary:
 	.db "LD",0,0, 's', 'h', 0, 0x0a		; LD SP, HL
 	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	; LD (HL), r
 	.db "LD",0,0, 0xb, 'l', 3, 0b01000110	; LD r, (HL)
+	.db "LD",0,0, 'l', 'n', 0, 0x36		; LD (HL), n
 	.db "NOP", 0, 0,   0,   0, 0x00		; NOP
 	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
 	.db "OR",0,0, 0xb, 0,   0, 0b10110000	; OR r
@@ -556,6 +693,6 @@ curArg2:
 	.db	0, 0, 0
 
 ; space for tmp stuff
-tmpVal:
-	.db	0, 0, 0, 0, 0
+tmpBuf:
+	.fill	0x20
 
