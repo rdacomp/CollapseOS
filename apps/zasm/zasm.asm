@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	27
 ; Number of rows in the primary instructions table
-INSTR_TBLP_CNT		.equ	33
+INSTR_TBLP_CNT		.equ	50
 ; size in bytes of each row in the primary instructions table
 INSTR_TBLP_ROWSIZE	.equ	8
 
@@ -237,12 +237,13 @@ findInGroup:
 	; regular group
 	push	de
 	ld	de, argGrpTbl
-	; group ids start at 1. decrease it, then multiply by two to have a
+	; group ids start at 1. decrease it, then multiply by 4 to have a
 	; proper offset in argGrpTbl
 	dec	h
 	push	af
 	ld	a, h
-	add	a, a
+	rla
+	rla
 	call	JUMP_ADDDE	; At this point, DE points to our group
 	pop	af
 	ex	hl, de		; And now, HL points to the group
@@ -474,6 +475,7 @@ argspecTbl:
 argGrpTbl:
 	.db	"bdha"		; 0x01
 	.db	"Zz^="		; 0x02
+	.db	"bdhs"		; 0x03
 
 argGrpCC:
 	.db	"Zz^=+-12"	; 0xa
@@ -490,12 +492,20 @@ argGrpABCDEHL:
 ; 1 byte for upcode
 instrTBlPrimary:
 	.db "ADD", 0, 'A', 'h', 0, 0x86		; ADD A, HL
+	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	; ADD A, r
+	.db "ADC", 0, 'A', 'h', 0, 0x8e		; ADC A, HL
+	.db "ADC", 0, 'A', 0xb, 0, 0b10001000	; ADC A, r
 	.db "AND", 0, 'l', 0,   0, 0xa6		; AND (HL)
 	.db "AND", 0, 0xa, 0,   0, 0b10100000	; AND r
 	.db "CCF", 0, 0,   0,   0, 0x3f		; CCF
+	.db "CP",0,0, 'l', 0,   0, 0xbe		; CP (HL)
+	.db "CP",0,0, 0xb, 0,   0, 0b10111000	; CP r
 	.db "CPL", 0, 0,   0,   0, 0x2f		; CPL
 	.db "DAA", 0, 0,   0,   0, 0x27		; DAA
 	.db "DI",0,0, 0,   0,   0, 0xf3		; DI
+	.db "DEC", 0, 'l', 0,   0, 0x35		; DEC (HL)
+	.db "DEC", 0, 0xb, 0,   3, 0b00000101	; DEC r
+	.db "DEC", 0, 0x3, 0,   4, 0b00001011	; DEC s
 	.db "EI",0,0, 0,   0,   0, 0xfb		; EI
 	.db "EX",0,0, 'p', 'h', 0, 0xe3		; EX (SP), HL
 	.db "EX",0,0, 'a', 'f', 0, 0x08		; EX AF, AF'
@@ -503,6 +513,8 @@ instrTBlPrimary:
 	.db "EXX", 0, 0,   0,   0, 0xd9		; EXX
 	.db "HALT",   0,   0,   0, 0x76		; HALT
 	.db "INC", 0, 'l', 0,   0, 0x34		; INC (HL)
+	.db "INC", 0, 0xb, 0,   3, 0b00000100	; INC r
+	.db "INC", 0, 0x3, 0,   4, 0b00000011	; INC s
 	.db "JP",0,0, 'l', 0,   0, 0xe9		; JP (HL)
 	.db "LD",0,0, 'c', 'A', 0, 0x02		; LD (BC), A
 	.db "LD",0,0, 'e', 'A', 0, 0x12		; LD (DE), A
@@ -515,13 +527,20 @@ instrTBlPrimary:
 	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
 	.db "OR",0,0, 0xb, 0,   0, 0b10110000	; OR r
 	.db "POP", 0, 0x1, 0,   4, 0b11000001	; POP qq
+	.db "PUSH",   0x1, 0,   4, 0b11000101	; PUSH qq
 	.db "RET", 0, 0xa, 0,   3, 0b11000000	; RET cc
 	.db "RET", 0, 0,   0,   0, 0xc9		; RET
 	.db "RLA", 0, 0,   0,   0, 0x17		; RLA
 	.db "RLCA",   0,   0,   0, 0x07		; RLCA
 	.db "RRA", 0, 0,   0,   0, 0x1f		; RRA
 	.db "RRCA",   0,   0,   0, 0x0f		; RRCA
+	.db "SBC", 0, 'A', 'h', 0, 0x9e		; SBC A, HL
+	.db "SBC", 0, 'A', 0xb, 0, 0b10011000	; SBC A, r
 	.db "SCF", 0, 0,   0,   0, 0x37		; SCF
+	.db "SUB", 0, 'A', 'h', 0, 0x96		; SUB A, HL
+	.db "SUB", 0, 'A', 0xb, 0, 0b10010000	; SUB A, r
+	.db "XOR", 0, 'l', 0,   0, 0xae		; XOR (HL)
+	.db "XOR", 0, 0xb, 0,   0, 0b10101000	; XOR r
 
 
 ; *** Variables ***
