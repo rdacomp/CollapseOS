@@ -2,7 +2,8 @@
 
 ; *** Consts ***
 ARGSPEC_SINGLE_CNT	.equ	7
-ARGSPEC_TBL_CNT	.equ	12
+ARGSPEC_TBL_CNT		.equ	12
+INSTR_TBL_PRIMARYC_CNT	.equ	25
 
 ; *** Code ***
 .org	USER_CODE
@@ -229,18 +230,16 @@ matchPrimaryRow:
 parseLine:
 	call	readLine
 	push	de
-	ld	de, instTBlPrimary
+	ld	de, instrTBlPrimaryC
+	ld	b, INSTR_TBL_PRIMARYC_CNT
 .loop:
 	ld	a, (de)
-	cp	0
-	jr	z, .nomatch	; we reached last entry
 	call	matchPrimaryRow
 	jr	z, .match
 	ld	a, 7
 	call	JUMP_ADDDE
-	jr	.loop
-
-.nomatch:
+	djnz	.loop
+	; no match
 	xor	a
 	pop	de
 	ret
@@ -283,7 +282,7 @@ argspecTbl:
 ; 1 byte for arg constant
 ; 1 byte for 2nd arg constant
 ; 1 byte for upcode
-instTBlPrimary:
+instrTBlPrimaryC:
 	.db "ADD", 0, 'A', 'h', 0x86		; ADD A, HL
 	.db "CCF", 0, 0,   0,   0x3f		; CCF
 	.db "CPL", 0, 0,   0,   0x2f		; CPL
@@ -309,7 +308,6 @@ instTBlPrimary:
 	.db "RRA", 0, 0,   0,   0x1f		; RRA
 	.db "RRCA",   0,   0,   0x0f		; RRCA
 	.db "SCF", 0, 0,   0,   0x37		; SCF
-	.db 0
 
 ; *** Variables ***
 ; enough space for 4 chars and a null
