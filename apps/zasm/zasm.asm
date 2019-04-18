@@ -223,7 +223,7 @@ toWord:
 readArg:
 	push	de
 	ld	de, tmpBuf
-	ld	a, 6
+	ld	a, 8
 	call	readWord
 	push	hl
 	ld	hl, tmpBuf
@@ -363,6 +363,7 @@ findInGroup:
 	jr	z, .specialGroupCC
 	cp	0xb
 	jr	z, .specialGroupABCDEHL
+	jr	nc, .notfound	; > 0xb? not a group
 	pop	af
 	; regular group
 	push	de
@@ -660,7 +661,8 @@ argspecTbl:
 ; we also need argspecs for the condition flags
 	.db	'Z', "Z", 0, 0, 0
 	.db	'z', "NZ",   0, 0
-	.db	'^', "C", 0, 0, 0
+	; C is in conflict with the C register. The situation is ambiguous, but
+	; doesn't cause actual problems.
 	.db	'=', "NC",   0, 0
 	.db	'+', "P", 0, 0, 0
 	.db	'-', "M", 0, 0, 0
@@ -682,11 +684,11 @@ argspecTbl:
 ; The table below is in order, starting with group 0x01
 argGrpTbl:
 	.db	"bdha"		; 0x01
-	.db	"Zz^="		; 0x02
+	.db	"ZzC="		; 0x02
 	.db	"bdhs"		; 0x03
 
 argGrpCC:
-	.db	"Zz^=+-12"	; 0xa
+	.db	"zZ=C12+-"	; 0xa
 argGrpABCDEHL:
 	.db	"BCDEHL_A"	; 0xb
 
@@ -705,15 +707,15 @@ argGrpABCDEHL:
 ; decreased by 2 (djnz, jr).
 
 instrTBlPrimary:
-	.db "ADC", 0, 'A', 'h', 0, 0x8e		; ADC A, HL
+	.db "ADC", 0, 'A', 'l', 0, 0x8e		; ADC A, (HL)
 	.db "ADC", 0, 'A', 0xb, 0, 0b10001000	; ADC A, r
 	.db "ADC", 0, 'A', 'n', 0, 0xce		; ADC A, n
-	.db "ADD", 0, 'A', 'h', 0, 0x86		; ADD A, HL
+	.db "ADD", 0, 'A', 'l', 0, 0x86		; ADD A, (HL)
 	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	; ADD A, r
 	.db "ADD", 0, 'A', 'n', 0, 0xc6 	; ADD A, n
 	.db "ADD", 0, 'h', 0x3, 4, 0b00001001 	; ADD HL, ss
 	.db "AND", 0, 'l', 0,   0, 0xa6		; AND (HL)
-	.db "AND", 0, 0xa, 0,   0, 0b10100000	; AND r
+	.db "AND", 0, 0xb, 0,   0, 0b10100000	; AND r
 	.db "AND", 0, 'n', 0,   0, 0xe6		; AND n
 	.db "CALL",   0xa, 'N', 3, 0b11000100	; CALL cc, NN
 	.db "CALL",   'N', 0,   0, 0xcd		; CALL NN
@@ -741,15 +743,15 @@ instrTBlPrimary:
 	.db "JP",0,0, 'l', 0,   0, 0xe9		; JP (HL)
 	.db "JP",0,0, 'N', 0,   0, 0xc3		; JP NN
 	.db "JR",0,0, 'n', 0,0x80, 0x18		; JR e
-	.db "JR",0,0,'^','n',0x80, 0x38		; JR C, e
+	.db "JR",0,0,'C','n',0x80, 0x38		; JR C, e
 	.db "JR",0,0,'=','n',0x80, 0x30		; JR NC, e
 	.db "JR",0,0,'Z','n',0x80, 0x28		; JR Z, e
 	.db "JR",0,0,'z','n',0x80, 0x20		; JR NZ, e
 	.db "LD",0,0, 'c', 'A', 0, 0x02		; LD (BC), A
 	.db "LD",0,0, 'e', 'A', 0, 0x12		; LD (DE), A
 	.db "LD",0,0, 'A', 'c', 0, 0x0a		; LD A, (BC)
-	.db "LD",0,0, 'A', 'e', 0, 0x0a		; LD A, (DE)
-	.db "LD",0,0, 's', 'h', 0, 0x0a		; LD SP, HL
+	.db "LD",0,0, 'A', 'e', 0, 0x1a		; LD A, (DE)
+	.db "LD",0,0, 's', 'h', 0, 0xf9		; LD SP, HL
 	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	; LD (HL), r
 	.db "LD",0,0, 0xb, 'l', 3, 0b01000110	; LD r, (HL)
 	.db "LD",0,0, 'l', 'n', 0, 0x36		; LD (HL), n
@@ -765,16 +767,16 @@ instrTBlPrimary:
 	.db "OUT", 0, 'm', 'A', 0, 0xd3		; OUT (n), A
 	.db "POP", 0, 0x1, 0,   4, 0b11000001	; POP qq
 	.db "PUSH",   0x1, 0,   4, 0b11000101	; PUSH qq
-	.db "RET", 0, 0xa, 0,   3, 0b11000000	; RET cc
 	.db "RET", 0, 0,   0,   0, 0xc9		; RET
+	.db "RET", 0, 0xa, 0,   3, 0b11000000	; RET cc
 	.db "RLA", 0, 0,   0,   0, 0x17		; RLA
 	.db "RLCA",   0,   0,   0, 0x07		; RLCA
 	.db "RRA", 0, 0,   0,   0, 0x1f		; RRA
 	.db "RRCA",   0,   0,   0, 0x0f		; RRCA
-	.db "SBC", 0, 'A', 'h', 0, 0x9e		; SBC A, HL
+	.db "SBC", 0, 'A', 'l', 0, 0x9e		; SBC A, (HL)
 	.db "SBC", 0, 'A', 0xb, 0, 0b10011000	; SBC A, r
 	.db "SCF", 0, 0,   0,   0, 0x37		; SCF
-	.db "SUB", 0, 'A', 'h', 0, 0x96		; SUB A, HL
+	.db "SUB", 0, 'A', 'l', 0, 0x96		; SUB A, (HL)
 	.db "SUB", 0, 'A', 0xb, 0, 0b10010000	; SUB A, r
 	.db "SUB", 0, 'n', 0,   0, 0xd6 	; SUB n
 	.db "XOR", 0, 'l', 0,   0, 0xae		; XOR (HL)
