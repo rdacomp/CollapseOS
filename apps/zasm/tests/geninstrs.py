@@ -4,6 +4,12 @@
 
 import sys
 
+# Those lines below are improperly assembled by scas and are skipped by tests.
+BLACKLIST = {
+    "AND (IX)",
+    "AND (IY)",
+}
+
 argspecTbl = {
     'A': "A",
     'B': "B",
@@ -99,6 +105,10 @@ def genargs(argspec):
     grp = argGrpTbl[argspec]
     return [argspecTbl[a] for a in grp]
 
+def p(line):
+    if line not in BLACKLIST:
+        print(line)
+
 
 def main():
     asmfile = sys.argv[1]
@@ -116,11 +126,11 @@ def main():
                 args2 = genargs(a2)
                 if args2:
                     for arg2 in args2:
-                        print(f"{n} {arg1}, {arg2}")
+                        p(f"{n} {arg1}, {arg2}")
                 else:
-                    print(f"{n} {arg1}")
+                    p(f"{n} {arg1}")
         else:
-            print(n)
+            p(n)
     pass
 
 if __name__ == '__main__':

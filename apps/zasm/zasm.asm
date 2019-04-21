@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	28
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	79
+INSTR_TBL_CNT		.equ	102
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	9
 
@@ -759,30 +759,53 @@ instrTBl:
 	.db "AND", 0, 'l', 0,   0, 0xa6		, 0	; AND (HL)
 	.db "AND", 0, 0xb, 0,   0, 0b10100000	, 0	; AND r
 	.db "AND", 0, 'n', 0,   0, 0xe6		, 0	; AND n
+	.db "AND", 0, 'x', 0,   0, 0xdd, 0xa6		; AND (IX+d)
+	.db "AND", 0, 'y', 0,   0, 0xfd, 0xa6		; AND (IY+d)
 	.db "CALL",   0xa, 'N', 3, 0b11000100	, 0	; CALL cc, NN
 	.db "CALL",   'N', 0,   0, 0xcd		, 0	; CALL NN
 	.db "CCF", 0, 0,   0,   0, 0x3f		, 0	; CCF
 	.db "CP",0,0, 'l', 0,   0, 0xbe		, 0	; CP (HL)
 	.db "CP",0,0, 0xb, 0,   0, 0b10111000	, 0	; CP r
 	.db "CP",0,0, 'n', 0,   0, 0xfe		, 0	; CP n
+	.db "CP",0,0, 'x', 0,   0, 0xdd, 0xbe		; CP (IX+d)
+	.db "CP",0,0, 'y', 0,   0, 0xfd, 0xbe		; CP (IY+d)
+	.db "CPD", 0, 0,   0,   0, 0xed, 0xa9		; CPD
+	.db "CPDR",   0,   0,   0, 0xed, 0xb9		; CPDR
+	.db "CPI", 0, 0,   0,   0, 0xed, 0xa1		; CPI
+	.db "CPIR",   0,   0,   0, 0xed, 0xb1		; CPIR
 	.db "CPL", 0, 0,   0,   0, 0x2f		, 0	; CPL
 	.db "DAA", 0, 0,   0,   0, 0x27		, 0	; DAA
-	.db "DI",0,0, 0,   0,   0, 0xf3		, 0	; DI
 	.db "DEC", 0, 'l', 0,   0, 0x35		, 0	; DEC (HL)
+	.db "DEC", 0, 'X', 0,   0, 0xdd , 0x2b		; DEC IX
+	.db "DEC", 0, 'x', 0,   0, 0xdd , 0x35		; DEC (IX+d)
+	.db "DEC", 0, 'Y', 0,   0, 0xfd , 0x2b		; DEC IY
+	.db "DEC", 0, 'y', 0,   0, 0xfd , 0x35		; DEC (IY+d)
 	.db "DEC", 0, 0xb, 0,   3, 0b00000101	, 0	; DEC r
-	.db "DEC", 0, 0x3, 0,   4, 0b00001011	, 0	; DEC s
+	.db "DEC", 0, 0x3, 0,   4, 0b00001011	, 0	; DEC ss
+	.db "DI",0,0, 0,   0,   0, 0xf3		, 0	; DI
 	.db "DJNZ",   'n', 0,0x80, 0x10		, 0	; DJNZ e
 	.db "EI",0,0, 0,   0,   0, 0xfb		, 0	; EI
 	.db "EX",0,0, 'p', 'h', 0, 0xe3		, 0	; EX (SP), HL
+	.db "EX",0,0, 'p', 'X', 0, 0xdd, 0xe3		; EX (SP), IX
+	.db "EX",0,0, 'p', 'Y', 0, 0xfd, 0xe3		; EX (SP), IY
 	.db "EX",0,0, 'a', 'f', 0, 0x08		, 0	; EX AF, AF'
 	.db "EX",0,0, 'd', 'h', 0, 0xeb		, 0	; EX DE, HL
 	.db "EXX", 0, 0,   0,   0, 0xd9		, 0	; EXX
 	.db "HALT",   0,   0,   0, 0x76		, 0	; HALT
 	.db "IN",0,0, 'A', 'm', 0, 0xdb		, 0	; IN A, (n)
 	.db "INC", 0, 'l', 0,   0, 0x34		, 0	; INC (HL)
+	.db "INC", 0, 'X', 0,   0, 0xdd , 0x23		; INC IX
+	.db "INC", 0, 'x', 0,   0, 0xdd , 0x34		; INC (IX+d)
+	.db "INC", 0, 'Y', 0,   0, 0xfd , 0x23		; INC IY
+	.db "INC", 0, 'y', 0,   0, 0xfd , 0x34		; INC (IY+d)
 	.db "INC", 0, 0xb, 0,   3, 0b00000100	, 0	; INC r
-	.db "INC", 0, 0x3, 0,   4, 0b00000011	, 0	; INC s
+	.db "INC", 0, 0x3, 0,   4, 0b00000011	, 0	; INC ss
+	.db "IND", 0, 0,   0,   0, 0xed, 0xaa		; IND
+	.db "INDR",   0,   0,   0, 0xed, 0xba		; INDR
+	.db "INI", 0, 0,   0,   0, 0xed, 0xa2		; INI
+	.db "INIR",   0,   0,   0, 0xed, 0xb2		; INIR
 	.db "JP",0,0, 'l', 0,   0, 0xe9		, 0	; JP (HL)
+	.db "JP",0,0, 0xa, 'N', 3, 0b11000010	, 0	; JP cc, NN
 	.db "JP",0,0, 'N', 0,   0, 0xc3		, 0	; JP NN
 	.db "JR",0,0, 'n', 0,0x80, 0x18		, 0	; JR e
 	.db "JR",0,0,'C','n',0x80, 0x38		, 0	; JR C, e
