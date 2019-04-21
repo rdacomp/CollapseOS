@@ -121,6 +121,11 @@ def main():
         a1 = eval(row[arg1index])
         a2 = eval(row[arg1index+1])
         args1 = genargs(a1)
+        # special case handling
+        if n == 'JP' and isinstance(a1, str) and a1 in 'xy':
+            # we don't test the displacements for IX/IY because there can't be
+            # any.
+            args1 = args1[:1]
         if args1:
             for arg1 in args1:
                 args2 = genargs(a2)

@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	28
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	102
+INSTR_TBL_CNT		.equ	104
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	9
 
@@ -57,6 +57,10 @@ copy:
 	pop	hl
 	pop	de
 	pop	bc
+	ret
+
+callHL:
+	jp	(hl)
 	ret
 
 ; If string at (HL) starts with ( and ends with ), "enter" into the parens
@@ -452,6 +456,34 @@ matchPrimaryRow:
 	pop	hl
 	ret
 
+; *** Special opcodes ***
+; The special upcode handling routines below all have the same signature.
+; Instruction row is at IX and we're expected to perform the same task as
+; getUpcode. The number of bytes, however, must go in C instead of A
+; No need to preserve HL, DE, BC and IX: it's handled by getUpcode already.
+
+; Handle like a regular "JP (IX+d)" except that we refuse any displacement: if
+; a displacement is specified, we error out.
+handleJPIX:
+	ld	a, 0xdd
+	jr	handleJPIXY
+handleJPIY:
+	ld	a, 0xfd
+	jr	handleJPIXY
+handleJPIXY:
+	ld	(curUpcode), a
+	ld	a, (curArg1+1)
+	cp	0		; numerical argument *must* be zero
+	jr	nz, .error
+	; ok, we're good
+	ld	a, 0xe9		; second upcode
+	ld	(curUpcode+1), a
+	ld	c, 2
+	ret
+.error:
+	xor	c
+	ret
+
 ; Compute the upcode for argspec row at (DE) and arguments in curArg{1,2} and
 ; writes the resulting upcode in curUpcode. A is the number if bytes written
 ; to curUpcode (can be zero if something went wrong).
@@ -463,6 +495,18 @@ getUpcode:
 	; First, let's go in IX mode. It's easier to deal with offsets here.
 	ld	ixh, d
 	ld	ixl, e
+
+	; Are we a "special instruction"?
+	bit	5, (ix+6)
+	jr	z, .normalInstr		; not set: normal instruction
+	; We are a special instruction. Fetch handler (little endian, remember).
+	ld	l, (ix+7)
+	ld	h, (ix+8)
+	call	callHL
+	; We have our result written in curUpcode and C is set.
+	jp	.end
+
+.normalInstr:
 	; we begin by writing our "base upcode", which can be one or two bytes
 	ld	a, (ix+7)	; first upcode
 	ld	(curUpcode), a
@@ -738,10 +782,15 @@ argGrpABCDEHL:
 ; 2 bytes for upcode (2nd byte is zero if instr is one byte)
 ;
 ; The displacement bit is split in 2 nibbles: lower nibble is the displacement
-; value, upper nibble is for flags. There is one flag currently, on bit 7, that
-; indicates that the numerical argument is of the 'e' type and has to be
-; decreased by 2 (djnz, jr). On bit 6, it indicates that the group argument's
-; value is to be placed on the second upcode rather than the first.
+; value, upper nibble is for flags:
+
+; Bit 7: indicates that the numerical argument is of the 'e' type and has to be
+; decreased by 2 (djnz, jr).
+; Bit 6: it indicates that the group argument's value is to be placed on the
+; second upcode rather than the first.
+; Bit 5: Indicates that this row is handled very specially: the next two bytes
+; aren't upcode bytes, but a routine address to call to handle this case with
+; custom code.
 
 instrTBl:
 	.db "ADC", 0, 'A', 'l', 0, 0x8e		, 0	; ADC A, (HL)
@@ -807,6 +856,8 @@ instrTBl:
 	.db "JP",0,0, 'l', 0,   0, 0xe9		, 0	; JP (HL)
 	.db "JP",0,0, 0xa, 'N', 3, 0b11000010	, 0	; JP cc, NN
 	.db "JP",0,0, 'N', 0,   0, 0xc3		, 0	; JP NN
+	.db "JP",0,0, 'x', 0,0x20 \ .dw handleJPIX	; JP (IX)
+	.db "JP",0,0, 'y', 0,0x20 \ .dw handleJPIY	; JP (IY)
 	.db "JR",0,0, 'n', 0,0x80, 0x18		, 0	; JR e
 	.db "JR",0,0,'C','n',0x80, 0x38		, 0	; JR C, e
 	.db "JR",0,0,'=','n',0x80, 0x30		, 0	; JR NC, e
