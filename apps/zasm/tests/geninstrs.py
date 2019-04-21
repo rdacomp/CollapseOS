@@ -126,6 +126,9 @@ def main():
             # we don't test the displacements for IX/IY because there can't be
             # any.
             args1 = args1[:1]
+        if n == 'BIT':
+            # we only want to keep 1, 2, 4
+            args1 = args1[:3]
         if args1:
             for arg1 in args1:
                 args2 = genargs(a2)

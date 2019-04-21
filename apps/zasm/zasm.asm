@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	28
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	104
+INSTR_TBL_CNT		.equ	108
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	9
 
@@ -469,7 +469,6 @@ handleJPIX:
 	jr	handleJPIXY
 handleJPIY:
 	ld	a, 0xfd
-	jr	handleJPIXY
 handleJPIXY:
 	ld	(curUpcode), a
 	ld	a, (curArg1+1)
@@ -482,6 +481,80 @@ handleJPIXY:
 	ret
 .error:
 	xor	c
+	ret
+
+; Handle the first argument of BIT. Sets Z if first argument is valid, unset it
+; if there's an error.
+handleBIT:
+	ld	a, (curArg1+1)
+	cp	8
+	jr	nc, .error	; >= 8? error
+	; We're good
+	cp	a		; ensure Z
+	ret
+.error:
+	xor	c
+	call	unsetZ
+	ret
+
+handleBITHL:
+	call	handleBIT
+	ret	nz		; error
+	ld	a, 0xcb		; first upcode
+	ld	(curUpcode), a
+	ld	a, (curArg1+1)	; 0-7
+	ld	b, 3		; displacement
+	call	rlaX
+	or	0b01000110	; 2nd upcode
+	ld	(curUpcode+1), a
+	ld	c, 2
+	ret
+
+handleBITIX:
+	ld	a, 0xdd
+	jr	handleBITIXY
+handleBITIY:
+	ld	a, 0xfd
+handleBITIXY:
+	ld	(curUpcode), a	; first upcode
+	call	handleBIT
+	ret	nz		; error
+	ld	a, 0xcb		; 2nd upcode
+	ld	(curUpcode+1), a
+	ld	a, (curArg2+1)	; IXY displacement
+	ld	(curUpcode+2), a
+	ld	a, (curArg1+1)	; 0-7
+	ld	b, 3		; displacement
+	call	rlaX
+	or	0b01000110	; 4th upcode
+	ld	(curUpcode+3), a
+	ld	c, 4
+	ret
+
+handleBITR:
+	call	handleBIT
+	ret	nz		; error
+	; get group value
+	ld	a, (curArg2)
+	ld	h, 0xb
+	call	findInGroup
+	push	af		; push group value
+	; write first upcode
+	ret	nz		; error
+	ld	a, 0xcb		; first upcode
+	ld	(curUpcode), a
+	; get bit value
+	ld	a, (curArg1+1)	; 0-7
+	ld	b, 3		; displacement
+	call	rlaX
+	; Now we have group value in stack, bit value in A (properly shifted)
+	; and we want to OR them together
+	pop	bc		; from push af earlier
+	or	b		; Now we have our ORed value
+	or	0b01000000	; and with the constant value for that byte...
+				; we're good!
+	ld	(curUpcode+1), a
+	ld	c, 2
 	ret
 
 ; Compute the upcode for argspec row at (DE) and arguments in curArg{1,2} and
@@ -810,6 +883,10 @@ instrTBl:
 	.db "AND", 0, 'n', 0,   0, 0xe6		, 0	; AND n
 	.db "AND", 0, 'x', 0,   0, 0xdd, 0xa6		; AND (IX+d)
 	.db "AND", 0, 'y', 0,   0, 0xfd, 0xa6		; AND (IY+d)
+	.db "BIT", 0,'n','l',0x20 \ .dw handleBITHL	; BIT b, (HL)
+	.db "BIT", 0,'n','x',0x20 \ .dw handleBITIX	; BIT b, (IX+d)
+	.db "BIT", 0,'n','y',0x20 \ .dw handleBITIY	; BIT b, (IY+d)
+	.db "BIT", 0,'n',0xb,0x20 \ .dw handleBITR	; BIT b, r
 	.db "CALL",   0xa, 'N', 3, 0b11000100	, 0	; CALL cc, NN
 	.db "CALL",   'N', 0,   0, 0xcd		, 0	; CALL NN
 	.db "CCF", 0, 0,   0,   0, 0x3f		, 0	; CCF
