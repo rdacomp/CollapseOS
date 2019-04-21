@@ -7,5 +7,5 @@ libz80/libz80.so: libz80/Makefile
 kernel.h: glue.asm
 	scas -o - -I ../../../parts $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
 
-zasm.h: ../zasm.asm
-	scas -o - -I ./emul $< | ./bin2c.sh ZASM | tee $@ > /dev/null
+zasm.h: ../zasm.asm ../tok.asm
+	scas -o - -I.. $< | ./bin2c.sh ZASM | tee $@ > /dev/null

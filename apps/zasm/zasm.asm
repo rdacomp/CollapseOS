@@ -10,12 +10,15 @@ INSTR_TBL_ROWSIZE	.equ	9
 
 ; *** Code ***
 .org	USER_CODE
+
 call	parseLine
 ld	b, 0
 ld	c, a	; written bytes
 ld	hl, curUpcode
 call	copy
 ret
+
+#include "tok.asm"
 
 unsetZ:
 	push	bc
@@ -163,129 +166,6 @@ parseNumber:
 	pop	bc
 	pop	de
 	pop	hl
-	ret
-
-; Sets Z is A is ';', CR, LF, or null.
-isLineEnd:
-	cp	';'
-	ret	z
-	cp	0
-	ret	z
-	cp	0x0d
-	ret	z
-	cp	0x0a
-	ret
-
-; Sets Z is A is ' ' or ','
-isSep:
-	cp	' '
-	ret	z
-	cp	','
-	ret
-
-; Sets Z is A is ' ', ',', ';', CR, LF, or null.
-isSepOrLineEnd:
-	call	isSep
-	ret	z
-	call	isLineEnd
-	ret
-
-; read word in (HL) and put it in (DE), null terminated, for a maximum of A
-; characters. As a result, A is the read length. HL is advanced to the next
-; separator char.
-readWord:
-	push	bc
-	ld	b, a
-.loop:
-	ld	a, (hl)
-	call	isSepOrLineEnd
-	jr	z, .success
-	call	JUMP_UPCASE
-	ld	(de), a
-	inc	hl
-	inc	de
-	djnz	.loop
-.success:
-	xor	a
-	ld	(de), a
-	ld	a, 4
-	sub	a, b
-	jr	.end
-.error:
-	xor	a
-	ld	(de), a
-.end:
-	pop	bc
-	ret
-
-; (HL) being a string, advance it to the next non-sep character.
-; Set Z if we could do it before the line ended, reset Z if we couldn't.
-toWord:
-.loop:
-	ld	a, (hl)
-	call	isLineEnd
-	jr	z, .error
-	call	isSep
-	jr	nz, .success
-	inc	hl
-	jr	.loop
-.error:
-	; we need the Z flag to be unset and it is set now. Let's CP with
-	; something it can't be equal to, something not a line end.
-	cp	'a'	; Z flag unset
-	ret
-.success:
-	; We need the Z flag to be set and it is unset. Let's compare it with
-	; itself to return a set Z
-	cp	a
-	ret
-
-
-; Read arg from (HL) into argspec at (DE)
-; HL is advanced to the next word. Z is set if there's a next word.
-readArg:
-	push	de
-	ld	de, tmpBuf
-	ld	a, 8
-	call	readWord
-	push	hl
-	ld	hl, tmpBuf
-	call	parseArg
-	pop	hl
-	pop	de
-	ld	(de), a
-	; When A is a number, IX is set with the value of that number. Because
-	; We don't use the space allocated to store those numbers in any other
-	; occasion, we store IX there unconditonally, LSB first.
-	inc	de
-	ld	a, ixl
-	ld	(de), a
-	inc	de
-	ld	a, ixh
-	ld	(de), a
-
-	call	toWord
-	ret
-
-; Read line from (HL) into (curWord), (curArg1) and (curArg2)
-readLine:
-	push	de
-	xor	a
-	ld	(curWord), a
-	ld	(curArg1), a
-	ld	(curArg2), a
-	ld	de, curWord
-	ld	a, 4
-	call	readWord
-	call	toWord
-	jr	nz, .end
-	ld	de, curArg1
-	call	readArg
-	jr	nz, .end
-	ld	de, curArg2
-	call	readArg
-.end:
-	pop	de
 	ret
 
 ; Returns length of string at (HL) in A.
@@ -488,12 +368,12 @@ matchArg:
 	pop	hl
 	ret
 
-; Compare primary row at (DE) with string at curWord. Sets Z flag if there's a
+; Compare primary row at (DE) with string at tokInstr. Sets Z flag if there's a
 ; match, reset if not.
 matchPrimaryRow:
 	push	hl
 	push	ix
-	ld	hl, curWord
+	ld	hl, tokInstr
 	ld	a, 4
 	call	JUMP_STRNCMP
 	jr	nz, .end
@@ -658,23 +538,47 @@ getUpcode:
 	pop	ix
 	ret
 
+; Parse tokenizes argument in (HL), parses it and place it in (DE)
+; Sets Z on success, reset on error.
+processArg:
+	call	parseArg
+	cp	0xff
+	jr	z, .error
+	ld	(de), a
+	; When A is a number, IX is set with the value of that number. Because
+	; We don't use the space allocated to store those numbers in any other
+	; occasion, we store IX there unconditonally, LSB first.
+	inc	de
+	ld	a, ixl
+	ld	(de), a
+	inc	de
+	ld	a, ixh
+	ld	(de), a
+	cp	a		; ensure Z is set
+	ret
+.error:
+	call	unsetZ
+	ret
+
 ; Parse line at (HL) and write resulting opcode(s) in curUpcode. Returns the
 ; number of bytes written in A.
 parseLine:
-	call	readLine
-	; Check whether we have errors. We don't do any parsing if we do.
-	ld	a, (curArg1)
-	cp	0xff
-	jr	z, .error
-	ret	z
-	ld	a, (curArg2)
-	cp	0xff
-	jr	nz, .noerror
-.error:
-	xor	a
-	ret
-.noerror:
+	push	hl
 	push	de
+	call	tokenize
+	jr	nz, .error
+	ld	a, (tokInstr)
+	cp	0
+	jr	z, .error	; for now, we treat blank lines as errors
+	ld	hl, tokArg1
+	ld	de, curArg1
+	call	processArg
+	jr	nz, .error
+	ld	hl, tokArg2
+	ld	de, curArg2
+	call	processArg
+	jr	nz, .error
+	; Parsing done, no error, let's move forward to instr row matching!
 	ld	de, instrTBl
 	ld	b, INSTR_TBL_CNT
 .loop:
@@ -691,8 +595,12 @@ parseLine:
 	; We have our matching instruction row. We're getting pretty near our
 	; goal here!
 	call	getUpcode
+	jr	.end
+.error:
+	xor	a
 .end:
 	pop	de
+	pop	hl
 	ret
 
 
@@ -860,10 +768,6 @@ instrTBl:
 
 
 ; *** Variables ***
-; enough space for 4 chars and a null
-curWord:
-	.db	0, 0, 0, 0, 0
-
 ; Args are 3 bytes: argspec, then values of numerical constants (when that's
 ; appropriate)
 curArg1:
@@ -873,8 +777,4 @@ curArg2:
 
 curUpcode:
 	.db	0, 0, 0, 0
-
-; space for tmp stuff
-tmpBuf:
-	.fill	0x20
 
