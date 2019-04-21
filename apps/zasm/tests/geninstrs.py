@@ -14,6 +14,7 @@ argspecTbl = {
     'A': "A",
     'B': "B",
     'C': "C",
+    'k': "(C)",
     'D': "D",
     'E': "E",
     'H': "H",
@@ -129,6 +130,8 @@ def main():
         if n == 'BIT':
             # we only want to keep 1, 2, 4
             args1 = args1[:3]
+        if n == 'IM':
+            args1 = [0, 1, 2]
         if args1:
             for arg1 in args1:
                 args2 = genargs(a2)

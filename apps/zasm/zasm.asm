@@ -2,9 +2,9 @@
 
 ; *** Consts ***
 ; Number of rows in the argspec table
-ARGSPEC_TBL_CNT		.equ	28
+ARGSPEC_TBL_CNT		.equ	29
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	108
+INSTR_TBL_CNT		.equ	114
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	9
 
@@ -538,9 +538,9 @@ handleBITR:
 	ld	a, (curArg2)
 	ld	h, 0xb
 	call	findInGroup
+	ret	nz		; error
 	push	af		; push group value
 	; write first upcode
-	ret	nz		; error
 	ld	a, 0xcb		; first upcode
 	ld	(curUpcode), a
 	; get bit value
@@ -555,6 +555,73 @@ handleBITR:
 				; we're good!
 	ld	(curUpcode+1), a
 	ld	c, 2
+	ret
+
+handleIM:
+	ld	a, (curArg1+1)
+	cp	0
+	jr	z, .im0
+	cp	1
+	jr	z, .im1
+	cp	2
+	jr	z, .im2
+	; error
+	ld	c, 0
+	ret
+.im0:
+	ld	a, 0x46
+	jr	.proceed
+.im1:
+	ld	a, 0x56
+	jr	.proceed
+.im2:
+	ld	a, 0x5e
+.proceed:
+	ld	(curUpcode+1), a
+	ld	a, 0xed
+	ld	(curUpcode), a
+	ld	c, 2
+	ret
+
+handleLDIXn:
+	ld	a, 0xdd
+	jr	handleLDIXYn
+handleLDIYn:
+	ld	a, 0xfd
+handleLDIXYn:
+	ld	(curUpcode), a
+	ld	a, 0x36		; second upcode
+	ld	(curUpcode+1), a
+	ld	a, (curArg1+1)	; IXY displacement
+	ld	(curUpcode+2), a
+	ld	a, (curArg2+1)	; N
+	ld	(curUpcode+3), a
+	ld	c, 4
+	ret
+.error:
+	xor	c
+	ret
+
+handleLDIXr:
+	ld	a, 0xdd
+	jr	handleLDIXYr
+handleLDIYr:
+	ld	a, 0xfd
+handleLDIXYr:
+	ld	(curUpcode), a
+	; get group value
+	ld	a, (curArg2)
+	ld	h, 0xb
+	call	findInGroup
+	ret	nz		; error
+	or	0b01110000	; second upcode
+	ld	(curUpcode+1), a
+	ld	a, (curArg1+1)	; IXY displacement
+	ld	(curUpcode+2), a
+	ld	c, 3
+	ret
+.error:
+	xor	c
 	ret
 
 ; Compute the upcode for argspec row at (DE) and arguments in curArg{1,2} and
@@ -791,6 +858,7 @@ argspecTbl:
 	.db	'A', "A", 0, 0, 0
 	.db	'B', "B", 0, 0, 0
 	.db	'C', "C", 0, 0, 0
+	.db	'k', "(C)", 0
 	.db	'D', "D", 0, 0, 0
 	.db	'E', "E", 0, 0, 0
 	.db	'H', "H", 0, 0, 0
@@ -918,7 +986,9 @@ instrTBl:
 	.db "EX",0,0, 'd', 'h', 0, 0xeb		, 0	; EX DE, HL
 	.db "EXX", 0, 0,   0,   0, 0xd9		, 0	; EXX
 	.db "HALT",   0,   0,   0, 0x76		, 0	; HALT
+	.db "IM",0,0,'n',  0,0x20 \ .dw handleIM	; IM {0,1,2}
 	.db "IN",0,0, 'A', 'm', 0, 0xdb		, 0	; IN A, (n)
+	.db "IN",0,0,0xb,'k',0x43, 0xed, 0b01000000	; IN r, (C)
 	.db "INC", 0, 'l', 0,   0, 0x34		, 0	; INC (HL)
 	.db "INC", 0, 'X', 0,   0, 0xdd , 0x23		; INC IX
 	.db "INC", 0, 'x', 0,   0, 0xdd , 0x34		; INC (IX+d)
@@ -954,6 +1024,10 @@ instrTBl:
 	.db "LD",0,0, 'A', 'M', 0, 0x3a		, 0	; LD A, (NN)
 	.db "LD",0,0, 'M', 'h', 0, 0x22		, 0	; LD (NN), HL
 	.db "LD",0,0, 'h', 'M', 0, 0x2a		, 0	; LD HL, (NN)
+	.db "LD",0,0, 'x','n',0x20 \ .dw handleLDIXn	; LD (IX+d), n
+	.db "LD",0,0, 'y','n',0x20 \ .dw handleLDIYn	; LD (IY+d), n
+	.db "LD",0,0, 'x',0xb,0x20 \ .dw handleLDIXr	; LD (IX+d), r
+	.db "LD",0,0, 'y',0xb,0x20 \ .dw handleLDIYr	; LD (IY+d), r
 	.db "NOP", 0, 0,   0,   0, 0x00		, 0	; NOP
 	.db "OR",0,0, 'l', 0,   0, 0xb6		, 0	; OR (HL)
 	.db "OR",0,0, 0xb, 0,   0, 0b10110000	, 0	; OR r
