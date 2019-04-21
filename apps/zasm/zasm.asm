@@ -391,7 +391,8 @@ findInGroup:
 ; For constant args, it's easy: if A == (HL), it's a success.
 ; If it's not this, then we check if it's a numerical arg.
 ; If A is a group ID, we do something else: we check that (HL) exists in the
-; groupspec (argGrpTbl).
+; groupspec (argGrpTbl). Moreover, we go and write the group's "value" (index)
+; in (HL+1). This will save us significant processing later in getUpcode.
 ; Set Z according to whether we match or not.
 matchArg:
 	cp	a, (hl)
@@ -430,6 +431,12 @@ matchArg:
 	pop	hl
 	call	findInGroup
 	pop	hl
+	ret	nz
+	; we found our group? let's write down its "value" in (HL+1). We hold
+	; this value in A at the moment.
+	inc	hl
+	ld	(hl), a
+	dec	hl
 	ret
 
 ; Compare primary row at (DE) with string at tokInstr. Sets Z flag if there's a
@@ -535,11 +542,8 @@ handleBITR:
 	call	handleBIT
 	ret	nz		; error
 	; get group value
-	ld	a, (curArg2)
-	ld	h, 0xb
-	call	findInGroup
-	ret	nz		; error
-	push	af		; push group value
+	ld	a, (curArg2+1)	; group value
+	ld	c, a
 	; write first upcode
 	ld	a, 0xcb		; first upcode
 	ld	(curUpcode), a
@@ -549,8 +553,7 @@ handleBITR:
 	call	rlaX
 	; Now we have group value in stack, bit value in A (properly shifted)
 	; and we want to OR them together
-	pop	bc		; from push af earlier
-	or	b		; Now we have our ORed value
+	or	c		; Now we have our ORed value
 	or	0b01000000	; and with the constant value for that byte...
 				; we're good!
 	ld	(curUpcode+1), a
@@ -609,11 +612,7 @@ handleLDIYr:
 	ld	a, 0xfd
 handleLDIXYr:
 	ld	(curUpcode), a
-	; get group value
-	ld	a, (curArg2)
-	ld	h, 0xb
-	call	findInGroup
-	ret	nz		; error
+	ld	a, (curArg2+1)	; group value
 	or	0b01110000	; second upcode
 	ld	(curUpcode+1), a
 	ld	a, (curArg1+1)	; IXY displacement
@@ -676,14 +675,9 @@ getUpcode:
 	ld	hl, curArg1
 .isGroup:
 	; A is a group, good, now let's get its value. HL is pointing to
-	; the argument. A little bit of stack gymnastic is necessary to put
-	; A into H and (HL) into A.
-	push	af
+	; the argument. Our group value is at (HL+1).
+	inc	hl
 	ld	a, (hl)
-	pop	hl		; from push af 2 lines above
-	call	findInGroup	; we don't check for match, it's supposed to
-				; always match. Something is very wrong if it
-				; doesn't
 	; Now, we have our arg "group value" in A. Were going to need to
 	; displace it left by the number of steps specified in the table.
 	push	af
