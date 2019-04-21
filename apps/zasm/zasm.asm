@@ -2,9 +2,9 @@
 
 ; *** Consts ***
 ; Number of rows in the argspec table
-ARGSPEC_TBL_CNT		.equ	27
+ARGSPEC_TBL_CNT		.equ	28
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	75
+INSTR_TBL_CNT		.equ	77
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	9
 
@@ -447,10 +447,19 @@ findInGroup:
 ; For constant args, it's easy: if A == (HL), it's a success.
 ; If it's not this, then we check if it's a numerical arg.
 ; If A is a group ID, we do something else: we check that (HL) exists in the
-; groupspec (argGrpTbl)
+; groupspec (argGrpTbl).
+; Set Z according to whether we match or not.
 matchArg:
 	cp	a, (hl)
 	ret	z
+	; not an exact match. Before we continue: is A zero? Because if it is,
+	; we have to stop right here: no match possible.
+	cp	0
+	jr	nz, .checkIfNumber	; not a zero, we can continue
+	; zero, stop here
+	call	unsetZ
+	ret
+.checkIfNumber:
 	; not an exact match, let's check for numerical constants.
 	call	JUMP_UPCASE
 	call	checkNOrM
@@ -713,6 +722,8 @@ argspecTbl:
 	.db	'c', "(BC)"
 	.db	'a', "AF", 0, 0
 	.db	'f', "AF'", 0
+	.db	'X', "IX", 0, 0
+	.db	'Y', "IY", 0, 0
 	.db	'x', "(IX)"		; always come with displacement
 	.db	'y', "(IY)"		; with JP
 	.db	's', "SP", 0, 0
@@ -745,6 +756,8 @@ argGrpTbl:
 	.db	"bdha"		; 0x01
 	.db	"ZzC="		; 0x02
 	.db	"bdhs"		; 0x03
+	.db	"bdXs"		; 0x04
+	.db	"bdYs"		; 0x05
 
 argGrpCC:
 	.db	"zZ=C12+-"	; 0xa
@@ -775,6 +788,8 @@ instrTBl:
 	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	, 0	; ADD A, r
 	.db "ADD", 0, 'A', 'n', 0, 0xc6 	, 0	; ADD A, n
 	.db "ADD", 0, 'h', 0x3, 4, 0b00001001 	, 0	; ADD HL, ss
+	.db "ADD", 0,'X',0x4,0x44, 0xdd, 0b00001001	; ADD IX, pp
+	.db "ADD", 0,'Y',0x5,0x44, 0xfd, 0b00001001	; ADD IY, rr
 	.db "AND", 0, 'l', 0,   0, 0xa6		, 0	; AND (HL)
 	.db "AND", 0, 0xb, 0,   0, 0b10100000	, 0	; AND r
 	.db "AND", 0, 'n', 0,   0, 0xe6		, 0	; AND n

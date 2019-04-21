@@ -20,7 +20,9 @@ argspecTbl = {
     'c': "(BC)",
     'a': "AF",
     'f': "AF'",
+    'X': "IX",
     'x': "(IX)",
+    'Y': "IY",
     'y': "(IY)",
     's': "SP",
     'p': "(SP)",
@@ -37,6 +39,8 @@ argGrpTbl = {
     chr(0x01): "bdha",
     chr(0x02): "ZzC=",
     chr(0x03): "bdhs",
+    chr(0x04): "bdXs",
+    chr(0x05): "bdYs",
     chr(0x0a): "ZzC=+-12",
     chr(0x0b): "BCDEHLA",
 }
