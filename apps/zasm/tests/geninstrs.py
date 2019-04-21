@@ -85,6 +85,15 @@ def genargs(argspec):
         if argspec in 'mM':
             nbs = [f"({n})" for n in nbs]
         return nbs
+    if argspec in 'xy':
+        # IX/IY displacement is special
+        base = argspecTbl[argspec]
+        result = [base]
+        argspec = argspec.upper()
+        for n in [1, 10, 100, 127]:
+            result.append(f"(I{argspec}+{n})")
+        # TODO: support minus
+        return result
     if argspec in argspecTbl:
         return [argspecTbl[argspec]]
     grp = argGrpTbl[argspec]

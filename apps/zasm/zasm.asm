@@ -4,7 +4,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	28
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	77
+INSTR_TBL_CNT		.equ	79
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	9
 
@@ -98,6 +98,17 @@ checkNOrM:
 	cp	'M'
 	ret
 
+; Checks whether A is 'n', 'm', 'x' or 'y'
+checknmxy:
+	cp	'n'
+	ret	z
+	cp	'm'
+	ret	z
+	cp	'x'
+	ret	z
+	cp	'y'
+	ret
+
 ; Parse the decimal char at A and extract it's 0-9 numerical value. Put the
 ; result in A.
 ;
@@ -114,20 +125,11 @@ parseDecimal:
 ; Parses the string at (HL) and returns the 16-bit value in IX.
 ; As soon as the number doesn't fit 16-bit any more, parsing stops and the
 ; number is invalid. If the number is valid, Z is set, otherwise, unset.
-; If (HL) contains a number inside parens, we properly enter into it.
-; Upon successful return, A is set to 'N' for a parens-less number, 'M' for
-; a number inside parens.
 parseNumber:
 	push	hl
 	push	de
 	push	bc
 
-	; Let's see if we have parens and already set the A result in B.
-	ld	b, 'N'		; if no parens
-	call	enterParens
-	jr	nz, .noparens
-	ld	b, 'M'		; we have parens and entered it.
-.noparens:
 	ld	ix, 0
 .loop:
 	ld	a, (hl)
@@ -162,9 +164,34 @@ parseNumber:
 .error:
 	call	unsetZ
 .end:
-	ld	a, b
 	pop	bc
 	pop	de
+	pop	hl
+	ret
+
+; Parse the string at (HL) and check if it starts with IX+, IY+, IX- or IY-.
+; Sets Z if yes, unset if no.
+parseIXY:
+	push	hl
+	ld	a, (hl)
+	cp	'I'
+	jr	nz, .end	; Z already unset
+	inc	hl
+	ld	a, (hl)
+	cp	'X'
+	jr	z, .match1
+	cp	'Y'
+	jr	z, .match1
+	jr	.end		; Z already unset
+.match1:
+	; Alright, we have IX or IY. Let's see if we have + or - next.
+	inc	hl
+	ld	a, (hl)
+	cp	'+'
+	jr	z, .end		; Z is already set
+	cp	'-'
+	; The value of Z at this point is our final result
+.end:
 	pop	hl
 	ret
 
@@ -205,6 +232,10 @@ parseArg:
 	push	de
 	push	hl
 
+	; We always initialize IX to zero so that non-numerical args end up with
+	; a clean zero.
+	ld	ix, 0
+
 	ld	de, argspecTbl
 	; DE now points the the "argspec char" part of the entry, but what
 	; we're comparing in the loop is the string next to it. Let's offset
@@ -219,12 +250,41 @@ parseArg:
 	call	JUMP_ADDDE
 	djnz	.loop1
 
-	; We exhausted the argspecs. Let's see if it's a number. This sets
-	; A to 'N' or 'M'
+	; We exhausted the argspecs. Let's see if we're inside parens.
+	call	enterParens
+	jr	z, .withParens
+	; (HL) has no parens
 	call	parseNumber
-	jr	z, .end		; Alright, we have a parsed number in IX. We're
-				; done.
-	; not a number
+	jr	nz, .nomatch
+	; We have a proper number in no parens. Number in IX.
+	ld	a, 'N'
+	jr	.end
+.withParens:
+	ld	c, 'M'		; C holds the argspec type until we reach
+				; .numberInParens
+	; We have parens. First, let's see if we have a (IX+d) type of arg.
+	call	parseIXY
+	jr	nz, .parseNumberInParens	; not I{X,Y}. just parse number.
+	; We have IX+/IY+/IX-/IY-.
+	; note: the "-" part isn't supported yet.
+	inc	hl	; (HL) now points to X or Y
+	ld	a, (hl)
+	inc	hl	; advance HL to the number part
+	inc	hl	; this is the number
+	cp	'Y'
+	jr	nz, .notY
+	ld	c, 'y'
+	jr	.parseNumberInParens
+.notY:
+	ld	c, 'x'
+.parseNumberInParens:
+	call	parseNumber
+	jr	nz, .nomatch
+	; We have a proper number in parens. Number in IX
+	ld	a, c	; M, x, or y
+	jr	.end
+.nomatch:
+	; We get no match
 	ld	a, 0xff
 	jr	.end
 .found:
@@ -473,17 +533,13 @@ getUpcode:
 	ld	hl, curArg1
 	call	checkNOrM
 	jr	z, .withWord
-	cp	'n'
-	jr	z, .withByte
-	cp	'm'
+	call	checknmxy
 	jr	z, .withByte
 	ld	a, (ix+5)	; second argspec
 	ld	hl, curArg2
 	call	checkNOrM
 	jr	z, .withWord
-	cp	'n'
-	jr	z, .withByte
-	cp	'm'
+	call	checknmxy
 	jr	z, .withByte
 	; nope, no number, alright, we're finished here
 	ld	c, 1
@@ -698,6 +754,8 @@ instrTBl:
 	.db "ADD", 0, 'h', 0x3, 4, 0b00001001 	, 0	; ADD HL, ss
 	.db "ADD", 0,'X',0x4,0x44, 0xdd, 0b00001001	; ADD IX, pp
 	.db "ADD", 0,'Y',0x5,0x44, 0xfd, 0b00001001	; ADD IY, rr
+	.db "ADD", 0, 'A', 'x', 0, 0xdd, 0x86	 	; ADD A, (IX+d)
+	.db "ADD", 0, 'A', 'y', 0, 0xfd, 0x86	 	; ADD A, (IY+d)
 	.db "AND", 0, 'l', 0,   0, 0xa6		, 0	; AND (HL)
 	.db "AND", 0, 0xb, 0,   0, 0b10100000	, 0	; AND r
 	.db "AND", 0, 'n', 0,   0, 0xe6		, 0	; AND n

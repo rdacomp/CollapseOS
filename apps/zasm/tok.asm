@@ -7,7 +7,8 @@
 
 ; *** Code ***
 ; Parse line in (HL) and place each element in tokInstr, tokArg1, tokArg2. Those
-; values are null-terminated and empty if not present.
+; values are null-terminated and empty if not present. All letters are
+; uppercased.
 ; Sets Z on success, unsets it on error. Blank line is not an error.
 ; (as of now, we don't have any error condition. We always succeed)
 tokenize:
