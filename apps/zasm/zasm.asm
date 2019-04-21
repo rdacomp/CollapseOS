@@ -2,9 +2,9 @@
 
 ; *** Consts ***
 ; Number of rows in the argspec table
-ARGSPEC_TBL_CNT		.equ	29
+ARGSPEC_TBL_CNT		.equ	31
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	114
+INSTR_TBL_CNT		.equ	135
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	9
 
@@ -857,6 +857,8 @@ argspecTbl:
 	.db	'E', "E", 0, 0, 0
 	.db	'H', "H", 0, 0, 0
 	.db	'L', "L", 0, 0, 0
+	.db	'I', "I", 0, 0, 0
+	.db	'R', "R", 0, 0, 0
 	.db	'h', "HL", 0, 0
 	.db	'l', "(HL)"
 	.db	'd', "DE", 0, 0
@@ -1009,6 +1011,10 @@ instrTBl:
 	.db "LD",0,0, 'A', 'c', 0, 0x0a		, 0	; LD A, (BC)
 	.db "LD",0,0, 'A', 'e', 0, 0x1a		, 0	; LD A, (DE)
 	.db "LD",0,0, 's', 'h', 0, 0xf9		, 0	; LD SP, HL
+	.db "LD",0,0, 'A', 'I', 0, 0xed, 0x57		; LD A, I
+	.db "LD",0,0, 'I', 'A', 0, 0xed, 0x47		; LD I, A
+	.db "LD",0,0, 'A', 'R', 0, 0xed, 0x5f		; LD A, R
+	.db "LD",0,0, 'R', 'A', 0, 0xed, 0x4f		; LD R, A
 	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	, 0	; LD (HL), r
 	.db "LD",0,0, 0xb, 'l', 3, 0b01000110	, 0	; LD r, (HL)
 	.db "LD",0,0, 'l', 'n', 0, 0x36		, 0	; LD (HL), n
@@ -1018,14 +1024,31 @@ instrTBl:
 	.db "LD",0,0, 'A', 'M', 0, 0x3a		, 0	; LD A, (NN)
 	.db "LD",0,0, 'M', 'h', 0, 0x22		, 0	; LD (NN), HL
 	.db "LD",0,0, 'h', 'M', 0, 0x2a		, 0	; LD HL, (NN)
+	.db "LD",0,0, 'M', 'X', 0, 0xdd, 0x22		; LD (NN), IX
+	.db "LD",0,0, 'X', 'M', 0, 0xdd, 0x2a		; LD IX, (NN)
+	.db "LD",0,0, 'M', 'Y', 0, 0xfd, 0x22		; LD (NN), IY
+	.db "LD",0,0, 'Y', 'M', 0, 0xfd, 0x2a		; LD IY, (NN)
+	.db "LD",0,0,'M',0x3,0x44, 0xed, 0b01000011	; LD (NN), dd
+	.db "LD",0,0,0x3,'M',0x44, 0xed, 0b01001011	; LD dd, (NN)
 	.db "LD",0,0, 'x','n',0x20 \ .dw handleLDIXn	; LD (IX+d), n
 	.db "LD",0,0, 'y','n',0x20 \ .dw handleLDIYn	; LD (IY+d), n
 	.db "LD",0,0, 'x',0xb,0x20 \ .dw handleLDIXr	; LD (IX+d), r
 	.db "LD",0,0, 'y',0xb,0x20 \ .dw handleLDIYr	; LD (IY+d), r
+	.db "LDD", 0, 0,   0,   0, 0xed, 0xa8		; LDD
+	.db "LDDR",   0,   0,   0, 0xed, 0xb8		; LDDR
+	.db "LDI", 0, 0,   0,   0, 0xed, 0xa0		; LDI
+	.db "LDIR",   0,   0,   0, 0xed, 0xb0		; LDIR
+	.db "NEG", 0, 0,   0,   0, 0xed, 0x44		; NEG
 	.db "NOP", 0, 0,   0,   0, 0x00		, 0	; NOP
 	.db "OR",0,0, 'l', 0,   0, 0xb6		, 0	; OR (HL)
 	.db "OR",0,0, 0xb, 0,   0, 0b10110000	, 0	; OR r
+	.db "OR",0,0, 'n', 0,   0, 0xf6		, 0	; OR n
+	.db "OR",0,0, 'x', 0,   0, 0xdd, 0xb6		; OR (IX+d)
+	.db "OR",0,0, 'y', 0,   0, 0xfd, 0xb6		; OR (IY+d)
+	.db "OTDR",   0,   0,   0, 0xed, 0xbb		; OTDR
+	.db "OTIR",   0,   0,   0, 0xed, 0xb3		; OTIR
 	.db "OUT", 0, 'm', 'A', 0, 0xd3		, 0	; OUT (n), A
+	.db "OUT", 0,'k',0xb,0x43, 0xed, 0b01000001	; OUT (C), r
 	.db "POP", 0, 0x1, 0,   4, 0b11000001	, 0	; POP qq
 	.db "PUSH",   0x1, 0,   4, 0b11000101	, 0	; PUSH qq
 	.db "RET", 0, 0,   0,   0, 0xc9		, 0	; RET
