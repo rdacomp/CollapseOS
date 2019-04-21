@@ -4,9 +4,9 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	27
 ; Number of rows in the primary instructions table
-INSTR_TBLP_CNT		.equ	74
+INSTR_TBL_CNT		.equ	75
 ; size in bytes of each row in the primary instructions table
-INSTR_TBLP_ROWSIZE	.equ	8
+INSTR_TBL_ROWSIZE	.equ	9
 
 ; *** Code ***
 .org	USER_CODE
@@ -37,6 +37,16 @@ rlaX:
 
 ; Copy BC bytes from (HL) to (DE).
 copy:
+	; first, let's see if BC is zero. if it is, we have nothing to do.
+	; remember: 16-bit inc/dec don't modify flags. that's why we check B
+	; and C separately.
+	inc	b
+	dec	b
+	jr	nz, .proceed
+	inc	c
+	dec	c
+	ret	z	; zero? nothing to do
+.proceed:
 	push	bc
 	push	de
 	push	hl
@@ -500,9 +510,23 @@ getUpcode:
 	push	ix
 	push	de
 	push	hl
+	push	bc
 	; First, let's go in IX mode. It's easier to deal with offsets here.
 	ld	ixh, d
 	ld	ixl, e
+	; we begin by writing our "base upcode", which can be one or two bytes
+	ld	a, (ix+7)	; first upcode
+	ld	(curUpcode), a
+	ld	de, curUpcode	; from this point, DE points to "where we are"
+				; in terms of upcode writing.
+	inc	de		; make DE point to where we should write next.
+	ld	a, (ix+8)	; second upcode
+	cp	0		; do we have a second upcode?
+	jr	z, .onlyOneUpcode
+	; we have two upcodes
+	ld	(de), a
+	inc	de
+.onlyOneUpcode:
 	; now, let's see if we're dealing with a group here
 	ld	a, (ix+4)	; first argspec
 	call	isGroupId
@@ -510,49 +534,52 @@ getUpcode:
 	; First arg not a group. Maybe second is?
 	ld	a, (ix+5)	; 2nd argspec
 	call	isGroupId
-	jr	nz, .notgroup
+	jr	nz, .writeExtraBytes	; not a group? nothing to do. go to
+					; next step: write extra bytes
 	; Second arg is group
-	ld	de, curArg2
+	ld	hl, curArg2
 	jr	.isGroup
 .firstArgIsGroup:
-	ld	de, curArg1
+	ld	hl, curArg1
 .isGroup:
-	; A is a group, good, now let's get its value. DE is pointing to
-	; the argument.
-	ld	h, a
-	ld	a, (de)
+	; A is a group, good, now let's get its value. HL is pointing to
+	; the argument. A little bit of stack gymnastic is necessary to put
+	; A into H and (HL) into A.
+	push	af
+	ld	a, (hl)
+	pop	hl		; from push af 2 lines above
 	call	findInGroup	; we don't check for match, it's supposed to
 				; always match. Something is very wrong if it
 				; doesn't
 	; Now, we have our arg "group value" in A. Were going to need to
 	; displace it left by the number of steps specified in the table.
-	push	bc
 	push	af
 	ld	a, (ix+6)	; displacement bit
 	and	a, 0xf		; we only use the lower nibble.
 	ld	b, a
 	pop	af
 	call	rlaX
-	pop	bc
 
 	; At this point, we have a properly displaced value in A. We'll want
 	; to OR it with the opcode.
-	or	(ix+7)		; upcode
-
-	; Success!
-	jr	.writeFirstOpcode
-.notgroup:
-	; not a group? easy as pie: we return the opcode directly.
-	ld	a, (ix+7)	; upcode is on 8th byte
-.writeFirstOpcode:
-	; At the end, we have our final opcode in A!
-	ld	de, curUpcode
-	ld	(de), a
-
+	; However, we first have to verify whether this ORing takes place on
+	; the second upcode or the first.
+	bit	6, (ix+6)
+	jr	z, .firstUpcode	; not set: first upcode
+	or	(ix+8)		; second upcode
+	ld	(curUpcode+1), a
+	jr	.writeExtraBytes
+.firstUpcode:
+	or	(ix+7)		; first upcode
+	ld	(curUpcode), a
+	jr	.writeExtraBytes
+.writeExtraBytes:
 	; Good, we are probably finished here for many primary opcodes. However,
 	; some primary opcodes take 8 or 16 bit constants as an argument and
 	; if that's the case here, we need to write it too.
-	; We still have our instruction row in IX. Let's revisit it.
+	; We still have our instruction row in IX and we have DE pointing to
+	; where we should write next (which could be the second or the third
+	; byte of curUpcode).
 	ld	a, (ix+4)	; first argspec
 	ld	hl, curArg1
 	call	checkNOrM
@@ -569,9 +596,9 @@ getUpcode:
 	jr	z, .withByte
 	cp	'm'
 	jr	z, .withByte
-	; nope, no number, aright, only one opcode
-	ld	a, 1
-	jr	.end
+	; nope, no number, alright, we're finished here
+	ld	c, 1
+	jr	.computeBytesWritten
 .withByte:
 	; verify that the MSB in argument is zero
 	inc	hl
@@ -589,23 +616,34 @@ getUpcode:
 	dec	(hl)
 	dec	(hl)
 .skipDecrease:
-	inc	de
 	ldi
-	ld	a, 2
-	jr	.end
+	ld	c, 2
+	jr	.computeBytesWritten
 
 .withWord:
-	inc	de
 	inc	hl	; HL now points to LSB
 	; Clear to proceed. HL already points to our number
 	ldi	; LSB written, we point to MSB now
 	ldi	; MSB written
-	ld	a, 3
+	ld	c, 3
+	jr	.computeBytesWritten
+.computeBytesWritten:
+	; At this point, everything that we needed to write in curUpcode is
+	; written an C is 1 if we have no extra byte, 2 if we have an extra
+	; byte and 3 if we have an extra word. What we need to do here is check
+	; if ix+8 is non-zero and increase C if it is.
+	ld	a, (ix+8)
+	cp	0
+	jr	z, .end		; no second upcode? nothing to do.
+	; We have 2 base upcodes
+	inc	c
 	jr	.end
 .numberTruncated:
 	; problem: not zero, so value is truncated. error
-	xor	a
+	xor	c
 .end:
+	ld	a, c
+	pop	bc
 	pop	hl
 	pop	de
 	pop	ix
@@ -628,13 +666,13 @@ parseLine:
 	ret
 .noerror:
 	push	de
-	ld	de, instrTBlPrimary
-	ld	b, INSTR_TBLP_CNT
+	ld	de, instrTBl
+	ld	b, INSTR_TBL_CNT
 .loop:
 	ld	a, (de)
 	call	matchPrimaryRow
 	jr	z, .match
-	ld	a, INSTR_TBLP_ROWSIZE
+	ld	a, INSTR_TBL_ROWSIZE
 	call	JUMP_ADDDE
 	djnz	.loop
 	; no match
@@ -720,88 +758,90 @@ argGrpABCDEHL:
 ; 1 byte for arg constant
 ; 1 byte for 2nd arg constant
 ; 1 byte displacement for group arguments + flags
-; 1 byte for upcode
+; 2 bytes for upcode (2nd byte is zero if instr is one byte)
 ;
 ; The displacement bit is split in 2 nibbles: lower nibble is the displacement
 ; value, upper nibble is for flags. There is one flag currently, on bit 7, that
 ; indicates that the numerical argument is of the 'e' type and has to be
-; decreased by 2 (djnz, jr).
+; decreased by 2 (djnz, jr). On bit 6, it indicates that the group argument's
+; value is to be placed on the second upcode rather than the first.
 
-instrTBlPrimary:
-	.db "ADC", 0, 'A', 'l', 0, 0x8e		; ADC A, (HL)
-	.db "ADC", 0, 'A', 0xb, 0, 0b10001000	; ADC A, r
-	.db "ADC", 0, 'A', 'n', 0, 0xce		; ADC A, n
-	.db "ADD", 0, 'A', 'l', 0, 0x86		; ADD A, (HL)
-	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	; ADD A, r
-	.db "ADD", 0, 'A', 'n', 0, 0xc6 	; ADD A, n
-	.db "ADD", 0, 'h', 0x3, 4, 0b00001001 	; ADD HL, ss
-	.db "AND", 0, 'l', 0,   0, 0xa6		; AND (HL)
-	.db "AND", 0, 0xb, 0,   0, 0b10100000	; AND r
-	.db "AND", 0, 'n', 0,   0, 0xe6		; AND n
-	.db "CALL",   0xa, 'N', 3, 0b11000100	; CALL cc, NN
-	.db "CALL",   'N', 0,   0, 0xcd		; CALL NN
-	.db "CCF", 0, 0,   0,   0, 0x3f		; CCF
-	.db "CP",0,0, 'l', 0,   0, 0xbe		; CP (HL)
-	.db "CP",0,0, 0xb, 0,   0, 0b10111000	; CP r
-	.db "CP",0,0, 'n', 0,   0, 0xfe		; CP n
-	.db "CPL", 0, 0,   0,   0, 0x2f		; CPL
-	.db "DAA", 0, 0,   0,   0, 0x27		; DAA
-	.db "DI",0,0, 0,   0,   0, 0xf3		; DI
-	.db "DEC", 0, 'l', 0,   0, 0x35		; DEC (HL)
-	.db "DEC", 0, 0xb, 0,   3, 0b00000101	; DEC r
-	.db "DEC", 0, 0x3, 0,   4, 0b00001011	; DEC s
-	.db "DJNZ",   'n', 0,0x80, 0x10		; DJNZ e
-	.db "EI",0,0, 0,   0,   0, 0xfb		; EI
-	.db "EX",0,0, 'p', 'h', 0, 0xe3		; EX (SP), HL
-	.db "EX",0,0, 'a', 'f', 0, 0x08		; EX AF, AF'
-	.db "EX",0,0, 'd', 'h', 0, 0xeb		; EX DE, HL
-	.db "EXX", 0, 0,   0,   0, 0xd9		; EXX
-	.db "HALT",   0,   0,   0, 0x76		; HALT
-	.db "IN",0,0, 'A', 'm', 0, 0xdb		; IN A, (n)
-	.db "INC", 0, 'l', 0,   0, 0x34		; INC (HL)
-	.db "INC", 0, 0xb, 0,   3, 0b00000100	; INC r
-	.db "INC", 0, 0x3, 0,   4, 0b00000011	; INC s
-	.db "JP",0,0, 'l', 0,   0, 0xe9		; JP (HL)
-	.db "JP",0,0, 'N', 0,   0, 0xc3		; JP NN
-	.db "JR",0,0, 'n', 0,0x80, 0x18		; JR e
-	.db "JR",0,0,'C','n',0x80, 0x38		; JR C, e
-	.db "JR",0,0,'=','n',0x80, 0x30		; JR NC, e
-	.db "JR",0,0,'Z','n',0x80, 0x28		; JR Z, e
-	.db "JR",0,0,'z','n',0x80, 0x20		; JR NZ, e
-	.db "LD",0,0, 'c', 'A', 0, 0x02		; LD (BC), A
-	.db "LD",0,0, 'e', 'A', 0, 0x12		; LD (DE), A
-	.db "LD",0,0, 'A', 'c', 0, 0x0a		; LD A, (BC)
-	.db "LD",0,0, 'A', 'e', 0, 0x1a		; LD A, (DE)
-	.db "LD",0,0, 's', 'h', 0, 0xf9		; LD SP, HL
-	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	; LD (HL), r
-	.db "LD",0,0, 0xb, 'l', 3, 0b01000110	; LD r, (HL)
-	.db "LD",0,0, 'l', 'n', 0, 0x36		; LD (HL), n
-	.db "LD",0,0, 0xb, 'n', 3, 0b00000110	; LD r, (HL)
-	.db "LD",0,0, 0x3, 'N', 4, 0b00000001	; LD dd, n
-	.db "LD",0,0, 'M', 'A', 0, 0x32		; LD (NN), A
-	.db "LD",0,0, 'A', 'M', 0, 0x3a		; LD A, (NN)
-	.db "LD",0,0, 'M', 'h', 0, 0x22		; LD (NN), HL
-	.db "LD",0,0, 'h', 'M', 0, 0x2a		; LD HL, (NN)
-	.db "NOP", 0, 0,   0,   0, 0x00		; NOP
-	.db "OR",0,0, 'l', 0,   0, 0xb6		; OR (HL)
-	.db "OR",0,0, 0xb, 0,   0, 0b10110000	; OR r
-	.db "OUT", 0, 'm', 'A', 0, 0xd3		; OUT (n), A
-	.db "POP", 0, 0x1, 0,   4, 0b11000001	; POP qq
-	.db "PUSH",   0x1, 0,   4, 0b11000101	; PUSH qq
-	.db "RET", 0, 0,   0,   0, 0xc9		; RET
-	.db "RET", 0, 0xa, 0,   3, 0b11000000	; RET cc
-	.db "RLA", 0, 0,   0,   0, 0x17		; RLA
-	.db "RLCA",   0,   0,   0, 0x07		; RLCA
-	.db "RRA", 0, 0,   0,   0, 0x1f		; RRA
-	.db "RRCA",   0,   0,   0, 0x0f		; RRCA
-	.db "SBC", 0, 'A', 'l', 0, 0x9e		; SBC A, (HL)
-	.db "SBC", 0, 'A', 0xb, 0, 0b10011000	; SBC A, r
-	.db "SCF", 0, 0,   0,   0, 0x37		; SCF
-	.db "SUB", 0, 'A', 'l', 0, 0x96		; SUB A, (HL)
-	.db "SUB", 0, 'A', 0xb, 0, 0b10010000	; SUB A, r
-	.db "SUB", 0, 'n', 0,   0, 0xd6 	; SUB n
-	.db "XOR", 0, 'l', 0,   0, 0xae		; XOR (HL)
-	.db "XOR", 0, 0xb, 0,   0, 0b10101000	; XOR r
+instrTBl:
+	.db "ADC", 0, 'A', 'l', 0, 0x8e		, 0	; ADC A, (HL)
+	.db "ADC", 0, 'A', 0xb, 0, 0b10001000	, 0	; ADC A, r
+	.db "ADC", 0, 'A', 'n', 0, 0xce		, 0	; ADC A, n
+	.db "ADC", 0,'h',0x3,0x44, 0xed, 0b01001010	; ADC HL, ss
+	.db "ADD", 0, 'A', 'l', 0, 0x86		, 0	; ADD A, (HL)
+	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	, 0	; ADD A, r
+	.db "ADD", 0, 'A', 'n', 0, 0xc6 	, 0	; ADD A, n
+	.db "ADD", 0, 'h', 0x3, 4, 0b00001001 	, 0	; ADD HL, ss
+	.db "AND", 0, 'l', 0,   0, 0xa6		, 0	; AND (HL)
+	.db "AND", 0, 0xb, 0,   0, 0b10100000	, 0	; AND r
+	.db "AND", 0, 'n', 0,   0, 0xe6		, 0	; AND n
+	.db "CALL",   0xa, 'N', 3, 0b11000100	, 0	; CALL cc, NN
+	.db "CALL",   'N', 0,   0, 0xcd		, 0	; CALL NN
+	.db "CCF", 0, 0,   0,   0, 0x3f		, 0	; CCF
+	.db "CP",0,0, 'l', 0,   0, 0xbe		, 0	; CP (HL)
+	.db "CP",0,0, 0xb, 0,   0, 0b10111000	, 0	; CP r
+	.db "CP",0,0, 'n', 0,   0, 0xfe		, 0	; CP n
+	.db "CPL", 0, 0,   0,   0, 0x2f		, 0	; CPL
+	.db "DAA", 0, 0,   0,   0, 0x27		, 0	; DAA
+	.db "DI",0,0, 0,   0,   0, 0xf3		, 0	; DI
+	.db "DEC", 0, 'l', 0,   0, 0x35		, 0	; DEC (HL)
+	.db "DEC", 0, 0xb, 0,   3, 0b00000101	, 0	; DEC r
+	.db "DEC", 0, 0x3, 0,   4, 0b00001011	, 0	; DEC s
+	.db "DJNZ",   'n', 0,0x80, 0x10		, 0	; DJNZ e
+	.db "EI",0,0, 0,   0,   0, 0xfb		, 0	; EI
+	.db "EX",0,0, 'p', 'h', 0, 0xe3		, 0	; EX (SP), HL
+	.db "EX",0,0, 'a', 'f', 0, 0x08		, 0	; EX AF, AF'
+	.db "EX",0,0, 'd', 'h', 0, 0xeb		, 0	; EX DE, HL
+	.db "EXX", 0, 0,   0,   0, 0xd9		, 0	; EXX
+	.db "HALT",   0,   0,   0, 0x76		, 0	; HALT
+	.db "IN",0,0, 'A', 'm', 0, 0xdb		, 0	; IN A, (n)
+	.db "INC", 0, 'l', 0,   0, 0x34		, 0	; INC (HL)
+	.db "INC", 0, 0xb, 0,   3, 0b00000100	, 0	; INC r
+	.db "INC", 0, 0x3, 0,   4, 0b00000011	, 0	; INC s
+	.db "JP",0,0, 'l', 0,   0, 0xe9		, 0	; JP (HL)
+	.db "JP",0,0, 'N', 0,   0, 0xc3		, 0	; JP NN
+	.db "JR",0,0, 'n', 0,0x80, 0x18		, 0	; JR e
+	.db "JR",0,0,'C','n',0x80, 0x38		, 0	; JR C, e
+	.db "JR",0,0,'=','n',0x80, 0x30		, 0	; JR NC, e
+	.db "JR",0,0,'Z','n',0x80, 0x28		, 0	; JR Z, e
+	.db "JR",0,0,'z','n',0x80, 0x20		, 0	; JR NZ, e
+	.db "LD",0,0, 'c', 'A', 0, 0x02		, 0	; LD (BC), A
+	.db "LD",0,0, 'e', 'A', 0, 0x12		, 0	; LD (DE), A
+	.db "LD",0,0, 'A', 'c', 0, 0x0a		, 0	; LD A, (BC)
+	.db "LD",0,0, 'A', 'e', 0, 0x1a		, 0	; LD A, (DE)
+	.db "LD",0,0, 's', 'h', 0, 0xf9		, 0	; LD SP, HL
+	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	, 0	; LD (HL), r
+	.db "LD",0,0, 0xb, 'l', 3, 0b01000110	, 0	; LD r, (HL)
+	.db "LD",0,0, 'l', 'n', 0, 0x36		, 0	; LD (HL), n
+	.db "LD",0,0, 0xb, 'n', 3, 0b00000110	, 0	; LD r, (HL)
+	.db "LD",0,0, 0x3, 'N', 4, 0b00000001	, 0	; LD dd, n
+	.db "LD",0,0, 'M', 'A', 0, 0x32		, 0	; LD (NN), A
+	.db "LD",0,0, 'A', 'M', 0, 0x3a		, 0	; LD A, (NN)
+	.db "LD",0,0, 'M', 'h', 0, 0x22		, 0	; LD (NN), HL
+	.db "LD",0,0, 'h', 'M', 0, 0x2a		, 0	; LD HL, (NN)
+	.db "NOP", 0, 0,   0,   0, 0x00		, 0	; NOP
+	.db "OR",0,0, 'l', 0,   0, 0xb6		, 0	; OR (HL)
+	.db "OR",0,0, 0xb, 0,   0, 0b10110000	, 0	; OR r
+	.db "OUT", 0, 'm', 'A', 0, 0xd3		, 0	; OUT (n), A
+	.db "POP", 0, 0x1, 0,   4, 0b11000001	, 0	; POP qq
+	.db "PUSH",   0x1, 0,   4, 0b11000101	, 0	; PUSH qq
+	.db "RET", 0, 0,   0,   0, 0xc9		, 0	; RET
+	.db "RET", 0, 0xa, 0,   3, 0b11000000	, 0	; RET cc
+	.db "RLA", 0, 0,   0,   0, 0x17		, 0	; RLA
+	.db "RLCA",   0,   0,   0, 0x07		, 0	; RLCA
+	.db "RRA", 0, 0,   0,   0, 0x1f		, 0	; RRA
+	.db "RRCA",   0,   0,   0, 0x0f		, 0	; RRCA
+	.db "SBC", 0, 'A', 'l', 0, 0x9e		, 0	; SBC A, (HL)
+	.db "SBC", 0, 'A', 0xb, 0, 0b10011000	, 0	; SBC A, r
+	.db "SCF", 0, 0,   0,   0, 0x37		, 0	; SCF
+	.db "SUB", 0, 'A', 'l', 0, 0x96		, 0	; SUB A, (HL)
+	.db "SUB", 0, 'A', 0xb, 0, 0b10010000	, 0	; SUB A, r
+	.db "SUB", 0, 'n', 0,   0, 0xd6 	, 0	; SUB n
+	.db "XOR", 0, 'l', 0,   0, 0xae		, 0	; XOR (HL)
+	.db "XOR", 0, 0xb, 0,   0, 0b10101000	, 0	; XOR r
 
 
 ; *** Variables ***

@@ -5,8 +5,9 @@ set -e
 TMPFILE=$(mktemp)
 SCAS=scas
 ZASM=../emul/zasm
+ASMFILE=../zasm.asm
 
-./geninstrs.py | \
+./geninstrs.py $ASMFILE | \
 while read line; do
     echo $line | tee "${TMPFILE}"
     EXPECTED=$($SCAS -o - "${TMPFILE}" | xxd)
