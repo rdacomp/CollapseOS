@@ -13,6 +13,8 @@ INSTR_TBLP_ROWSIZE	.equ	8
 call	parseLine
 ld	b, 0
 ld	c, a	; written bytes
+ld	hl, curUpcode
+call	copy
 ret
 
 unsetZ:
@@ -31,6 +33,17 @@ rlaX:
 	ret	z	; Z flag means we had B = 0
 .loop:	rla
 	djnz	.loop
+	ret
+
+; Copy BC bytes from (HL) to (DE).
+copy:
+	push	bc
+	push	de
+	push	hl
+	ldir
+	pop	hl
+	pop	de
+	pop	bc
 	ret
 
 ; If string at (HL) starts with ( and ends with ), "enter" into the parens
@@ -480,45 +493,17 @@ matchPrimaryRow:
 	pop	hl
 	ret
 
-; Parse line at (HL) and write resulting opcode(s) in (DE). Returns the number
-; of bytes written in A.
-;
-; Overwrites IX
-parseLine:
-	call	readLine
-	; Check whether we have errors. We don't do any parsing if we do.
-	ld	a, (curArg1)
-	cp	0xff
-	jr	z, .error
-	ret	z
-	ld	a, (curArg2)
-	cp	0xff
-	jr	nz, .noerror
-.error:
-	ld	a, 0
-	ret
-.noerror:
+; Compute the upcode for argspec row at (DE) and arguments in curArg{1,2} and
+; writes the resulting upcode in curUpcode. A is the number if bytes written
+; to curUpcode (can be zero if something went wrong).
+getUpcode:
+	push	ix
 	push	de
-	ld	de, instrTBlPrimary
-	ld	b, INSTR_TBLP_CNT
-.loop:
-	ld	a, (de)
-	call	matchPrimaryRow
-	jr	z, .match
-	ld	a, INSTR_TBLP_ROWSIZE
-	call	JUMP_ADDDE
-	djnz	.loop
-	; no match
-	xor	a
-	pop	de
-	ret
-.match:
-	; We have our matching instruction row. We're getting pretty near our
-	; goal here!
+	push	hl
 	; First, let's go in IX mode. It's easier to deal with offsets here.
 	ld	ixh, d
 	ld	ixl, e
-	; First, let's see if we're dealing with a group here
+	; now, let's see if we're dealing with a group here
 	ld	a, (ix+4)	; first argspec
 	call	isGroupId
 	jr	z, .firstArgIsGroup
@@ -534,7 +519,6 @@ parseLine:
 .isGroup:
 	; A is a group, good, now let's get its value. DE is pointing to
 	; the argument.
-	push	hl
 	ld	h, a
 	ld	a, (de)
 	call	findInGroup	; we don't check for match, it's supposed to
@@ -554,7 +538,6 @@ parseLine:
 	; At this point, we have a properly displaced value in A. We'll want
 	; to OR it with the opcode.
 	or	(ix+7)		; upcode
-	pop	hl
 
 	; Success!
 	jr	.writeFirstOpcode
@@ -563,14 +546,13 @@ parseLine:
 	ld	a, (ix+7)	; upcode is on 8th byte
 .writeFirstOpcode:
 	; At the end, we have our final opcode in A!
-	pop	de
+	ld	de, curUpcode
 	ld	(de), a
 
 	; Good, we are probably finished here for many primary opcodes. However,
 	; some primary opcodes take 8 or 16 bit constants as an argument and
 	; if that's the case here, we need to write it too.
 	; We still have our instruction row in IX. Let's revisit it.
-	push	hl	; we use HL to point to the currently read arg
 	ld	a, (ix+4)	; first argspec
 	ld	hl, curArg1
 	call	checkNOrM
@@ -625,6 +607,45 @@ parseLine:
 	xor	a
 .end:
 	pop	hl
+	pop	de
+	pop	ix
+	ret
+
+; Parse line at (HL) and write resulting opcode(s) in curUpcode. Returns the
+; number of bytes written in A.
+parseLine:
+	call	readLine
+	; Check whether we have errors. We don't do any parsing if we do.
+	ld	a, (curArg1)
+	cp	0xff
+	jr	z, .error
+	ret	z
+	ld	a, (curArg2)
+	cp	0xff
+	jr	nz, .noerror
+.error:
+	xor	a
+	ret
+.noerror:
+	push	de
+	ld	de, instrTBlPrimary
+	ld	b, INSTR_TBLP_CNT
+.loop:
+	ld	a, (de)
+	call	matchPrimaryRow
+	jr	z, .match
+	ld	a, INSTR_TBLP_ROWSIZE
+	call	JUMP_ADDDE
+	djnz	.loop
+	; no match
+	xor	a
+	jr	.end
+.match:
+	; We have our matching instruction row. We're getting pretty near our
+	; goal here!
+	call	getUpcode
+.end:
+	pop	de
 	ret
 
 
@@ -794,6 +815,9 @@ curArg1:
 	.db	0, 0, 0
 curArg2:
 	.db	0, 0, 0
+
+curUpcode:
+	.db	0, 0, 0, 0
 
 ; space for tmp stuff
 tmpBuf:
