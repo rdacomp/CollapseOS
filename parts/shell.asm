@@ -17,6 +17,7 @@
 ; SHELL_GETC: Macro that calls a GetC routine for tty interface
 ; SHELL_PUTC: Macro that calls a PutC routine for tty interface
 ; SHELL_IO_GETC: Macro that calls a GetC routine for I/O ("load" cmd)
+; SHELL_IO_PUTC: Macro that calls a PutC routine for I/O ("save" cmd)
 ; SHELL_EXTRA_CMD_COUNT: Number of extra cmds to be expected after the regular
 ;                        ones. See comment in COMMANDS section for details.
 ; SHELL_RAMSTART
@@ -24,7 +25,7 @@
 ; *** CONSTS ***
 
 ; number of entries in shellCmdTbl
-SHELL_CMD_COUNT	.equ	4+SHELL_EXTRA_CMD_COUNT
+SHELL_CMD_COUNT	.equ	5+SHELL_EXTRA_CMD_COUNT
 
 ; maximum number of bytes to receive as args in all commands. Determines the
 ; size of the args variable.
@@ -460,6 +461,34 @@ shellLoad:
 	xor	a
 	ret
 
+; Load the specified number of bytes (max 0xff) from the current memory pointer
+; and write them to I/O. Memory pointer doesn't move. This puts chars to
+; SHELL_IO_PUTC, which can be different from SHELL_PUTC. Coupled with the
+; "blockdev" part, this allows you to dynamically select your IO source.
+; Control is returned to the shell only after all bytes are written.
+;
+; Example: save 42
+shellSaveCmd:
+	.db	"save", 0b001, 0, 0
+shellSave:
+	push	bc
+	push	hl
+
+	ld	a, (hl)
+	ld	b, a
+	ld	hl, (SHELL_MEM_PTR)
+.loop:
+	ld	a, (hl)
+	inc	hl
+	SHELL_IO_PUTC
+	djnz	.loop
+
+.end:
+	pop	hl
+	pop	bc
+	xor	a
+	ret
+
 ; Calls the routine where the memory pointer currently points. This can take two
 ; parameters, A and HL. The first one is a byte, the second, a word. These are
 ; the values that A and HL are going to be set to just before calling.
@@ -502,5 +531,5 @@ shellCall:
 ; This table is at the very end of the file on purpose. The idea is to be able
 ; to graft extra commands easily after an include in the glue file.
 shellCmdTbl:
-	.dw shellMptrCmd, shellPeekCmd, shellLoadCmd, shellCallCmd
+	.dw shellMptrCmd, shellPeekCmd, shellLoadCmd, shellSaveCmd, shellCallCmd
 
