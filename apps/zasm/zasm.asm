@@ -20,6 +20,7 @@ ret
 
 #include "tok.asm"
 
+; TODO: call from core
 unsetZ:
 	push	bc
 	ld	b, a

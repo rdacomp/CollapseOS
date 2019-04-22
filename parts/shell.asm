@@ -77,6 +77,7 @@ shellInit:
 shellLoop:
 	; First, let's wait until something is typed.
 	SHELL_GETC
+	jr	nz, shellLoop	; nothing typed? loop
 	; got it. Now, is it a CR or LF?
 	cp	ASCII_CR
 	jr	z, .do		; char is CR? do!

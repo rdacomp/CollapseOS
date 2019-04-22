@@ -7,7 +7,7 @@
 ASCII_CR	.equ	0x0d
 ASCII_LF	.equ	0x0a
 
-; *** CODE ***
+; *** REGISTER FIDDLING ***
 
 ; add the value of A into DE
 addDE:
@@ -58,6 +58,17 @@ writeHLinDE:
 callIX:
 	jp	(ix)
 	ret
+
+; Ensures that Z is unset (more complicated than it sounds...)
+unsetZ:
+	push	bc
+	ld	b, a
+	inc	b
+	cp	b
+	pop	bc
+	ret
+
+; *** STRINGS ***
 
 ; Increase HL until the memory address it points to is null for a maximum of
 ; 0xff bytes. Returns the new HL value as well as the number of bytes iterated

@@ -32,11 +32,13 @@ _mmapAddr:
 	ret
 
 ; if out of bounds, will continually return the last char
+; TODO: add bounds check and return Z accordingly.
 mmapGetC:
 	push	hl
 	call	_mmapAddr
 	ld	a, (hl)
 	call	_mmapForward
+	cp	a	; ensure Z
 	pop	hl
 	ret
 

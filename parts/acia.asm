@@ -95,17 +95,18 @@ aciaInt:
 	ei
 	reti
 
-; Read a character from the input buffer. If the buffer is empty, loop until
-; there something to fetch. Returns value in A.
+
+; *** BLOCKDEV ***
+; These function below follow the blockdev API.
+
 aciaGetC:
 	push	de
 
-.loop:
 	ld	a, (ACIA_BUFWRIDX)
 	ld	e, a
 	ld	a, (ACIA_BUFRDIDX)
 	cp	e
-	jr	z, .loop	; equal? buffer empty, wait.
+	jr	z, .nothingToRead	; equal? nothing to read.
 
 	; Alrighty, buffer not empty. let's read.
 	ld	de, ACIA_BUF
@@ -117,7 +118,12 @@ aciaGetC:
 
 	; And finally, fetch the value.
 	ld	a, (de)
+	cp	a		; ensure Z
+	jr	.end
 
+.nothingToRead:
+	call	unsetZ
+.end:
 	pop	de
 	ret
 

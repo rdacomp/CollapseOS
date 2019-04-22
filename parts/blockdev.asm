@@ -97,13 +97,21 @@ _blkCall:
 	pop	ix
 	ret
 
-; Reads one character from selected device and returns its value in A. Always
-; returns a character and waits until read if it has to.
+; Reads one character from selected device and returns its value in A.
+; Sets Z according to whether read was successful: Set if successful, unset
+; if not.
 blkGetC:
 	ld	iyl, 0
 	jr	_blkCall
 
-; Writes character in A in current position in the selected device
+; Repeatedly call blkGetC until the call is a success.
+blkGetCW:
+	call	blkGetC
+	jr	nz, blkGetCW
+	ret
+
+; Writes character in A in current position in the selected device. Sets Z
+; according to whether the operation was successful.
 blkPutC:
 	ld	iyl, 2
 	jr	_blkCall
