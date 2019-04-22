@@ -11,6 +11,12 @@ MMAP_RAMEND	.equ	MMAP_PTR+2
 
 ; *** CODE ***
 
+mmapInit:
+	xor	a
+	ld	(MMAP_PTR), a
+	ld	(MMAP_PTR+1), a
+	ret
+
 ; Increase mem pointer by one
 _mmapForward:
 	ld	hl, (MMAP_PTR)
@@ -52,5 +58,9 @@ mmapPutC:
 
 mmapSeek:
 	ld	(MMAP_PTR), hl
+	ret
+
+mmapTell:
+	ld	hl, (MMAP_PTR)
 	ret
 

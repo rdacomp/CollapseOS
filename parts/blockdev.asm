@@ -17,9 +17,9 @@ BLOCKDEV_ERR_OUT_OF_BOUNDS	.equ	0x03
 BLOCKDEV_ERR_UNSUPPORTED	.equ	0x04
 
 ; *** VARIABLES ***
-; Pointer to the selected block device. A block device is a 6 bytes block of
-; memory with pointers to GetC, PutC and Seek routines, in that order. 0 means
-; unsupported.
+; Pointer to the selected block device. A block device is a 8 bytes block of
+; memory with pointers to GetC, PutC, Seek and Tell routines, in that order.
+; 0 means unsupported.
 BLOCKDEV_SEL		.equ	BLOCKDEV_RAMSTART
 BLOCKDEV_RAMEND		.equ	BLOCKDEV_SEL+2
 
@@ -34,13 +34,13 @@ blkSel:
 	push	bc
 	ld	b, a
 .loop:
-	ld	a, 6
+	ld	a, 8
 	call	addHL
 	djnz	.loop
 	pop	bc
 .afterloop:
 	ld	(BLOCKDEV_SEL), hl
-	pop	Hl
+	pop	hl
 	pop	af
 	ret
 
@@ -60,9 +60,8 @@ blkBselCmd:
 ; In those routines below, IY is destroyed (we don't push it to the stack). We
 ; seldom use it anyways...
 
-; call routine in BLOCKDEV_SEL with offset IYL.
-_blkCall:
-	push	ix
+; set IX to the address of the routine in BLOCKDEV_SEL with offset IYL.
+_blkCallAddr:
 	push	de
 	ld	de, (BLOCKDEV_SEL)
 	; DE now points to the *address table*, not the routine addresses
@@ -77,19 +76,23 @@ _blkCall:
 	ld	ixh, d
 	ld	ixl, e
 	pop	de
-	; Before we call... is it zero? We don't want to call a zero.
+	ret
+
+; call routine in BLOCKDEV_SEL with offset IYL.
+_blkCall:
+	push	ix
+	call	_blkCallAddr
+	; Before we call... is IX zero? We don't want to call a zero.
 	push	af
-	ld	a, ixh
-	add	a, ixl
-	jr	c, .ok		; if there's a carry, it isn't zero
-	cp	0
-	jr	z, .error	; if no carry and zero, then both numbers are
-				; zero
+	xor	a
+	cp	ixh
+	jr	nz, .ok		; not zero, ok
+	cp	ixl
+	jr	z, .error	; zero, error
 .ok:
 	pop	af
 	call	callIX
 	jr	.end
-
 .error:
 	pop	af
 	ld	a, BLOCKDEV_ERR_UNSUPPORTED
@@ -106,8 +109,23 @@ blkGetC:
 
 ; Repeatedly call blkGetC until the call is a success.
 blkGetCW:
+	ld	iyl, 0
+	call	_blkCallAddr
+.loop:
+	call	callIX
+	jr	nz, .loop
+	ret
+
+; Reads B chars from blkGetC and copy them in (HL).
+; Sets Z if successful, unset Z if there was an error.
+blkRead:
+.loop:
 	call	blkGetC
-	jr	nz, blkGetCW
+	ret	nz
+	ld	(hl), a
+	inc	hl
+	djnz	.loop
+	cp	a	; ensure Z
 	ret
 
 ; Writes character in A in current position in the selected device. Sets Z
@@ -133,8 +151,13 @@ blkSeek:
 	ld	iyl, 4
 	jr	_blkCall
 
+; Returns the current position of the selected device in HL.
+blkTell:
+	ld	iyl, 6
+	jr	_blkCall
+
 ; This label is at the end of the file on purpose: the glue file should include
 ; a list of device routine table entries just after the include. Each line
-; has 3 word addresses: GetC, PutC and Seek. An entry could look like:
-; .dw     mmapGetC, mmapPutC, mmapSeek
+; has 4 word addresses: GetC, PutC and Seek, Tell. An entry could look like:
+; .dw     mmapGetC, mmapPutC, mmapSeek, mmapTell
 blkDevTbl:
