@@ -92,9 +92,10 @@ FS_START	.equ	FS_BLKSEL+2
 ; below, which all assume this offset as a context. This offset is not relative
 ; to FS_START. It can be used directly with blkSeek.
 FS_PTR		.equ	FS_START+2
-; A place to store tmp data
-FS_TMP		.equ	FS_PTR+2
-FS_HANDLES	.equ	FS_TMP+0x20
+; This variable below contain the metadata of the last block FS_PTR was moved
+; to. We read this data in memory to avoid constant seek+read operations.
+FS_META		.equ	FS_PTR+2
+FS_HANDLES	.equ	FS_META+0x20
 FS_RAMEND	.equ	FS_HANDLES+(FS_HANDLE_COUNT*FS_HANDLE_SIZE)
 
 ; *** CODE ***
@@ -108,9 +109,8 @@ fsBegin:
 	ld	hl, (FS_START)
 	ld	(FS_PTR), hl
 	pop	hl
-	call	fsPlace
+	call	fsReadMeta
 	call	fsIsValid	; sets Z
-	call	fsPlace
 	ret
 
 ; Change current position to the next block with metadata. If it can't (if this
@@ -120,8 +120,20 @@ fsNext:
 	call	unsetZ
 	ret
 
+; Reads metadata at current FS_PTR and place it in FS_META.
+; Returns Z according to whether the blkRead operation succeeded.
+fsReadMeta:
+	call	fsPlace
+	push	bc
+	push	hl
+	ld	b, 0x20
+	ld	hl, FS_META
+	call	blkRead		; Sets Z
+	pop	hl
+	pop	bc
+	ret
+
 ; Make sure that our underlying blockdev is correcly placed.
-; All other routines assumer a properly placed blkdev cursor.
 fsPlace:
 	push	af
 	push	hl
@@ -150,28 +162,23 @@ fsAlloc:
 	pop	af		; now we want our A arg
 	call	blkPutC
 	pop	hl
+	call	fsPlace
 	ret
 
 ; *** Metadata ***
 
-; Sets Z according to whether the current block is valid.
+; Sets Z according to whether the current block in FS_META is valid.
 ; Don't call other FS routines without checking block validity first: other
 ; routines don't do checks.
 fsIsValid:
 	push	hl
-	ld	b, 0x3
-	ld	hl, FS_TMP
-	call	blkRead
-	jr	nz, .error
+	push	de
 	ld	a, 3
+	ld	hl, FS_META
 	ld	de, .magic
 	call	strncmp
-	jr	nz, .error
-	; success
-	jr	.end		; Z is set at this point
-.error:
-	call	unsetZ
-.end:
+	; The result of Z is our result.
+	pop	de
 	pop	hl
 	ret
 .magic:
@@ -179,25 +186,41 @@ fsIsValid:
 
 ; Return, in A, the number of allocated blocks at current position.
 fsAllocatedBlocks:
+	ld	a, (FS_META+3)
 	ret
 
 ; Return, in HL, the file size at current position.
 fsFileSize:
+	ld	hl, (FS_META+4)
 	ret
 
 ; Return HL, which points to a null-terminated string which contains the
 ; filename at current position.
 fsFileName:
+	ld	hl, FS_META+6
+	ret
+
+; Change name of current file to name in (HL)
+fsRename:
 	push	af
+	push	hl	; save filename for later
+	call	fsPlace
 	ld	a, BLOCKDEV_SEEK_FORWARD
 	ld	hl, 6
 	call	blkSeek
-	ld	b, FS_MAX_NAME_SIZE
-	ld	hl, FS_TMP
-	call	blkRead
+	pop	hl	; now we need the filename
+	push	hl	; ... but let's preserve it for the caller
+.loop:
+	ld	a, (hl)
+	cp	0
+	jr	z, .end
+	call	blkPutC
+	inc	hl
+	jr	.loop
+.end:
+	pop	hl
 	pop	af
 	ret
-
 ; *** Handling ***
 
 ; Open file at current position into handle at (HL)
@@ -234,7 +257,8 @@ fsOnCmd:
 	push	hl
 	call	blkTell
 	ld	(FS_PTR), hl
-	call	fsPlace
+	call	fsReadMeta
+	jr	nz, .error
 	call	fsIsValid
 	jr	nz, .error
 	; success
@@ -273,21 +297,8 @@ fnewCmd:
 	inc	de
 	call	intoDE
 	ex	de, hl
-	push	hl	; save the filename for later
 	call	fsAlloc
-	call	fsPlace
-	ld	a, BLOCKDEV_SEEK_FORWARD
-	ld	hl, 6
-	call	blkSeek
-	pop	hl	; now we need the filename
-.loop:
-	ld	a, (hl)
-	cp	0
-	jr	z, .end
-	call	blkPutC
-	inc	hl
-	jr	.loop
-.end:
+	call	fsRename
 	pop	de
 	pop	hl
 	xor	a
