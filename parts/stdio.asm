@@ -66,3 +66,12 @@ printHex:
 	pop	af
 	ret
 
+; Print the hex pair in HL
+printHexPair:
+	push	af
+	ld	a, h
+	call	printHex
+	ld	a, l
+	call	printHex
+	pop	af
+	ret

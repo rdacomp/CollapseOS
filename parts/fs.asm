@@ -74,6 +74,10 @@
 ; *** CONSTS ***
 FS_MAX_NAME_SIZE	.equ	0x1a
 FS_BLOCKSIZE		.equ	0x100
+
+FS_META_ALLOC_OFFSET	.equ	3
+FS_META_FSIZE_OFFSET	.equ	4
+FS_META_FNAME_OFFSET	.equ	6
 ; Size in bytes of a FS handle:
 ; * 2 bytes for starting offset
 ; * 2 bytes for file size (we could fetch it from metadata all the time, but it
@@ -83,6 +87,7 @@ FS_BLOCKSIZE		.equ	0x100
 ; to change the size of the file.
 FS_HANDLE_SIZE		.equ	6
 FS_ERR_NO_FS		.equ	0x5
+FS_ERR_NOT_FOUND	.equ	0x6
 
 ; *** VARIABLES ***
 ; A copy of BLOCKDEV_SEL when the FS was mounted. 0 if no FS is mounted.
@@ -105,6 +110,13 @@ P_FS_MAGIC:
 
 ; *** CODE ***
 
+fsInit:
+	xor	a
+	ld	hl, FS_BLKSEL
+	ld	b, FS_RAMEND-FS_BLKSEL
+	call	fill
+	ret
+
 ; *** Navigation ***
 
 ; Resets FS_PTR to the beginning. Errors out if no FS is mounted.
@@ -125,7 +137,7 @@ fsNext:
 	push	bc
 	push	de
 	push	hl
-	ld	a, (FS_META+3)
+	ld	a, (FS_META+FS_META_ALLOC_OFFSET)
 	cp	0
 	jr	z, .error	; if our block allocates 0 blocks, this is the
 				; end of the line.
@@ -198,10 +210,7 @@ fsInitMeta:
 	ldir
 	xor	a
 	ld	b, 0x20-3
-.loop:
-	ld	(hl), a
-	inc	hl
-	djnz	.loop
+	call	fill
 	pop	hl
 	pop	de
 	pop	af
@@ -244,7 +253,7 @@ fsAlloc:
 	; 1 - the block is unallocated (0 alloc size)
 	; 2 - the block is allocated, but there are no next block
 	; So, what we need to do is check our allocation size
-	call	fsAllocatedBlocks
+	ld	a, (FS_META+FS_META_ALLOC_OFFSET)
 	cp	0
 	jr	z, .proceed	; 0 allocated blocks? this is our block
 	; > 0 allocated blocks. We need to allocate further
@@ -260,9 +269,9 @@ fsAlloc:
 	call	fsInitMeta
 	pop	af		; now we want our A arg
 	ld	a, 1
-	ld	(FS_META+3), a
+	ld	(FS_META+FS_META_ALLOC_OFFSET), a
 	pop	hl		; now we want our HL arg
-	ld	de, FS_META+6
+	ld	de, FS_META+FS_META_FNAME_OFFSET
 	ld	bc, FS_MAX_NAME_SIZE
 	ldir
 	; Good, FS_META ready. Now, let's update FS_PTR because it hasn't been
@@ -292,43 +301,12 @@ fsIsValid:
 	pop	hl
 	ret
 
-; Return, in A, the number of allocated blocks at current position.
-fsAllocatedBlocks:
-	ld	a, (FS_META+3)
+; Returns wheter current block is deleted in Z flag.
+fsIsDeleted:
+	ld	a, (FS_META+FS_META_FNAME_OFFSET)
+	cp	0	; Z flag is our answer
 	ret
 
-; Return, in HL, the file size at current position.
-fsFileSize:
-	ld	hl, (FS_META+4)
-	ret
-
-; Return HL, which points to a null-terminated string which contains the
-; filename at current position.
-fsFileName:
-	ld	hl, FS_META+6
-	ret
-
-; Change name of current file to name in (HL)
-fsRename:
-	push	af
-	push	hl	; save filename for later
-	call	fsPlace
-	ld	a, BLOCKDEV_SEEK_FORWARD
-	ld	hl, 6
-	call	blkSeek
-	pop	hl	; now we need the filename
-	push	hl	; ... but let's preserve it for the caller
-.loop:
-	ld	a, (hl)
-	cp	0
-	jr	z, .end
-	call	blkPutC
-	inc	hl
-	jr	.loop
-.end:
-	pop	hl
-	pop	af
-	ret
 ; *** Handling ***
 
 ; Open file at current position into handle at (HL)
@@ -385,9 +363,12 @@ flsCmd:
 	call	fsBegin
 	jr	nz, .error
 .loop:
-	call	fsFileName
+	call	fsIsDeleted
+	jr	z, .skip
+	ld	hl, FS_META+FS_META_FNAME_OFFSET
 	call	printstr
 	call	printcrlf
+.skip:
 	call	fsNext
 	jr	z, .loop	; Z set? fsNext was successfull
 	xor	a
@@ -402,14 +383,42 @@ flsCmd:
 fnewCmd:
 	.db	"fnew", 0b001, 0b1001, 0b001
 	push	hl
-	push	de
 	ld	a, (hl)
-	ex	de, hl
-	inc	de
-	call	intoDE
-	ex	de, hl
+	inc	hl
+	call	intoHL
 	call	fsAlloc
-	pop	de
 	pop	hl
 	xor	a
+	ret
+
+; Deletes filename with specified name
+fdelCmd:
+	.db	"fdel", 0b1001, 0b001, 0
+	push	hl
+	push	de
+	ex	hl, de
+	call	intoDE		; DE now holds the string we look for
+	call	fsBegin
+	jr	nz, .notfound
+	ld	a, FS_MAX_NAME_SIZE
+.loop:
+	ld	hl, FS_META+FS_META_FNAME_OFFSET
+	call	strncmp
+	jr	z, .found
+	call	fsNext
+	jr	z, .loop
+	; End of chain, not found
+	jr	.notfound
+.found:
+	xor	a
+	; Set filename to zero to flag it as deleted
+	ld	(FS_META+FS_META_FNAME_OFFSET), a
+	call	fsWriteMeta
+	; a already to 0, our result.
+	jr	.end
+.notfound:
+	ld	a, FS_ERR_NOT_FOUND
+.end:
+	pop	de
+	pop	hl
 	ret

@@ -7,6 +7,10 @@
 ASCII_CR	.equ	0x0d
 ASCII_LF	.equ	0x0a
 
+; *** DATA ***
+; Useful data to point to, when a pointer is needed.
+P_NULL:		.db 0
+
 ; *** REGISTER FIDDLING ***
 
 ; add the value of A into DE
@@ -30,6 +34,14 @@ intoDE:
 	ex	af, af'
 	ld	e, a
 	pop	af
+	ret
+
+intoHL:
+	push	de
+	ex	de, hl
+	call	intoDE
+	ex	de, hl
+	pop	de
 	ret
 
 ; add the value of A into HL
@@ -69,6 +81,18 @@ unsetZ:
 	ret
 
 ; *** STRINGS ***
+
+; Fill B bytes at (HL) with A
+fill:
+	push	bc
+	push	hl
+.loop:
+	ld	(hl), a
+	inc	hl
+	djnz	.loop
+	pop	hl
+	pop	bc
+	ret
 
 ; Increase HL until the memory address it points to is equal to A for a maximum
 ; of 0xff bytes. Returns the new HL value as well as the number of bytes
