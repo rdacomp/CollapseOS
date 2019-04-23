@@ -13,9 +13,10 @@
 ; All numerical values in the Collapse OS shell are represented and parsed in
 ; hexadecimal form, without prefix or suffix.
 
+; *** REQUIREMENTS ***
+; stdio
+
 ; *** DEFINES ***
-; SHELL_GETC: Macro that calls a GetC routine for tty interface
-; SHELL_PUTC: Macro that calls a PutC routine for tty interface
 ; SHELL_IO_GETC: Macro that calls a GetC routine for I/O ("load" cmd)
 ; SHELL_IO_PUTC: Macro that calls a PutC routine for I/O ("save" cmd)
 ; SHELL_EXTRA_CMD_COUNT: Number of extra cmds to be expected after the regular
@@ -45,12 +46,10 @@ SHELL_BUFSIZE		.equ	0x20
 ; Memory address that the shell is currently "pointing at" for peek, load, call
 ; operations. Set with mptr.
 SHELL_MEM_PTR	.equ	SHELL_RAMSTART
-; Used to store formatted hex values just before printing it.
-SHELL_HEX_FMT	.equ	SHELL_MEM_PTR+2
 
 ; Places where we store arguments specifiers and where resulting values are
 ; written to after parsing.
-SHELL_CMD_ARGS	.equ	SHELL_HEX_FMT+2
+SHELL_CMD_ARGS	.equ	SHELL_MEM_PTR+2
 
 ; Command buffer. We read types chars into this buffer until return is pressed
 ; This buffer is null-terminated and we don't keep an index around: we look
@@ -77,7 +76,7 @@ shellInit:
 ; to it rather than call it. Saves two precious bytes in the stack.
 shellLoop:
 	; First, let's wait until something is typed.
-	SHELL_GETC
+	STDIO_GETC
 	jr	nz, shellLoop	; nothing typed? loop
 	; got it. Now, is it a CR or LF?
 	cp	ASCII_CR
@@ -86,7 +85,7 @@ shellLoop:
 	jr	z, .do		; char is LF? do!
 
 	; Echo the received character right away so that we see what we type
-	SHELL_PUTC
+	STDIO_PUTC
 
 	; Ok, gotta add it do the buffer
 	; save char for later
@@ -124,60 +123,6 @@ shellLoop:
 
 .prompt:
 	.db	"> ", 0
-
-; print null-terminated string pointed to by HL
-printstr:
-	push	af
-	push	hl
-
-.loop:
-	ld	a, (hl)		; load character to send
-	or	a		; is it zero?
-	jr	z, .end		; if yes, we're finished
-	SHELL_PUTC
-	inc	hl
-	jr	.loop
-
-.end:
-	pop	hl
-	pop	af
-	ret
-
-; print A characters from string that HL points to
-printnstr:
-	push	bc
-	push	hl
-
-	ld	b, a
-.loop:
-	ld	a, (hl)		; load character to send
-	SHELL_PUTC
-	inc	hl
-	djnz	.loop
-
-.end:
-	pop	hl
-	pop	bc
-	ret
-
-printcrlf:
-	ld	a, ASCII_CR
-	SHELL_PUTC
-	ld	a, ASCII_LF
-	SHELL_PUTC
-	ret
-
-; Print the hex char in A
-printHex:
-	push	af
-	push	hl
-	ld	hl, SHELL_HEX_FMT
-	call	fmtHexPair
-	ld	a, 2
-	call	printnstr
-	pop	hl
-	pop	af
-	ret
 
 ; Parse command (null terminated) at HL and calls it
 shellParse:
@@ -448,7 +393,7 @@ shellPeek:
 
 ; Load the specified number of bytes (max 0xff) from IO and write them in the
 ; current memory pointer (which doesn't change). This gets chars from
-; SHELL_IO_GETC, which can be different from SHELL_GETC. Coupled with the
+; SHELL_IO_GETC, which can be different from STDIO_GETC. Coupled with the
 ; "blockdev" part, this allows you to dynamically select your IO source.
 ; Control is returned to the shell only after all bytes are read.
 ;
@@ -475,7 +420,7 @@ shellLoad:
 
 ; Load the specified number of bytes (max 0xff) from the current memory pointer
 ; and write them to I/O. Memory pointer doesn't move. This puts chars to
-; SHELL_IO_PUTC, which can be different from SHELL_PUTC. Coupled with the
+; SHELL_IO_PUTC, which can be different from STDIO_PUTC. Coupled with the
 ; "blockdev" part, this allows you to dynamically select your IO source.
 ; Control is returned to the shell only after all bytes are written.
 ;
