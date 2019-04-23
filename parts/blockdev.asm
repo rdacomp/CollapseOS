@@ -16,6 +16,12 @@
 BLOCKDEV_ERR_OUT_OF_BOUNDS	.equ	0x03
 BLOCKDEV_ERR_UNSUPPORTED	.equ	0x04
 
+BLOCKDEV_SEEK_ABSOLUTE		.equ	0
+BLOCKDEV_SEEK_FORWARD		.equ	1
+BLOCKDEV_SEEK_BACKWARD		.equ	2
+BLOCKDEV_SEEK_BEGINNING		.equ	3
+BLOCKDEV_SEEK_END		.equ	4
+
 ; *** VARIABLES ***
 ; Pointer to the selected block device. A block device is a 8 bytes block of
 ; memory with pointers to GetC, PutC, Seek and Tell routines, in that order.
@@ -133,13 +139,13 @@ blkPutC:
 ; Set position of selected device to the value specified in HL
 blkSeek:
 	push	de
-	cp	1
+	cp	BLOCKDEV_SEEK_FORWARD
 	jr	z, .forward
-	cp	2
+	cp	BLOCKDEV_SEEK_BACKWARD
 	jr	z, .backward
-	cp	3
+	cp	BLOCKDEV_SEEK_BEGINNING
 	jr	z, .beginning
-	cp	4
+	cp	BLOCKDEV_SEEK_END
 	jr	z, .end
 	; all other modes are considered absolute
 	jr	.seek		; for absolute mode, HL is already correct

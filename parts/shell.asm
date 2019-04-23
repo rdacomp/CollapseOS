@@ -91,7 +91,8 @@ shellLoop:
 	; save char for later
 	ex	af, af'
 	ld	hl, SHELL_BUF
-	call	findnull	; HL points to where we need to write
+	xor	a		; look for null
+	call	findchar	; HL points to where we need to write
 				; A is the number of chars in the buf
 	cp	SHELL_BUFSIZE
 	jr	z, .do		; A == bufsize? then our buffer is full. do!
@@ -157,8 +158,8 @@ shellParse:
 	call	intoDE		; Jump from the table entry to the cmd addr.
 
 	; advance the HL pointer to the beginning of the args.
-	ld	a, 4
-	call	addHL
+	ld	a, ' '
+	call	findchar
 
 	; Now, let's have DE point to the argspecs
 	ld	a, 4

@@ -70,15 +70,20 @@ unsetZ:
 
 ; *** STRINGS ***
 
-; Increase HL until the memory address it points to is null for a maximum of
-; 0xff bytes. Returns the new HL value as well as the number of bytes iterated
-; in A.
-findnull:
+; Increase HL until the memory address it points to is equal to A for a maximum
+; of 0xff bytes. Returns the new HL value as well as the number of bytes
+; iterated in A.
+; If a null char is encountered before we find A, processing is stopped in the
+; same way as if we found our char (so, we look for A *or* 0)
+findchar:
 	push	bc
+	ld	c, a	; let's use C as our cp target
 	ld	a, 0xff
 	ld	b, a
 
 .loop:	ld	a, (hl)
+	cp	c
+	jr	z, .end
 	cp	0
 	jr	z, .end
 	inc	hl
