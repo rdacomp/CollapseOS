@@ -44,19 +44,6 @@ blkSel:
 	pop	af
 	ret
 
-blkBselCmd:
-	.db	"bsel", 0b001, 0, 0
-	ld	a, (hl)	; argument supplied
-	cp	BLOCKDEV_COUNT
-	jr	nc, .error	; if selection >= device count, error
-	call	blkSel
-	xor	a
-	ret
-.error:
-	ld	a, BLOCKDEV_ERR_OUT_OF_BOUNDS
-	ret
-
-
 ; In those routines below, IY is destroyed (we don't push it to the stack). We
 ; seldom use it anyways...
 
@@ -137,26 +124,12 @@ blkPutC:
 	ld	iyl, 2
 	jr	_blkCall
 
-; Seeks the block device in one of 5 modes, which is the first argument:
-; 0 : Move exactly to X, X being the second argument.
-; 1 : Move forward by X bytes, X being the second argument
-; 2 : Move backwards by X bytes, X being the second argument
+; Seeks the block device in one of 5 modes, which is the A argument:
+; 0 : Move exactly to X, X being the HL argument.
+; 1 : Move forward by X bytes, X being the HL argument
+; 2 : Move backwards by X bytes, X being the HL argument
 ; 3 : Move to the end
 ; 4 : Move to the beginning
-blkSeekCmd:
-	.db	"seek", 0b001, 0b011, 0b001
-	; First, the mode
-	ld	a, (hl)
-	inc	hl
-	; HL points to two bytes that contain out address. Seek expects HL
-	; to directly contain that address.
-	ld	a, (hl)
-	ex	af, af'
-	inc	hl
-	ld	a, (hl)
-	ld	l, a
-	ex	af, af'
-	ld	h, a
 ; Set position of selected device to the value specified in HL
 blkSeek:
 	ld	iyl, 4
