@@ -31,7 +31,6 @@ blkSeekCmd:
 	ld	h, a
 	pop	af	; bring mode back
 	call	blkSeek
-	ld	hl, 42
 	call	blkTell
 	ld	a, h
 	call	printHex

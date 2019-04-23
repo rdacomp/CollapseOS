@@ -132,6 +132,33 @@ blkPutC:
 ; 4 : Move to the beginning
 ; Set position of selected device to the value specified in HL
 blkSeek:
+	push	de
+	cp	1
+	jr	z, .forward
+	cp	2
+	jr	z, .backward
+	cp	3
+	jr	z, .beginning
+	cp	4
+	jr	z, .end
+	; all other modes are considered absolute
+	jr	.seek		; for absolute mode, HL is already correct
+.forward:
+	ex	hl, de		; DE has our offset
+	call	blkTell		; HL has our curpos
+	add	hl, de
+	jr	nc, .seek	; no carry? alright!
+	; we have carry? out of bounds, set to maximum
+.backward:
+	; TODO - subtraction are more complicated...
+	jr	.seek
+.beginning:
+	ld	hl, 0
+	jr	.seek
+.end:
+	ld	hl, 0xffff
+.seek:
+	pop	de
 	ld	iyl, 4
 	jr	_blkCall
 
