@@ -57,6 +57,32 @@ mmapPutC:
 	ret
 
 mmapSeek:
+	cp	1
+	jr	z, .forward
+	cp	2
+	jr	z, .backward
+	cp	3
+	jr	z, .beginning
+	cp	4
+	jr	z, .end
+	; all other modes are considered absolute
+	jr	.set		; for absolute mode, HL is already correct
+.forward:
+	ld	de, (MMAP_PTR)
+	add	hl, de
+	jr	nc, .set
+	; we have carry? out of bounds, set to maximum
+	ld	hl, 0xffff
+	jr	.set
+.backward:
+	; TODO - subtraction are more complicated...
+	jr	.set
+.beginning:
+	ld	hl, 0
+	jr	.set
+.end:
+	ld	hl, 0xffff-MMAP_START
+.set:
 	ld	(MMAP_PTR), hl
 	ret
 

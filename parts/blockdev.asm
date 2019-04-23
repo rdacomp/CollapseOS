@@ -119,13 +119,16 @@ blkGetCW:
 ; Reads B chars from blkGetC and copy them in (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkRead:
+	push	hl
 .loop:
 	call	blkGetC
-	ret	nz
+	jr	nz, .end	; Z already unset
 	ld	(hl), a
 	inc	hl
 	djnz	.loop
 	cp	a	; ensure Z
+.end:
+	pop	hl
 	ret
 
 ; Writes character in A in current position in the selected device. Sets Z
@@ -134,8 +137,17 @@ blkPutC:
 	ld	iyl, 2
 	jr	_blkCall
 
+; Seeks the block device in one of 5 modes, which is the first argument:
+; 0 : Move exactly to X, X being the second argument.
+; 1 : Move forward by X bytes, X being the second argument
+; 2 : Move backwards by X bytes, X being the second argument
+; 3 : Move to the end
+; 4 : Move to the beginning
 blkSeekCmd:
-	.db	"seek", 0b011, 0b001, 0
+	.db	"seek", 0b001, 0b011, 0b001
+	; First, the mode
+	ld	a, (hl)
+	inc	hl
 	; HL points to two bytes that contain out address. Seek expects HL
 	; to directly contain that address.
 	ld	a, (hl)
@@ -145,7 +157,6 @@ blkSeekCmd:
 	ld	l, a
 	ex	af, af'
 	ld	h, a
-	xor	a
 ; Set position of selected device to the value specified in HL
 blkSeek:
 	ld	iyl, 4
