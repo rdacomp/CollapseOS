@@ -130,6 +130,21 @@ blkPutC:
 	ld	iyl, 2
 	jr	_blkCall
 
+; Writes B chars to blkPutC from (HL).
+; Sets Z if successful, unset Z if there was an error.
+blkWrite:
+	push	hl
+.loop:
+	ld	a, (hl)
+	call	blkPutC
+	jr	nz, .end	; Z already unset
+	inc	hl
+	djnz	.loop
+	cp	a	; ensure Z
+.end:
+	pop	hl
+	ret
+
 ; Seeks the block device in one of 5 modes, which is the A argument:
 ; 0 : Move exactly to X, X being the HL argument.
 ; 1 : Move forward by X bytes, X being the HL argument

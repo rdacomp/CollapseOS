@@ -73,6 +73,7 @@
 ; FS_HANDLE_COUNT
 ; *** CONSTS ***
 FS_MAX_NAME_SIZE	.equ	0x1a
+FS_BLOCKSIZE		.equ	0x100
 ; Size in bytes of a FS handle:
 ; * 2 bytes for starting offset
 ; * 2 bytes for file size (we could fetch it from metadata all the time, but it
@@ -98,6 +99,10 @@ FS_META		.equ	FS_PTR+2
 FS_HANDLES	.equ	FS_META+0x20
 FS_RAMEND	.equ	FS_HANDLES+(FS_HANDLE_COUNT*FS_HANDLE_SIZE)
 
+; *** DATA ***
+P_FS_MAGIC:
+	.db	"CFS", 0
+
 ; *** CODE ***
 
 ; *** Navigation ***
@@ -117,7 +122,43 @@ fsBegin:
 ; is the last valid block), doesn't move.
 ; Sets Z according to whether we moved.
 fsNext:
+	push	bc
+	push	de
+	push	hl
+	ld	a, (FS_META+3)
+	cp	0
+	jr	z, .error	; if our block allocates 0 blocks, this is the
+				; end of the line.
+	call	fsPlace
+	ld	b, a		; we will seek A times
+	ld	a, BLOCKDEV_SEEK_FORWARD
+	ld	hl, FS_BLOCKSIZE
+.loop:
+	call	blkSeek
+	djnz	.loop
+	; Good, were here. We're going to read meta from our current position.
+	; But before we do, let's keep a copy of FS_PTR around. We might need
+	; to go back.
+	ld	de, (FS_PTR)
+	call	blkTell	; --> HL
+	ld	(FS_PTR), hl
+	call	fsReadMeta
+	jr	nz, .goback	; error! let's bail out
+	call	fsIsValid
+	jr	nz, .goback	; error! let's bail out
+	; We're good! We have a valid FS block and FS_PTR is already updated.
+	; Meta is already read. Nothing to do!
+	cp	a	; ensure Z
+	jr	.end
+.goback:
+	ld	(FS_PTR), de
+	call	fsReadMeta
+.error:
 	call	unsetZ
+.end:
+	pop	hl
+	pop	de
+	pop	bc
 	ret
 
 ; Reads metadata at current FS_PTR and place it in FS_META.
@@ -133,6 +174,39 @@ fsReadMeta:
 	pop	bc
 	ret
 
+; Writes metadata in FS_META at current FS_PTR.
+; Returns Z according to whether the blkWrite operation succeeded.
+fsWriteMeta:
+	call	fsPlace
+	push	bc
+	push	hl
+	ld	b, 0x20
+	ld	hl, FS_META
+	call	blkWrite	; Sets Z
+	pop	hl
+	pop	bc
+	ret
+
+; Initializes FS_META with "CFS" followed by zeroes
+fsInitMeta:
+	push	af
+	push	de
+	push	hl
+	ld	hl, P_FS_MAGIC
+	ld	de, FS_META
+	ld	bc, 3
+	ldir
+	xor	a
+	ld	b, 0x20-3
+.loop:
+	ld	(hl), a
+	inc	hl
+	djnz	.loop
+	pop	hl
+	pop	de
+	pop	af
+	ret
+
 ; Make sure that our underlying blockdev is correcly placed.
 fsPlace:
 	push	af
@@ -144,7 +218,8 @@ fsPlace:
 	pop	af
 	ret
 
-; Create a new file with A blocks allocated to it.
+; Create a new file with A blocks allocated to it and with its new name at
+; (HL).
 ; Before doing so, enumerate all blocks in search of a deleted file with
 ; allocated space big enough. If it does, it will either take the whole space
 ; if the allocated space asked is exactly the same, or of it isn't, split the
@@ -153,16 +228,51 @@ fsPlace:
 ; Places FS_PTR to the newly allocated block. You have to write the new
 ; filename yourself.
 fsAlloc:
-	push	hl
+	push	bc
+	push	de
+	push	hl		; keep HL for later
 	push	af		; keep A for later
-	call	fsPlace
+	; First step: find last block
+	call	fsBegin
+	ret	nz		; not a valid block? hum, something's wrong
+.loop1:
+	call	fsNext
+	jr	z, .loop1
+	call	fsPlace		; Make sure that our block device points to
+				; the beginning of our FS block
+	; We've reached last block. Two situations are possible at this point:
+	; 1 - the block is unallocated (0 alloc size)
+	; 2 - the block is allocated, but there are no next block
+	; So, what we need to do is check our allocation size
+	call	fsAllocatedBlocks
+	cp	0
+	jr	z, .proceed	; 0 allocated blocks? this is our block
+	; > 0 allocated blocks. We need to allocate further
+	ld	b, a		; we will seek A times
 	ld	a, BLOCKDEV_SEEK_FORWARD
-	ld	hl, 3
+	ld	hl, FS_BLOCKSIZE
+.loop2:
 	call	blkSeek
+	djnz	.loop2
+.proceed:
+	; At this point, the blockdev is placed right where we want to allocate
+	; But first, let's prepare the FS_META we're going to write
+	call	fsInitMeta
 	pop	af		; now we want our A arg
-	call	blkPutC
-	pop	hl
-	call	fsPlace
+	ld	a, 1
+	ld	(FS_META+3), a
+	pop	hl		; now we want our HL arg
+	ld	de, FS_META+6
+	ld	bc, FS_MAX_NAME_SIZE
+	ldir
+	; Good, FS_META ready. Now, let's update FS_PTR because it hasn't been
+	; changed yet.
+	call	blkTell
+	ld	(FS_PTR), hl
+	; Ok, now we can write our metadata
+	call	fsWriteMeta
+	pop	de
+	pop	bc
 	ret
 
 ; *** Metadata ***
@@ -175,14 +285,12 @@ fsIsValid:
 	push	de
 	ld	a, 3
 	ld	hl, FS_META
-	ld	de, .magic
+	ld	de, P_FS_MAGIC
 	call	strncmp
 	; The result of Z is our result.
 	pop	de
 	pop	hl
 	ret
-.magic:
-	.db "CFS"
 
 ; Return, in A, the number of allocated blocks at current position.
 fsAllocatedBlocks:
@@ -276,9 +384,12 @@ flsCmd:
 	.db	"fls", 0, 0, 0, 0
 	call	fsBegin
 	jr	nz, .error
+.loop:
 	call	fsFileName
 	call	printstr
 	call	printcrlf
+	call	fsNext
+	jr	z, .loop	; Z set? fsNext was successfull
 	xor	a
 	jr	.end
 .error:
@@ -298,7 +409,6 @@ fnewCmd:
 	call	intoDE
 	ex	de, hl
 	call	fsAlloc
-	call	fsRename
 	pop	de
 	pop	hl
 	xor	a

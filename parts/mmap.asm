@@ -53,6 +53,7 @@ mmapPutC:
 	call	_mmapAddr
 	ld	(hl), a
 	call	_mmapForward
+	cp	a	; ensure Z
 	pop	hl
 	ret
 
