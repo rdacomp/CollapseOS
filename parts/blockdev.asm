@@ -108,9 +108,11 @@ blkGetCW:
 ; Reads B chars from blkGetC and copy them in (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkRead:
+	ld	ix, (BLOCKDEV_GETC)
+_blkRead:
 	push	hl
 .loop:
-	call	blkGetC
+	call	_blkCall
 	jr	nz, .end	; Z already unset
 	ld	(hl), a
 	inc	hl
@@ -129,10 +131,12 @@ blkPutC:
 ; Writes B chars to blkPutC from (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkWrite:
+	ld	ix, (BLOCKDEV_PUTC)
+_blkWrite:
 	push	hl
 .loop:
 	ld	a, (hl)
-	call	blkPutC
+	call	_blkCall
 	jr	nz, .end	; Z already unset
 	inc	hl
 	djnz	.loop
@@ -149,6 +153,9 @@ blkWrite:
 ; 4 : Move to the beginning
 ; Set position of selected device to the value specified in HL
 blkSeek:
+	ld	ix, (BLOCKDEV_SEEK)
+	ld	iy, (BLOCKDEV_TELL)
+_blkSeek:
 	push	de
 	cp	BLOCKDEV_SEEK_FORWARD
 	jr	z, .forward
@@ -162,7 +169,10 @@ blkSeek:
 	jr	.seek		; for absolute mode, HL is already correct
 .forward:
 	ex	hl, de		; DE has our offset
-	call	blkTell		; HL has our curpos
+	; We want to be able to plug our own TELL function, which is why we
+	; don't call blkTell directly here.
+	; Calling TELL
+	call	callIY	; HL has our curpos
 	add	hl, de
 	jr	nc, .seek	; no carry? alright!
 	; we have carry? out of bounds, set to maximum
@@ -176,7 +186,6 @@ blkSeek:
 	ld	hl, 0xffff
 .seek:
 	pop	de
-	ld	ix, (BLOCKDEV_SEEK)
 	jr	_blkCall
 
 ; Returns the current position of the selected device in HL.

@@ -71,6 +71,10 @@ callIX:
 	jp	(ix)
 	ret
 
+callIY:
+	jp	(iy)
+	ret
+
 ; Ensures that Z is unset (more complicated than it sounds...)
 unsetZ:
 	push	bc

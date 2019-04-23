@@ -95,13 +95,16 @@ FS_ERR_NO_FS		.equ	0x5
 FS_ERR_NOT_FOUND	.equ	0x6
 
 ; *** VARIABLES ***
-; A copy of BLOCKDEV_SEL when the FS was mounted. 0 if no FS is mounted.
-FS_BLKSEL	.equ	FS_RAMSTART
+; A copy of BLOCKDEV routines when the FS was mounted. 0 if no FS is mounted.
+FS_GETC		.equ	FS_RAMSTART
+FS_PUTC		.equ	FS_GETC+2
+FS_SEEK		.equ	FS_PUTC+2
+FS_TELL		.equ	FS_SEEK+2
 ; Offset at which our FS start on mounted device
-FS_START	.equ	FS_BLKSEL+2
+FS_START	.equ	FS_TELL+2
 ; Offset at which we are currently pointing to with regards to our routines
 ; below, which all assume this offset as a context. This offset is not relative
-; to FS_START. It can be used directly with blkSeek.
+; to FS_START. It can be used directly with fsblkSeek.
 FS_PTR		.equ	FS_START+2
 ; This variable below contain the metadata of the last block FS_PTR was moved
 ; to. We read this data in memory to avoid constant seek+read operations.
@@ -117,8 +120,8 @@ P_FS_MAGIC:
 
 fsInit:
 	xor	a
-	ld	hl, FS_BLKSEL
-	ld	b, FS_RAMEND-FS_BLKSEL
+	ld	hl, FS_GETC
+	ld	b, FS_RAMEND-FS_GETC
 	call	fill
 	ret
 
@@ -150,10 +153,10 @@ fsNext:
 	ld	a, BLOCKDEV_SEEK_FORWARD
 	ld	hl, FS_BLOCKSIZE
 .loop:
-	call	blkSeek
+	call	fsblkSeek
 	djnz	.loop
 	; Good, were here. We're going to read meta from our current position.
-	call	blkTell	; --> HL
+	call	fsblkTell	; --> HL
 	ld	(FS_PTR), hl
 	call	fsReadMeta
 	jr	nz, .createChainEnd
@@ -178,27 +181,27 @@ fsNext:
 	ret
 
 ; Reads metadata at current FS_PTR and place it in FS_META.
-; Returns Z according to whether the blkRead operation succeeded.
+; Returns Z according to whether the fsblkRead operation succeeded.
 fsReadMeta:
 	call	fsPlace
 	push	bc
 	push	hl
 	ld	b, 0x20
 	ld	hl, FS_META
-	call	blkRead		; Sets Z
+	call	fsblkRead	; Sets Z
 	pop	hl
 	pop	bc
 	ret
 
 ; Writes metadata in FS_META at current FS_PTR.
-; Returns Z according to whether the blkWrite operation succeeded.
+; Returns Z according to whether the fsblkWrite operation succeeded.
 fsWriteMeta:
 	call	fsPlace
 	push	bc
 	push	hl
 	ld	b, 0x20
 	ld	hl, FS_META
-	call	blkWrite	; Sets Z
+	call	fsblkWrite	; Sets Z
 	pop	hl
 	pop	bc
 	ret
@@ -228,7 +231,7 @@ fsPlace:
 	push	hl
 	xor	a
 	ld	hl, (FS_PTR)
-	call	blkSeek
+	call	fsblkSeek
 	pop	hl
 	pop	af
 	ret
@@ -279,7 +282,7 @@ fsAlloc:
 	ldir
 	; Good, FS_META ready. Now, let's update FS_PTR because it hasn't been
 	; changed yet.
-	call	blkTell
+	call	fsblkTell
 	ld	(FS_PTR), hl
 	; Ok, now we can write our metadata
 	call	fsWriteMeta
@@ -311,6 +314,28 @@ fsIsDeleted:
 	cp	0	; Z flag is our answer
 	ret
 
+; *** blkdev methods ***
+; When "mounting" a FS, we copy the current blkdev's routine privately so that
+; we can still access the FS even if blkdev selection changes. These routines
+; below mimic blkdev's methods, but for our private mount.
+
+fsblkRead:
+	ld	ix, (FS_GETC)
+	jp	_blkRead
+
+fsblkWrite:
+	ld	ix, (FS_PUTC)
+	jp	_blkWrite
+
+fsblkSeek:
+	ld	ix, (FS_SEEK)
+	ld	iy, (FS_TELL)
+	jp	_blkSeek
+
+fsblkTell:
+	ld	ix, (FS_TELL)
+	jp	_blkCall
+
 ; *** Handling ***
 
 ; Open file at current position into handle at (HL)
@@ -341,23 +366,40 @@ fsSeek:
 ; *** SHELL COMMANDS ***
 ; Mount the fs subsystem upon the currently selected blockdev at current offset.
 ; Verify is block is valid and error out if its not, mounting nothing.
-; Upon mounting, copy currently selected device in FS_BLKSEL.
+; Upon mounting, copy currently selected device in FS_GETC/PUTC/SEEK/TELL.
 fsOnCmd:
 	.db	"fson", 0, 0, 0
 	push	hl
-	call	blkTell
+	push	de
+	push	bc
+	; We have to set blkdev routines early before knowing whether the
+	; mounting succeeds because methods like fsReadMeta uses fsblk* methods.
+	ld	hl, BLOCKDEV_GETC
+	ld	de, FS_GETC
+	ld	bc, 8		; we have 8 bytes to copy
+	ldir			; copy!
+	call	fsblkTell
+	ld	(FS_START), hl
 	ld	(FS_PTR), hl
 	call	fsReadMeta
 	jr	nz, .error
 	call	fsIsValid
 	jr	nz, .error
 	; success
-	ld	(FS_START), hl
 	xor	a
 	jr	.end
 .error:
+	; couldn't mount. Let's reset our variables.
+	xor	a
+	ld	b, 10		; blkdev routines + FS_START which is just
+				; after.
+	ld	hl, FS_GETC
+	call	fill
+
 	ld	a, FS_ERR_NO_FS
 .end:
+	pop	bc
+	pop	de
 	pop	hl
 	ret
 
