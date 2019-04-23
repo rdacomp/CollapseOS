@@ -47,6 +47,11 @@
 ; The last block of the chain is either a block that has no valid block next to
 ; it or a block that reports a 0 allocated block count.
 ;
+; However, to simplify processing, whenever fsNext encounter a chain end of the
+; first type (a valid block with > 0 allocated blocks), it places an empty block
+; at the end of the chain. This makes the whole "end of chain" processing much
+; easier: we assume that we always have a 0 block at the end.
+;
 ; *** Deleted files
 ;
 ; When a file is deleted, its name is set to null. This indicates that the
@@ -135,7 +140,6 @@ fsBegin:
 ; Sets Z according to whether we moved.
 fsNext:
 	push	bc
-	push	de
 	push	hl
 	ld	a, (FS_META+FS_META_ALLOC_OFFSET)
 	cp	0
@@ -149,27 +153,27 @@ fsNext:
 	call	blkSeek
 	djnz	.loop
 	; Good, were here. We're going to read meta from our current position.
-	; But before we do, let's keep a copy of FS_PTR around. We might need
-	; to go back.
-	ld	de, (FS_PTR)
 	call	blkTell	; --> HL
 	ld	(FS_PTR), hl
 	call	fsReadMeta
-	jr	nz, .goback	; error! let's bail out
+	jr	nz, .createChainEnd
 	call	fsIsValid
-	jr	nz, .goback	; error! let's bail out
+	jr	nz, .createChainEnd
 	; We're good! We have a valid FS block and FS_PTR is already updated.
 	; Meta is already read. Nothing to do!
 	cp	a	; ensure Z
 	jr	.end
-.goback:
-	ld	(FS_PTR), de
-	call	fsReadMeta
+.createChainEnd:
+	; We are on an invalid block where a valid block should be. This is
+	; the end of the line, but we should mark it a bit more explicitly.
+	; Let's initialize an empty block
+	call	fsInitMeta
+	call	fsWriteMeta
+	; continue out to error condition: we're still at the end of the line.
 .error:
 	call	unsetZ
 .end:
 	pop	hl
-	pop	de
 	pop	bc
 	ret
 
@@ -202,6 +206,7 @@ fsWriteMeta:
 ; Initializes FS_META with "CFS" followed by zeroes
 fsInitMeta:
 	push	af
+	push	bc
 	push	de
 	push	hl
 	ld	hl, P_FS_MAGIC
@@ -213,6 +218,7 @@ fsInitMeta:
 	call	fill
 	pop	hl
 	pop	de
+	pop	bc
 	pop	af
 	ret
 
@@ -239,36 +245,33 @@ fsPlace:
 fsAlloc:
 	push	bc
 	push	de
-	push	hl		; keep HL for later
-	push	af		; keep A for later
-	; First step: find last block
+	ld	c, a		; Let's store our A arg somewhere...
 	call	fsBegin
-	ret	nz		; not a valid block? hum, something's wrong
+	jr	nz, .end	; not a valid block? hum, something's wrong
+	; First step: find last block
+	push	hl		; keep HL for later
 .loop1:
 	call	fsNext
-	jr	z, .loop1
+	jr	nz, .found	; end of the line
+	call	fsIsDeleted
+	jr	nz, .loop1	; not deleted? loop
+	; This is a deleted block. Maybe it fits...
+	ld	a, (FS_META+FS_META_ALLOC_OFFSET)
+	cp	c		; Same as asked size?
+	jr	z, .found	; yes? great!
+	; TODO: handle case where C < A (block splitting)
+	jr	.loop1
+.found:
 	call	fsPlace		; Make sure that our block device points to
 				; the beginning of our FS block
 	; We've reached last block. Two situations are possible at this point:
-	; 1 - the block is unallocated (0 alloc size)
-	; 2 - the block is allocated, but there are no next block
-	; So, what we need to do is check our allocation size
-	ld	a, (FS_META+FS_META_ALLOC_OFFSET)
-	cp	0
-	jr	z, .proceed	; 0 allocated blocks? this is our block
-	; > 0 allocated blocks. We need to allocate further
-	ld	b, a		; we will seek A times
-	ld	a, BLOCKDEV_SEEK_FORWARD
-	ld	hl, FS_BLOCKSIZE
-.loop2:
-	call	blkSeek
-	djnz	.loop2
-.proceed:
+	; 1 - the block is the "end of line" block
+	; 2 - the block is a deleted block that we we're re-using.
+	; In both case, the processing is the same: write new metadata.
 	; At this point, the blockdev is placed right where we want to allocate
 	; But first, let's prepare the FS_META we're going to write
 	call	fsInitMeta
-	pop	af		; now we want our A arg
-	ld	a, 1
+	ld	a, c		; C == the number of blocks user asked for
 	ld	(FS_META+FS_META_ALLOC_OFFSET), a
 	pop	hl		; now we want our HL arg
 	ld	de, FS_META+FS_META_FNAME_OFFSET
@@ -280,6 +283,7 @@ fsAlloc:
 	ld	(FS_PTR), hl
 	; Ok, now we can write our metadata
 	call	fsWriteMeta
+.end:
 	pop	de
 	pop	bc
 	ret
