@@ -79,18 +79,18 @@
 ; *** CONSTS ***
 FS_MAX_NAME_SIZE	.equ	0x1a
 FS_BLOCKSIZE		.equ	0x100
+FS_METASIZE		.equ	0x20
 
 FS_META_ALLOC_OFFSET	.equ	3
 FS_META_FSIZE_OFFSET	.equ	4
 FS_META_FNAME_OFFSET	.equ	6
 ; Size in bytes of a FS handle:
-; * 2 bytes for starting offset
+; * 2 bytes for current position. (absolute)
+; * 2 bytes for starting offset, after metadata
+; * 2 bytes for maximum offset
 ; * 2 bytes for file size (we could fetch it from metadata all the time, but it
 ;   could be time consuming depending on the underlying device).
-; * 2 bytes for current position.
-; Starting offset is the *metadata* offset. We need, when we write to a handle,
-; to change the size of the file.
-FS_HANDLE_SIZE		.equ	6
+FS_HANDLE_SIZE		.equ	8
 FS_ERR_NO_FS		.equ	0x5
 FS_ERR_NOT_FOUND	.equ	0x6
 
@@ -109,7 +109,7 @@ FS_PTR		.equ	FS_START+2
 ; This variable below contain the metadata of the last block FS_PTR was moved
 ; to. We read this data in memory to avoid constant seek+read operations.
 FS_META		.equ	FS_PTR+2
-FS_HANDLES	.equ	FS_META+0x20
+FS_HANDLES	.equ	FS_META+FS_METASIZE
 FS_RAMEND	.equ	FS_HANDLES+(FS_HANDLE_COUNT*FS_HANDLE_SIZE)
 
 ; *** DATA ***
@@ -186,7 +186,7 @@ fsReadMeta:
 	call	fsPlace
 	push	bc
 	push	hl
-	ld	b, 0x20
+	ld	b, FS_METASIZE
 	ld	hl, FS_META
 	call	fsblkRead	; Sets Z
 	pop	hl
@@ -199,7 +199,7 @@ fsWriteMeta:
 	call	fsPlace
 	push	bc
 	push	hl
-	ld	b, 0x20
+	ld	b, FS_METASIZE
 	ld	hl, FS_META
 	call	fsblkWrite	; Sets Z
 	pop	hl
@@ -217,7 +217,7 @@ fsInitMeta:
 	ld	bc, 3
 	ldir
 	xor	a
-	ld	b, 0x20-3
+	ld	b, FS_METASIZE-3
 	call	fill
 	pop	hl
 	pop	de
@@ -319,9 +319,17 @@ fsIsDeleted:
 ; we can still access the FS even if blkdev selection changes. These routines
 ; below mimic blkdev's methods, but for our private mount.
 
+fsblkGetC:
+	ld	ix, (FS_GETC)
+	jp	_blkCall
+
 fsblkRead:
 	ld	ix, (FS_GETC)
 	jp	_blkRead
+
+fsblkPutC:
+	ld	ix, (FS_PUTC)
+	jp	_blkCall
 
 fsblkWrite:
 	ld	ix, (FS_PUTC)
@@ -340,27 +348,95 @@ fsblkTell:
 
 ; Open file at current position into handle at (HL)
 fsOpen:
+	push	hl
+	push	de
+	push	af
+	ex	hl, de
+	ld	hl, (FS_PTR)
+	ld	a, FS_METASIZE
+	call	addHL
+	call	writeHLinDE
+	inc	de
+	inc	de
+	call	writeHLinDE
+	inc	de
+	inc	de
+	; Maximum offset is starting offset + (numblocks * 0x100) - 1
+	ld	a, (FS_META+FS_META_ALLOC_OFFSET)
+	; Because our blocks are exactly 0x100 in size, we simple have to
+	; increase the H in HL to have our result.
+	add	a, h
+	ld	h, a
+	call	writeHLinDE
+	inc	de
+	inc	de
+	ld	hl, (FS_META+FS_META_FSIZE_OFFSET)
+	call	writeHLinDE
+	pop	af
+	pop	de
+	pop	hl
 	ret
 
-; Ensures that file size in metadata corresponds to file size in handle as (HL).
-fsCommit:
+fsPlaceH:
+	push	af
+	push	hl
+	ld	ixh, d
+	ld	ixl, e
+	push	ix
+	ld	l, (ix)
+	ld	h, (ix+1)
+	ld	a, BLOCKDEV_SEEK_ABSOLUTE
+	call	fsblkSeek
+	pop	ix
+	pop	hl
+	pop	af
 	ret
 
-; Read a byte in handle at (HL), put it into A and advance the handle's
+fsAdvanceH:
+	inc	(ix)
+	ld	a, (ix)
+	ret	nc	; no carry
+	inc	(ix+1)
+	ret
+
+; Read a byte in handle at (DE), put it into A and advance the handle's
 ; position.
 ; Z is set on success, unset if handle is at the end of the file.
-fsRead:
+fsGetC:
+	call	fsPlaceH
+	push	ix
+	call	fsblkGetC
+	; increase current pos
+	pop	ix	; recall
+	call	fsAdvanceH
 	ret
 
-; Write byte A in handle at (HL) and advance the handle's position.
-; Z is set on success, unset if handle is at the end of the allocated space.
-fsWrite:
+; Write byte A in handle (DE) and advance the handle's position.
+; Z is set on success, unset if handle is at the end of the file.
+fsPutC:
+	call	fsPlaceH
+	push	ix
+	call	fsblkPutC
+	; increase current pos
+	pop	ix	; recall
+	call	fsAdvanceH
 	ret
 
-; Sets position of handle (HL) to DE. This position does *not* include metadata.
+; Sets position of handle (DE) to HL. This position does *not* include metadata.
 ; It is an offset that starts at actual data.
 ; Sets Z if offset is within bounds, unsets Z if it isn't.
 fsSeek:
+	ld	ixh, d
+	ld	ixl, e
+	ld	(ix), l
+	ld	(ix+1), h
+	ret
+
+fsTell:
+	ld	ixh, d
+	ld	ixl, e
+	ld	l, (ix)
+	ld	h, (ix+1)
 	ret
 
 ; *** SHELL COMMANDS ***
@@ -369,6 +445,7 @@ fsSeek:
 ; Upon mounting, copy currently selected device in FS_GETC/PUTC/SEEK/TELL.
 fsOnCmd:
 	.db	"fson", 0, 0, 0
+fsOn:
 	push	hl
 	push	de
 	push	bc

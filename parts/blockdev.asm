@@ -111,6 +111,7 @@ blkRead:
 	ld	ix, (BLOCKDEV_GETC)
 _blkRead:
 	push	hl
+	push	bc
 .loop:
 	call	_blkCall
 	jr	nz, .end	; Z already unset
@@ -119,6 +120,7 @@ _blkRead:
 	djnz	.loop
 	cp	a	; ensure Z
 .end:
+	pop	bc
 	pop	hl
 	ret
 
@@ -134,6 +136,7 @@ blkWrite:
 	ld	ix, (BLOCKDEV_PUTC)
 _blkWrite:
 	push	hl
+	push	bc
 .loop:
 	ld	a, (hl)
 	call	_blkCall
@@ -142,6 +145,7 @@ _blkWrite:
 	djnz	.loop
 	cp	a	; ensure Z
 .end:
+	pop	bc
 	pop	hl
 	ret
 
@@ -152,6 +156,13 @@ _blkWrite:
 ; 3 : Move to the end
 ; 4 : Move to the beginning
 ; Set position of selected device to the value specified in HL
+;
+; When seeking to an out-of-bounds position, the resulting position will be
+; one position ahead of the last valid position. Therefore, GetC after a seek
+; to end would always fail.
+;
+; If the device is "growable", it's possible that seeking to end when calling
+; PutC doesn't necessarily result in a failure.
 blkSeek:
 	ld	ix, (BLOCKDEV_SEEK)
 	ld	iy, (BLOCKDEV_TELL)

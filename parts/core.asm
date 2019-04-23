@@ -62,6 +62,7 @@ writeHLinDE:
 	inc	de
 	ld	a, h
 	ld	(de), a
+	dec	de
 	pop	af
 	ret
 
