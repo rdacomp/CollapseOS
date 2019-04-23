@@ -280,6 +280,10 @@ shellPrintErr:
 ; Bit 2 - optional: If set and not present during parsing, we don't error out
 ;		    and write zero
 ;
+; Bit 3 - String argument: If set, this argument is a string. A pointer to the
+;                          read string, null terminated (max 0x20 chars) will
+;                          be placed in the next two bytes. This has to be the
+;                          last argument of the list and it stops parsing.
 ; Sets A to nonzero if there was an error during parsing, zero otherwise.
 ; If there was an error during parsing, carry is set.
 shellParseArgs:
@@ -318,6 +322,14 @@ shellParseArgs:
 	jr	z, .error	; not set? then we have too many args
 	ld	c, a		; save the specs for the next loop
 	inc	hl		; (hl) points to a space, go next
+	bit	3, a		; is our arg a string?
+	jr	z, .notAString
+	; our arg is a string. Let's place HL in our next two bytes and call
+	; it a day. Little endian, remember
+	ld	(ix), l
+	ld	(ix+1), h
+	jr	.success	; directly to success: skip endofargs checks
+.notAString:
 	call	parseHexPair
 	jr	c, .error
 	; we have a good arg and we need to write A in (IX).
