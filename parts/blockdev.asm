@@ -26,8 +26,11 @@ BLOCKDEV_SEEK_END		.equ	4
 ; Pointer to the selected block device. A block device is a 8 bytes block of
 ; memory with pointers to GetC, PutC, Seek and Tell routines, in that order.
 ; 0 means unsupported.
-BLOCKDEV_SEL		.equ	BLOCKDEV_RAMSTART
-BLOCKDEV_RAMEND		.equ	BLOCKDEV_SEL+2
+BLOCKDEV_GETC		.equ	BLOCKDEV_RAMSTART
+BLOCKDEV_PUTC		.equ	BLOCKDEV_GETC+2
+BLOCKDEV_SEEK		.equ	BLOCKDEV_PUTC+2
+BLOCKDEV_TELL		.equ	BLOCKDEV_SEEK+2
+BLOCKDEV_RAMEND		.equ	BLOCKDEV_TELL+2
 
 ; *** CODE ***
 ; Select block index specified in A
@@ -45,36 +48,32 @@ blkSel:
 	djnz	.loop
 	pop	bc
 .afterloop:
-	ld	(BLOCKDEV_SEL), hl
+	push	hl
+	call	intoHL
+	ld	(BLOCKDEV_GETC), hl
+	pop	hl
+	inc	hl
+	inc	hl
+	push	hl
+	call	intoHL
+	ld	(BLOCKDEV_PUTC), hl
+	pop	hl
+	inc	hl
+	inc	hl
+	push	hl
+	call	intoHL
+	ld	(BLOCKDEV_SEEK), hl
+	pop	hl
+	inc	hl
+	inc	hl
+	call	intoHL
+	ld	(BLOCKDEV_TELL), hl
 	pop	hl
 	pop	af
 	ret
 
-; In those routines below, IY is destroyed (we don't push it to the stack). We
-; seldom use it anyways...
-
-; set IX to the address of the routine in BLOCKDEV_SEL with offset IYL.
-_blkCallAddr:
-	push	de
-	ld	de, (BLOCKDEV_SEL)
-	; DE now points to the *address table*, not the routine addresses
-	; themselves. One layer of indirection left.
-	; slide by offset
-	push	af
-	ld	a, iyl
-	call	addDE	; slide by offset
-	pop	af
-	call	intoDE
-	; Alright, now de points to what we want to call
-	ld	ixh, d
-	ld	ixl, e
-	pop	de
-	ret
-
-; call routine in BLOCKDEV_SEL with offset IYL.
+; call IX unless it's zero
 _blkCall:
-	push	ix
-	call	_blkCallAddr
 	; Before we call... is IX zero? We don't want to call a zero.
 	push	af
 	xor	a
@@ -85,25 +84,22 @@ _blkCall:
 .ok:
 	pop	af
 	call	callIX
-	jr	.end
+	ret
 .error:
 	pop	af
 	ld	a, BLOCKDEV_ERR_UNSUPPORTED
-.end:
-	pop	ix
 	ret
 
 ; Reads one character from selected device and returns its value in A.
 ; Sets Z according to whether read was successful: Set if successful, unset
 ; if not.
 blkGetC:
-	ld	iyl, 0
+	ld	ix, (BLOCKDEV_GETC)
 	jr	_blkCall
 
 ; Repeatedly call blkGetC until the call is a success.
 blkGetCW:
-	ld	iyl, 0
-	call	_blkCallAddr
+	ld	ix, (BLOCKDEV_GETC)
 .loop:
 	call	callIX
 	jr	nz, .loop
@@ -127,7 +123,7 @@ blkRead:
 ; Writes character in A in current position in the selected device. Sets Z
 ; according to whether the operation was successful.
 blkPutC:
-	ld	iyl, 2
+	ld	ix, (BLOCKDEV_PUTC)
 	jr	_blkCall
 
 ; Writes B chars to blkPutC from (HL).
@@ -180,12 +176,12 @@ blkSeek:
 	ld	hl, 0xffff
 .seek:
 	pop	de
-	ld	iyl, 4
+	ld	ix, (BLOCKDEV_SEEK)
 	jr	_blkCall
 
 ; Returns the current position of the selected device in HL.
 blkTell:
-	ld	iyl, 6
+	ld	ix, (BLOCKDEV_TELL)
 	jr	_blkCall
 
 ; This label is at the end of the file on purpose: the glue file should include
