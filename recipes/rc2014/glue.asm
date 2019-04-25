@@ -25,9 +25,12 @@ init:
 #include "core.asm"
 ACIA_RAMSTART	.equ	RAMSTART
 #include "acia.asm"
-SHELL_RAMSTART	.equ	ACIA_RAMEND
-.define SHELL_GETC	call aciaGetC
-.define SHELL_PUTC	call aciaPutC
+.define STDIO_GETC	call aciaGetC
+.define STDIO_PUTC	call aciaPutC
+STDIO_RAMSTART	.equ	ACIA_RAMEND
+#include "stdio.asm"
+SHELL_RAMSTART	.equ	STDIO_RAMEND
 .define SHELL_IO_GETC	call aciaGetC
+.define SHELL_IO_PUTC	call aciaPutC
 SHELL_EXTRA_CMD_COUNT .equ 0
 #include "shell.asm"

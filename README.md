@@ -85,7 +85,7 @@ to see what it can do) on a classic RC2014. Highlights:
 
 * Extremely flexible: this is not an OS, but a meta OS. You build your own OS
   through glue code.
-* 1K binary (but size vary wildly depending on what parts you include. 1K is for
+* 2K binary (but size vary wildly depending on what parts you include. 2K is for
   a shell using all parts)
 * Built with minimal tooling: only [scas][scas] is needed
 * Can read and write to memory through shell
