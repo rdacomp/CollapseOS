@@ -15,11 +15,13 @@ P_NULL:		.db 0
 
 ; add the value of A into DE
 addDE:
+	push	af
 	add	a, e
 	jr	nc, .end	; no carry? skip inc
 	inc	d
 .end:
 	ld	e, a
+	pop	af
 	ret
 
 ; copy (DE) into DE, little endian style (addresses in z80 are always have
@@ -46,11 +48,13 @@ intoHL:
 
 ; add the value of A into HL
 addHL:
+	push	af
 	add	a, l
 	jr	nc, .end	; no carry? skip inc
 	inc	h
 .end:
 	ld	l, a
+	pop	af
 	ret
 
 
