@@ -18,6 +18,7 @@ tokenize:
 	ld	(tokArg1), a
 	ld	(tokArg2), a
 	ld	de, tokInstr
+	call	toWord
 	ld	a, 4
 	call	readWord
 	call	toWord
@@ -105,14 +106,10 @@ toWord:
 	inc	hl
 	jr	.loop
 .error:
-	; we need the Z flag to be unset and it is set now. Let's CP with
-	; something it can't be equal to, something not a line end.
-	cp	'a'	; Z flag unset
+	call	JUMP_UNSETZ
 	ret
 .success:
-	; We need the Z flag to be set and it is unset. Let's compare it with
-	; itself to return a set Z
-	cp	a
+	xor	a	; ensure Z
 	ret
 
 ; Advance HL to the beginning of the next line, that is, right after the next
