@@ -6,33 +6,24 @@
 ; JUMP_UPCASE
 
 ; *** Code ***
-; Parse line in (HL) and place each element in tokInstr, tokArg1, tokArg2. Those
-; values are null-terminated and empty if not present. All letters are
+; Parse line in (HL) and read the next token in (DE). For now, it only supports
+; instructions. Arguments must be tokenized with the appropriate specialized
+; routine. Values are null-terminated and empty if not present. All letters are
 ; uppercased.
-; Sets Z on success, unsets it on error. Blank line is not an error.
-; (as of now, we don't have any error condition. We always succeed)
 tokenize:
-	push	de
 	xor	a
-	ld	(tokInstr), a
-	ld	(tokArg1), a
-	ld	(tokArg2), a
-	ld	de, tokInstr
+	ld	(de), a
 	call	toWord
 	ld	a, 4
 	call	readWord
+	ret
+
+tokenizeInstrArg:
+	xor	a
+	ld	(de), a
 	call	toWord
-	jr	nz, .end
-	ld	de, tokArg1
 	ld	a, 8
 	call	readWord
-	call	toWord
-	jr	nz, .end
-	ld	de, tokArg2
-	call	readWord
-.end:
-	xor	a		; ensure Z
-	pop	de
 	ret
 
 ; Sets Z is A is ';', CR, LF, or null.
@@ -155,13 +146,4 @@ gotoNextNotBlankLine:
 	call	gotoNextLine
 	ret	nz
 	jr	gotoNextNotBlankLine
-
-; *** Variables ***
-
-tokInstr:
-	.fill	5
-tokArg1:
-	.fill	9
-tokArg2:
-	.fill	9
 

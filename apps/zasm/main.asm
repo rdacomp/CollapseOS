@@ -24,9 +24,16 @@ main:
 ; to where we should write the next upcode.
 parseLine:
 	push	bc
+
 	call	gotoNextNotBlankLine
+	push	de
+	ld	de, tokInstr
 	call	tokenize
-	jr	nz, .error
+	ld	de, tokArg1
+	call	tokenizeInstrArg
+	ld	de, tokArg2
+	call	tokenizeInstrArg
+	pop	de
 	call	parseTokens
 	or	a	; is zero?
 	jr	z, .error
@@ -47,3 +54,13 @@ parseLine:
 #include "util.asm"
 #include "tok.asm"
 #include "instr.asm"
+
+; *** Variables ***
+
+tokInstr:
+	.fill	5
+tokArg1:
+	.fill	9
+tokArg2:
+	.fill	9
+
