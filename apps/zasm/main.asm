@@ -24,6 +24,7 @@ main:
 ; to where we should write the next upcode.
 parseLine:
 	push	bc
+	call	gotoNextNotBlankLine
 	call	tokenize
 	jr	nz, .error
 	call	parseTokens

@@ -144,6 +144,18 @@ gotoNextLine:
 	call	JUMP_UNSETZ
 	ret
 
+; Repeatedly calls gotoNextLine until the line in (HL) points to a line that
+; isn't blank or 100% comment. Sets Z if we reach a line, Unset Z if we reach
+; EOF
+gotoNextNotBlankLine:
+	call	toWord
+	ret	z	; Z set? we have a not-blank line
+	; Z not set? (HL) is at the end of the line or at the beginning of
+	; comments.
+	call	gotoNextLine
+	ret	nz
+	jr	gotoNextNotBlankLine
+
 ; *** Variables ***
 
 tokInstr:
