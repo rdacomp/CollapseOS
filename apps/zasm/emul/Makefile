@@ -1,11 +1,12 @@
-zasm: zasm.c libz80/libz80.so kernel.h zasm.h
-	cc $< -l z80 -L./libz80 -Wl,-rpath ./libz80 -o $@
+zasm: zasm.c libz80/libz80.o kernel.h zasm.h
+	cc $< libz80/libz80.o -o $@
 
-libz80/libz80.so: libz80/Makefile
-	make -C libz80
+libz80/libz80.o: libz80/z80.c
+	make -C libz80/codegen opcodes
+	gcc -Wall -ansi -g -c -o libz80/libz80.o libz80/z80.c
 
 kernel.h: glue.asm
-	scas -o - -I ../../../parts $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
+	scas -o - -I ../../../parts/z80 $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
 
 zasm.h: ../zasm.asm ../tok.asm
 	scas -o - -I.. $< | ./bin2c.sh ZASM | tee $@ > /dev/null

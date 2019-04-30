@@ -20,15 +20,6 @@ ret
 
 #include "tok.asm"
 
-; TODO: call from core
-unsetZ:
-	push	bc
-	ld	b, a
-	inc	b
-	cp	b
-	pop	bc
-	ret
-
 ; run RLA the number of times specified in B
 rlaX:
 	; first, see if B == 0 to see if we need to bail out
@@ -93,7 +84,7 @@ enterParens:
 	ret		; we're good!
 .doNotEnter:
 	pop	hl
-	call	unsetZ
+	call	JUMP_UNSETZ
 	ret
 
 ; Checks whether A is 'N' or 'M'
@@ -167,7 +158,7 @@ parseNumber:
 	jr	.loop
 
 .error:
-	call	unsetZ
+	call	JUMP_UNSETZ
 .end:
 	pop	bc
 	pop	de
@@ -312,7 +303,7 @@ isGroupId:
 	cp	a
 	ret
 .notgroup:
-	call	unsetZ
+	call	JUMP_UNSETZ
 	ret
 
 ; Find argspec A in group id H.
@@ -382,7 +373,7 @@ findInGroup:
 	jr	.end
 .notfound:
 	pop	bc	; from the push bc in .find
-	call	unsetZ
+	call	JUMP_UNSETZ
 .end:
 	pop	hl
 	pop	bc
@@ -403,7 +394,7 @@ matchArg:
 	cp	0
 	jr	nz, .checkIfNumber	; not a zero, we can continue
 	; zero, stop here
-	call	unsetZ
+	call	JUMP_UNSETZ
 	ret
 .checkIfNumber:
 	; not an exact match, let's check for numerical constants.
@@ -502,7 +493,7 @@ handleBIT:
 	ret
 .error:
 	xor	c
-	call	unsetZ
+	call	JUMP_UNSETZ
 	ret
 
 handleBITHL:
@@ -792,7 +783,7 @@ processArg:
 	cp	a		; ensure Z is set
 	ret
 .error:
-	call	unsetZ
+	call	JUMP_UNSETZ
 	ret
 
 ; Parse line at (HL) and write resulting opcode(s) in curUpcode. Returns the
@@ -910,8 +901,8 @@ argGrpCC:
 argGrpABCDEHL:
 	.db	"BCDEHL_A"	; 0xb
 
-; This is a list of primary instructions (single upcode) that lead to a
-; constant (no group code to insert). Format:
+; This is a list of all supported instructions. Each row represent a combination
+; of instr/argspecs (which means more than one row per instr). Format:
 ;
 ; 4 bytes for the name (fill with zero)
 ; 1 byte for arg constant
@@ -919,9 +910,12 @@ argGrpABCDEHL:
 ; 1 byte displacement for group arguments + flags
 ; 2 bytes for upcode (2nd byte is zero if instr is one byte)
 ;
+; An "arg constant" is a char corresponding to either a row in argspecTbl or
+; a group index in argGrpTbl (values < 0x10 are considered group indexes).
+;
 ; The displacement bit is split in 2 nibbles: lower nibble is the displacement
 ; value, upper nibble is for flags:
-
+;
 ; Bit 7: indicates that the numerical argument is of the 'e' type and has to be
 ; decreased by 2 (djnz, jr).
 ; Bit 6: it indicates that the group argument's value is to be placed on the

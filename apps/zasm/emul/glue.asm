@@ -8,6 +8,7 @@ jr	init	; 2 bytes
 jp	strncmp
 jp	addDE
 jp	upcase
+jp	unsetZ
 
 init:
 	di
