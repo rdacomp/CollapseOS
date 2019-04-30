@@ -8,5 +8,5 @@ libz80/libz80.o: libz80/z80.c
 kernel.h: glue.asm
 	scas -o - -I ../../../parts/z80 $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
 
-zasm.h: ../zasm.asm ../tok.asm
+zasm.h: ../main.asm ../instr.asm ../tok.asm
 	scas -o - -I.. $< | ./bin2c.sh ZASM | tee $@ > /dev/null

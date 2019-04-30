@@ -1,5 +1,3 @@
-#include "user.inc"
-
 ; *** Consts ***
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	31
@@ -7,18 +5,6 @@ ARGSPEC_TBL_CNT		.equ	31
 INSTR_TBL_CNT		.equ	135
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	9
-
-; *** Code ***
-.org	USER_CODE
-
-call	parseLine
-ld	b, 0
-ld	c, a	; written bytes
-ld	hl, curUpcode
-call	copy
-ret
-
-#include "tok.asm"
 
 ; run RLA the number of times specified in B
 rlaX:
