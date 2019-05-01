@@ -415,14 +415,12 @@ matchArg:
 	dec	hl
 	ret
 
-; Compare primary row at (DE) with ID at (token+1). Sets Z flag if there's a
-; match, reset if not.
+; Compare primary row at (DE) with ID in A. Sets Z flag if there's a match.
 matchPrimaryRow:
 	push	hl
 	push	ix
 	ld	ixh, d
 	ld	ixl, e
-	ld	a, (token+1)
 	cp	(ix)
 	jr	nz, .end
 	; name matches, let's see the rest
@@ -778,18 +776,22 @@ processArg:
 	ld	a, ixh
 	ld	(de), a
 	cp	a		; ensure Z is set
-	pop	hl
-	ret
+	jr	.end
 .error:
 	call	JUMP_UNSETZ
+.end:
 	pop	hl
 	ret
 
 ; Parse instruction specified in A (I_* const) with args in (HL) and write
 ; resulting opcode(s) in (curUpcode). Returns the number of bytes written in A.
 parseInstruction:
+	push	bc
 	push	hl
 	push	de
+	; A is reused in matchPrimaryRow but that register is way too changing.
+	; Let's keep a copy in a more cosy register.
+	ld	c, a
 	ld	de, curArg1
 	call	processArg
 	jr	nz, .error
@@ -800,7 +802,7 @@ parseInstruction:
 	ld	de, instrTBl
 	ld	b, INSTR_TBL_CNT
 .loop:
-	ld	a, (de)
+	ld	a, c			; recall A param
 	call	matchPrimaryRow
 	jr	z, .match
 	ld	a, INSTR_TBL_ROWSIZE
@@ -819,6 +821,7 @@ parseInstruction:
 .end:
 	pop	de
 	pop	hl
+	pop	bc
 	ret
 
 

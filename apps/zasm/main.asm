@@ -32,18 +32,15 @@ parseLine:
 
 	call	gotoNextNotBlankLine
 	jr	nz, .error
-	push	de
-	ld	de, token
 	call	tokenize
-	pop	de
-	ld	a, (token)	; TOK_*
+	ld	a, b		; TOK_*
 	cp	TOK_BAD
 	jr	z, .error
 	cp	TOK_INSTR
 	jr	z, .instr
 	jr	.error		; directive not supported yet
 .instr:
-	ld	a, (token+1)	; I_*
+	ld	a, c		; I_*
 	call	parseInstruction
 	or	a	; is zero?
 	jr	z, .error
@@ -62,9 +59,5 @@ parseLine:
 	ret
 
 ; *** Variables ***
-
-token:
-	.fill	5
-
 scratchpad:
 	.fill	0x20

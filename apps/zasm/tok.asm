@@ -11,40 +11,35 @@ TOK_DIRECTIVE	.equ	0x02
 TOK_BAD		.equ	0xff
 
 ; *** Code ***
-; Parse line in (HL) and read the next token in (DE). The token is written on
-; two bytes. The first byte is a token type (TOK_* constants) and the second
-; byte is an ID specific to that token type.
-; If no token matches, TOK_BAD is written to (DE)
+; Parse line in (HL) and read the next token in BC. The token is written on
+; two bytes (B and C). B is a token type (TOK_* constants) and C is an ID
+; specific to that token type.
+; Advance HL to after the read word.
+; If no token matches, TOK_BAD is written to B
 tokenize:
-	xor	a
-	ld	(de), a
+	push	de
 	call	toWord
 	ld	a, 4
+	ld	de, scratchpad
 	call	readWord
-	ex	hl, de
+	push	hl		; Save advanced HL for later
+	ld	hl, scratchpad
 	call	getInstID
 	jr	z, .instr
 	call	getDirectiveID
 	jr	z, .direc
 	; no match
-	ex	hl, de		; swap it back
-	ld	a, TOK_BAD
-	ld	(de), a
-	ret
+	ld	b, TOK_BAD
+	jr	.end
 .instr:
-	ex	af, af'
-	ld	a, TOK_INSTR
+	ld	b, TOK_INSTR
 	jr	.end
 .direc:
-	ex	af, af'
-	ld	a, TOK_DIRECTIVE
-	jr	.end
+	ld	b, TOK_DIRECTIVE
 .end:
-	ex	hl, de		; swap it back
-	ld	(de), a
-	ex	af, af'
-	inc	de
-	ld	(de), a
+	ld	c, a
+	pop	hl
+	pop	de
 	ret
 
 ; Sets Z is A is ';', CR, LF, or null.
