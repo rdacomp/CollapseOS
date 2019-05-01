@@ -47,16 +47,6 @@ tokenize:
 	ld	(de), a
 	ret
 
-tokenizeInstrArg:
-	push	af
-	xor	a
-	ld	(de), a
-	call	toWord
-	ld	a, 8
-	call	readWord
-	pop	af
-	ret
-
 ; Sets Z is A is ';', CR, LF, or null.
 isLineEndOrComment:
 	cp	';'

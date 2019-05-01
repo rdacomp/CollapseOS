@@ -415,14 +415,14 @@ matchArg:
 	dec	hl
 	ret
 
-; Compare primary row at (DE) with ID at (tokInstr+1). Sets Z flag if there's a
+; Compare primary row at (DE) with ID at (token+1). Sets Z flag if there's a
 ; match, reset if not.
 matchPrimaryRow:
 	push	hl
 	push	ix
 	ld	ixh, d
 	ld	ixl, e
-	ld	a, (tokInstr+1)
+	ld	a, (token+1)
 	cp	(ix)
 	jr	nz, .end
 	; name matches, let's see the rest
@@ -747,9 +747,23 @@ getUpcode:
 	pop	ix
 	ret
 
-; Parse tokenizes argument in (HL), parses it and place it in (DE)
+; Parse next argument in string (HL) and place it in (DE)
 ; Sets Z on success, reset on error.
 processArg:
+	push	de
+	call	toWord
+	xor	a
+	ld	de, scratchpad
+	ld	(de), a
+	ld	a, 8
+	call	readWord
+	pop	de
+	; Read word is in scratchpad, (DE) is back to initial value, HL is
+	; properly advanced. Now, let's push that HL value and replace it with
+	; (scratchpad) so that we can parse that arg.
+	push	hl
+	ld	hl, scratchpad
+
 	call	parseArg
 	cp	0xff
 	jr	z, .error
@@ -764,22 +778,21 @@ processArg:
 	ld	a, ixh
 	ld	(de), a
 	cp	a		; ensure Z is set
+	pop	hl
 	ret
 .error:
 	call	JUMP_UNSETZ
+	pop	hl
 	ret
 
-; Parse instruction specified in A (I_* const) with args in (tokArg1) and
-; (tokArg2) and write resulting opcode(s) in (curUpcode). Returns the number of
-; bytes written in A.
+; Parse instruction specified in A (I_* const) with args in (HL) and write
+; resulting opcode(s) in (curUpcode). Returns the number of bytes written in A.
 parseInstruction:
 	push	hl
 	push	de
-	ld	hl, tokArg1
 	ld	de, curArg1
 	call	processArg
 	jr	nz, .error
-	ld	hl, tokArg2
 	ld	de, curArg2
 	call	processArg
 	jr	nz, .error
