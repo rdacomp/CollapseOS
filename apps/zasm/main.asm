@@ -54,6 +54,7 @@ parseLine:
 #include "util.asm"
 #include "tok.asm"
 #include "instr.asm"
+#include "directive.asm"
 
 ; *** Variables ***
 

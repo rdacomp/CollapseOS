@@ -7,13 +7,14 @@
 
 ; *** Consts ***
 TOK_INSTR	.equ	0x01
+TOK_DIRECTIVE	.equ	0x02
 TOK_BAD		.equ	0xff
 
 ; *** Code ***
-; Parse line in (HL) and read the next token in (DE). For now, it only supports
-; instructions. Arguments must be tokenized with the appropriate specialized
-; routine. Values are null-terminated and empty if not present. All letters are
-; uppercased.
+; Parse line in (HL) and read the next token in (DE). The token is written on
+; two bytes. The first byte is a token type (TOK_* constants) and the second
+; byte is an ID specific to that token type.
+; If no token matches, TOK_BAD is written to (DE)
 tokenize:
 	xor	a
 	ld	(de), a
@@ -22,11 +23,27 @@ tokenize:
 	call	readWord
 	ex	hl, de
 	call	getInstID
-	ex	hl, de
-	jr	z, .match
+	jr	z, .instr
+	call	getDirectiveID
+	jr	z, .direc
 	; no match
+	ex	hl, de		; swap it back
 	ld	a, TOK_BAD
-.match:
+	ld	(de), a
+	ret
+.instr:
+	ex	af, af'
+	ld	a, TOK_INSTR
+	jr	.end
+.direc:
+	ex	af, af'
+	ld	a, TOK_DIRECTIVE
+	jr	.end
+.end:
+	ex	hl, de		; swap it back
+	ld	(de), a
+	ex	af, af'
+	inc	de
 	ld	(de), a
 	ret
 

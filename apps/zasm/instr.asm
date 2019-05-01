@@ -415,14 +415,14 @@ matchArg:
 	dec	hl
 	ret
 
-; Compare primary row at (DE) with ID at (tokInstr). Sets Z flag if there's a
+; Compare primary row at (DE) with ID at (tokInstr+1). Sets Z flag if there's a
 ; match, reset if not.
 matchPrimaryRow:
 	push	hl
 	push	ix
 	ld	ixh, d
 	ld	ixl, e
-	ld	a, (tokInstr)
+	ld	a, (tokInstr+1)
 	cp	(ix)
 	jr	nz, .end
 	; name matches, let's see the rest
@@ -774,9 +774,10 @@ processArg:
 parseTokens:
 	push	hl
 	push	de
-	ld	a, (tokInstr)
-	cp	TOK_BAD
-	jr	z, .error	; for now, we treat blank lines as errors
+	ld	a, (tokInstr)	; TOK_*
+	cp	TOK_INSTR
+	jr	nz, .error	; Not an instruction, error
+	ld	a, (tokInstr+1)	; I_*
 	ld	hl, tokArg1
 	ld	de, curArg1
 	call	processArg
