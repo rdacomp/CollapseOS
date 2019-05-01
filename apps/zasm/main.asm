@@ -20,6 +20,7 @@ main:
 	ret
 
 #include "util.asm"
+#include "parse.asm"
 #include "literal.asm"
 #include "instr.asm"
 #include "tok.asm"
@@ -76,6 +77,3 @@ parseLine:
 	pop	bc
 	ret
 
-; *** Variables ***
-scratchpad:
-	.fill	0x20

@@ -688,17 +688,11 @@ getUpcode:
 ; Parse next argument in string (HL) and place it in (DE)
 ; Sets Z on success, reset on error.
 processArg:
-	push	de
 	call	toWord
-	xor	a
-	ld	de, scratchpad
-	ld	(de), a
-	ld	a, 8
 	call	readWord
-	pop	de
-	; Read word is in scratchpad, (DE) is back to initial value, HL is
-	; properly advanced. Now, let's push that HL value and replace it with
-	; (scratchpad) so that we can parse that arg.
+	; Read word is in scratchpad, HL is properly advanced. Now, let's push
+	; that HL value and replace it with (scratchpad) so that we can parse
+	; that arg.
 	push	hl
 	ld	hl, scratchpad
 

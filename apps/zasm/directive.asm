@@ -17,11 +17,8 @@ directiveHandlers:
 	.dw	handleDW
 
 handleDB:
-	push	de
 	push	hl
 	call	toWord
-	ld	de, scratchpad
-	ld	a, 8
 	call	readWord
 	ld	hl, scratchpad
 	call	parseNumber
@@ -29,15 +26,11 @@ handleDB:
 	ld	(direcData), a
 	ld	a, 1
 	pop	hl
-	pop	de
 	ret
 
 handleDW:
-	push	de
 	push	hl
 	call	toWord
-	ld	de, scratchpad
-	ld	a, 8
 	call	readWord
 	ld	hl, scratchpad
 	call	parseNumber
@@ -47,7 +40,6 @@ handleDW:
 	ld	(direcData+1), a
 	ld	a, 2
 	pop	hl
-	pop	de
 	ret
 
 ; Reads string in (HL) and returns the corresponding ID (D_*) in A. Sets Z if
