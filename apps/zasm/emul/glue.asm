@@ -9,6 +9,7 @@ jp	strncmp
 jp	addDE
 jp	upcase
 jp	unsetZ
+jp	intoDE
 
 init:
 	di

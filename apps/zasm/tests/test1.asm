@@ -3,3 +3,5 @@
 	inc	a	; comment
 	; comment
 	.db	42
+	.dw	42
+	.dw	3742
