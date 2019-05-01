@@ -19,6 +19,11 @@ main:
 .stop:
 	ret
 
+#include "util.asm"
+#include "tok.asm"
+#include "instr.asm"
+#include "directive.asm"
+
 ; Parse line in (HL), write the resulting opcode(s) in (DE) and returns the
 ; number of written bytes in A. Advances HL where tokenization stopped and DE
 ; to where we should write the next upcode.
@@ -26,15 +31,24 @@ parseLine:
 	push	bc
 
 	call	gotoNextNotBlankLine
+	jr	nz, .error
 	push	de
 	ld	de, tokInstr
 	call	tokenize
+	ld	a, (tokInstr)	; TOK_*
+	cp	TOK_BAD
+	jr	z, .error
 	ld	de, tokArg1
 	call	tokenizeInstrArg
 	ld	de, tokArg2
 	call	tokenizeInstrArg
 	pop	de
-	call	parseTokens
+	cp	TOK_INSTR
+	jr	z, .instr
+	jr	.error		; directive not supported yet
+.instr:
+	ld	a, (tokInstr+1)	; I_*
+	call	parseInstruction
 	or	a	; is zero?
 	jr	z, .error
 	ld	b, 0
@@ -50,11 +64,6 @@ parseLine:
 .end:
 	pop	bc
 	ret
-
-#include "util.asm"
-#include "tok.asm"
-#include "instr.asm"
-#include "directive.asm"
 
 ; *** Variables ***
 

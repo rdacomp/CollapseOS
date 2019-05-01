@@ -769,15 +769,12 @@ processArg:
 	call	JUMP_UNSETZ
 	ret
 
-; Parse tokens in (tokInstr), (tokArg1) and (tokArg2) and write resulting
-; opcode(s) in (curUpcode). Returns the number of bytes written in A.
-parseTokens:
+; Parse instruction specified in A (I_* const) with args in (tokArg1) and
+; (tokArg2) and write resulting opcode(s) in (curUpcode). Returns the number of
+; bytes written in A.
+parseInstruction:
 	push	hl
 	push	de
-	ld	a, (tokInstr)	; TOK_*
-	cp	TOK_INSTR
-	jr	nz, .error	; Not an instruction, error
-	ld	a, (tokInstr+1)	; I_*
 	ld	hl, tokArg1
 	ld	de, curArg1
 	call	processArg
