@@ -65,4 +65,30 @@ enterParens:
 	call	JUMP_UNSETZ
 	ret
 
-
+; Find string (HL) in string list (DE) of size B. Each string is C bytes wide.
+; Returns the index of the found string. Sets Z if found, unsets Z if not found.
+findStringInList:
+	push	de
+	push	bc
+.loop:
+	ld	a, c
+	call	JUMP_STRNCMP
+	ld	a, c
+	call	JUMP_ADDDE
+	jr	z, .match
+	djnz	.loop
+	; no match, Z is unset
+	pop	bc
+	pop	de
+	ret
+.match:
+	; Now, we want the index of our string, which is equal to our initial B
+	; minus our current B. To get this, we have to play with our registers
+	; and stack a bit.
+	ld	d, b
+	pop	bc
+	ld	a, b
+	sub	d
+	pop	de
+	cp	a		; ensure Z
+	ret

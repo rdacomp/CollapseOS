@@ -5,6 +5,10 @@
 ; *** Requirements ***
 ; JUMP_UPCASE
 
+; *** Consts ***
+TOK_INSTR	.equ	0x01
+TOK_BAD		.equ	0xff
+
 ; *** Code ***
 ; Parse line in (HL) and read the next token in (DE). For now, it only supports
 ; instructions. Arguments must be tokenized with the appropriate specialized
@@ -19,6 +23,10 @@ tokenize:
 	ex	hl, de
 	call	getInstID
 	ex	hl, de
+	jr	z, .match
+	; no match
+	ld	a, TOK_BAD
+.match:
 	ld	(de), a
 	ret
 

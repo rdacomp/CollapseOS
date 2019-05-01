@@ -57,7 +57,6 @@ I_SBC	.equ	0x2f
 I_SCF	.equ	0x30
 I_SUB	.equ	0x31
 I_XOR	.equ	0x32
-I_BAD	.equ	0xff
 
 ; Checks whether A is 'N' or 'M'
 checkNOrM:
@@ -77,27 +76,15 @@ checknmxy:
 	cp	'y'
 	ret
 
-; Reads instruction mnemonic in (HL) and returns the corresponding ID (I_*)
-; in A. I_BAD if there's no match.
+; Reads string in (HL) and returns the corresponding ID (I_*) in A. Sets Z if
+; there's a match.
 getInstID:
 	push	bc
 	push	de
 	ld	b, I_XOR+1	; I_XOR is the last
+	ld	c, 4
 	ld	de, instrNames
-.loop:
-	ld	a, 4
-	call	JUMP_STRNCMP
-	ld	a, 4
-	call	JUMP_ADDDE
-	jr	z, .match
-	djnz	.loop
-	; no match
-	ld	a, I_BAD
-	jr	.end
-.match:
-	ld	a, I_XOR+1
-	sub	b
-.end:
+	call	findStringInList
 	pop	de
 	pop	bc
 	ret
@@ -788,7 +775,7 @@ parseTokens:
 	push	hl
 	push	de
 	ld	a, (tokInstr)
-	cp	I_BAD
+	cp	TOK_BAD
 	jr	z, .error	; for now, we treat blank lines as errors
 	ld	hl, tokArg1
 	ld	de, curArg1
