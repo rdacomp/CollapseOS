@@ -89,66 +89,6 @@ getInstID:
 	pop	bc
 	ret
 
-; Parse the decimal char at A and extract it's 0-9 numerical value. Put the
-; result in A.
-;
-; On success, the carry flag is reset. On error, it is set.
-parseDecimal:
-	; First, let's see if we have an easy 0-9 case
-	cp	'0'
-	ret	c	; if < '0', we have a problem
-	cp	'9'+1
-	; We are in the 0-9 range
-	sub	a, '0'		; C is clear
-	ret
-
-; Parses the string at (HL) and returns the 16-bit value in IX.
-; As soon as the number doesn't fit 16-bit any more, parsing stops and the
-; number is invalid. If the number is valid, Z is set, otherwise, unset.
-parseNumber:
-	push	hl
-	push	de
-	push	bc
-
-	ld	ix, 0
-.loop:
-	ld	a, (hl)
-	cp	0
-	jr	z, .end	; success!
-	call	parseDecimal
-	jr	c, .error
-
-	; Now, let's add A to IX. First, multiply by 10.
-	ld	d, ixh	; we need a copy of the initial copy for later
-	ld	e, ixl
-	add	ix, ix	; x2
-	add	ix, ix	; x4
-	add	ix, ix	; x8
-	add	ix, de	; x9
-	add	ix, de	; x10
-	add	a, ixl
-	jr	nc, .nocarry
-	inc	ixh
-.nocarry:
-	ld	ixl, a
-
-	; We didn't bother checking for the C flag at each step because we
-	; check for overflow afterwards. If ixh < d, we overflowed
-	ld	a, ixh
-	cp	d
-	jr	c, .error	; carry is set? overflow
-
-	inc	hl
-	jr	.loop
-
-.error:
-	call	JUMP_UNSETZ
-.end:
-	pop	bc
-	pop	de
-	pop	hl
-	ret
-
 ; Parse the string at (HL) and check if it starts with IX+, IY+, IX- or IY-.
 ; Sets Z if yes, unset if no.
 parseIXY:
@@ -450,13 +390,13 @@ handleJPIX:
 handleJPIY:
 	ld	a, 0xfd
 handleJPIXY:
-	ld	(curUpcode), a
+	ld	(instrUpcode), a
 	ld	a, (curArg1+1)
 	cp	0		; numerical argument *must* be zero
 	jr	nz, .error
 	; ok, we're good
 	ld	a, 0xe9		; second upcode
-	ld	(curUpcode+1), a
+	ld	(instrUpcode+1), a
 	ld	c, 2
 	ret
 .error:
@@ -481,12 +421,12 @@ handleBITHL:
 	call	handleBIT
 	ret	nz		; error
 	ld	a, 0xcb		; first upcode
-	ld	(curUpcode), a
+	ld	(instrUpcode), a
 	ld	a, (curArg1+1)	; 0-7
 	ld	b, 3		; displacement
 	call	rlaX
 	or	0b01000110	; 2nd upcode
-	ld	(curUpcode+1), a
+	ld	(instrUpcode+1), a
 	ld	c, 2
 	ret
 
@@ -496,18 +436,18 @@ handleBITIX:
 handleBITIY:
 	ld	a, 0xfd
 handleBITIXY:
-	ld	(curUpcode), a	; first upcode
+	ld	(instrUpcode), a	; first upcode
 	call	handleBIT
 	ret	nz		; error
 	ld	a, 0xcb		; 2nd upcode
-	ld	(curUpcode+1), a
+	ld	(instrUpcode+1), a
 	ld	a, (curArg2+1)	; IXY displacement
-	ld	(curUpcode+2), a
+	ld	(instrUpcode+2), a
 	ld	a, (curArg1+1)	; 0-7
 	ld	b, 3		; displacement
 	call	rlaX
 	or	0b01000110	; 4th upcode
-	ld	(curUpcode+3), a
+	ld	(instrUpcode+3), a
 	ld	c, 4
 	ret
 
@@ -519,7 +459,7 @@ handleBITR:
 	ld	c, a
 	; write first upcode
 	ld	a, 0xcb		; first upcode
-	ld	(curUpcode), a
+	ld	(instrUpcode), a
 	; get bit value
 	ld	a, (curArg1+1)	; 0-7
 	ld	b, 3		; displacement
@@ -529,7 +469,7 @@ handleBITR:
 	or	c		; Now we have our ORed value
 	or	0b01000000	; and with the constant value for that byte...
 				; we're good!
-	ld	(curUpcode+1), a
+	ld	(instrUpcode+1), a
 	ld	c, 2
 	ret
 
@@ -553,9 +493,9 @@ handleIM:
 .im2:
 	ld	a, 0x5e
 .proceed:
-	ld	(curUpcode+1), a
+	ld	(instrUpcode+1), a
 	ld	a, 0xed
-	ld	(curUpcode), a
+	ld	(instrUpcode), a
 	ld	c, 2
 	ret
 
@@ -565,13 +505,13 @@ handleLDIXn:
 handleLDIYn:
 	ld	a, 0xfd
 handleLDIXYn:
-	ld	(curUpcode), a
+	ld	(instrUpcode), a
 	ld	a, 0x36		; second upcode
-	ld	(curUpcode+1), a
+	ld	(instrUpcode+1), a
 	ld	a, (curArg1+1)	; IXY displacement
-	ld	(curUpcode+2), a
+	ld	(instrUpcode+2), a
 	ld	a, (curArg2+1)	; N
-	ld	(curUpcode+3), a
+	ld	(instrUpcode+3), a
 	ld	c, 4
 	ret
 .error:
@@ -584,12 +524,12 @@ handleLDIXr:
 handleLDIYr:
 	ld	a, 0xfd
 handleLDIXYr:
-	ld	(curUpcode), a
+	ld	(instrUpcode), a
 	ld	a, (curArg2+1)	; group value
 	or	0b01110000	; second upcode
-	ld	(curUpcode+1), a
+	ld	(instrUpcode+1), a
 	ld	a, (curArg1+1)	; IXY displacement
-	ld	(curUpcode+2), a
+	ld	(instrUpcode+2), a
 	ld	c, 3
 	ret
 .error:
@@ -597,8 +537,8 @@ handleLDIXYr:
 	ret
 
 ; Compute the upcode for argspec row at (DE) and arguments in curArg{1,2} and
-; writes the resulting upcode in curUpcode. A is the number if bytes written
-; to curUpcode (can be zero if something went wrong).
+; writes the resulting upcode in instrUpcode. A is the number if bytes written
+; to instrUpcode (can be zero if something went wrong).
 getUpcode:
 	push	ix
 	push	de
@@ -615,14 +555,14 @@ getUpcode:
 	ld	l, (ix+4)
 	ld	h, (ix+5)
 	call	callHL
-	; We have our result written in curUpcode and C is set.
+	; We have our result written in instrUpcode and C is set.
 	jp	.end
 
 .normalInstr:
 	; we begin by writing our "base upcode", which can be one or two bytes
 	ld	a, (ix+4)	; first upcode
-	ld	(curUpcode), a
-	ld	de, curUpcode	; from this point, DE points to "where we are"
+	ld	(instrUpcode), a
+	ld	de, instrUpcode	; from this point, DE points to "where we are"
 				; in terms of upcode writing.
 	inc	de		; make DE point to where we should write next.
 	ld	a, (ix+5)	; second upcode
@@ -667,11 +607,11 @@ getUpcode:
 	bit	6, (ix+3)
 	jr	z, .firstUpcode	; not set: first upcode
 	or	(ix+5)		; second upcode
-	ld	(curUpcode+1), a
+	ld	(instrUpcode+1), a
 	jr	.writeExtraBytes
 .firstUpcode:
 	or	(ix+4)		; first upcode
-	ld	(curUpcode), a
+	ld	(instrUpcode), a
 	jr	.writeExtraBytes
 .writeExtraBytes:
 	; Good, we are probably finished here for many primary opcodes. However,
@@ -679,7 +619,7 @@ getUpcode:
 	; if that's the case here, we need to write it too.
 	; We still have our instruction row in IX and we have DE pointing to
 	; where we should write next (which could be the second or the third
-	; byte of curUpcode).
+	; byte of instrUpcode).
 	ld	a, (ix+1)	; first argspec
 	ld	hl, curArg1
 	call	checkNOrM
@@ -724,7 +664,7 @@ getUpcode:
 	ld	c, 3
 	jr	.computeBytesWritten
 .computeBytesWritten:
-	; At this point, everything that we needed to write in curUpcode is
+	; At this point, everything that we needed to write in instrUpcode is
 	; written an C is 1 if we have no extra byte, 2 if we have an extra
 	; byte and 3 if we have an extra word. What we need to do here is check
 	; if ix+5 is non-zero and increase C if it is.
@@ -784,7 +724,7 @@ processArg:
 	ret
 
 ; Parse instruction specified in A (I_* const) with args in (HL) and write
-; resulting opcode(s) in (curUpcode). Returns the number of bytes written in A.
+; resulting opcode(s) in (instrUpcode). Returns the number of bytes written in A.
 parseInstruction:
 	push	bc
 	push	hl
@@ -1119,6 +1059,6 @@ curArg1:
 curArg2:
 	.db	0, 0, 0
 
-curUpcode:
+instrUpcode:
 	.db	0, 0, 0, 0
 

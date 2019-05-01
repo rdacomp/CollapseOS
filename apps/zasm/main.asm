@@ -20,8 +20,9 @@ main:
 	ret
 
 #include "util.asm"
-#include "tok.asm"
+#include "literal.asm"
 #include "instr.asm"
+#include "tok.asm"
 #include "directive.asm"
 
 ; Parse line in (HL), write the resulting opcode(s) in (DE) and returns the
@@ -35,11 +36,11 @@ parseLine:
 	jr	nz, .error
 	call	tokenize
 	ld	a, b		; TOK_*
-	cp	TOK_BAD
-	jr	z, .error
 	cp	TOK_INSTR
 	jr	z, .instr
-	jr	.error		; directive not supported yet
+	cp	TOK_DIRECTIVE
+	jr	z, .direc
+	jr	.error		; token not supported
 .instr:
 	ld	a, c		; I_*
 	call	parseInstruction
@@ -48,7 +49,18 @@ parseLine:
 	ld	b, 0
 	ld	c, a	; written bytes
 	push	hl
-	ld	hl, curUpcode
+	ld	hl, instrUpcode
+	call	copy
+	pop	hl
+	call	JUMP_ADDDE
+	jr	.success
+.direc:
+	ld	a, c		; D_*
+	call	parseDirective
+	ld	b, 0
+	ld	c, a	; written bytes
+	push	hl
+	ld	hl, direcData
 	call	copy
 	pop	hl
 	call	JUMP_ADDDE

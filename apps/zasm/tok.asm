@@ -94,10 +94,6 @@ readWord:
 	ld	(de), a
 	ld	a, 4
 	sub	a, b
-	jr	.end
-.error:
-	xor	a
-	ld	(de), a
 .end:
 	pop	de
 	pop	bc
