@@ -16,6 +16,10 @@ tokenize:
 	call	toWord
 	ld	a, 4
 	call	readWord
+	ex	hl, de
+	call	getInstID
+	ex	hl, de
+	ld	(de), a
 	ret
 
 tokenizeInstrArg:
@@ -62,6 +66,7 @@ isSepOrLineEnd:
 ; separator char.
 readWord:
 	push	bc
+	push	de
 	ld	b, a
 .loop:
 	ld	a, (hl)
@@ -82,6 +87,7 @@ readWord:
 	xor	a
 	ld	(de), a
 .end:
+	pop	de
 	pop	bc
 	ret
 

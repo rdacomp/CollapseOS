@@ -4,7 +4,60 @@ ARGSPEC_TBL_CNT		.equ	31
 ; Number of rows in the primary instructions table
 INSTR_TBL_CNT		.equ	135
 ; size in bytes of each row in the primary instructions table
-INSTR_TBL_ROWSIZE	.equ	9
+INSTR_TBL_ROWSIZE	.equ	6
+; Instruction IDs They correspond to the index of the table in instrNames
+I_ADC	.equ	0x00
+I_ADD	.equ	0x01
+I_AND	.equ	0x02
+I_BIT	.equ	0x03
+I_CALL	.equ	0x04
+I_CCF	.equ	0x05
+I_CP	.equ	0x06
+I_CPD	.equ	0x07
+I_CPDR	.equ	0x08
+I_CPI	.equ	0x09
+I_CPIR	.equ	0x0a
+I_CPL	.equ	0x0b
+I_DAA	.equ	0x0c
+I_DEC	.equ	0x0d
+I_DI	.equ	0x0e
+I_DJNZ	.equ	0x0f
+I_EI	.equ	0x10
+I_EX	.equ	0x11
+I_EXX	.equ	0x12
+I_HALT	.equ	0x13
+I_IM	.equ	0x14
+I_IN	.equ	0x15
+I_INC	.equ	0x16
+I_IND	.equ	0x17
+I_INDR	.equ	0x18
+I_INI	.equ	0x19
+I_INIR	.equ	0x1a
+I_JP	.equ	0x1b
+I_JR	.equ	0x1c
+I_LD	.equ	0x1d
+I_LDD	.equ	0x1e
+I_LDDR	.equ	0x1f
+I_LDI	.equ	0x20
+I_LDIR	.equ	0x21
+I_NEG	.equ	0x22
+I_NOP	.equ	0x23
+I_OR	.equ	0x24
+I_OTDR	.equ	0x25
+I_OTIR	.equ	0x26
+I_OUT	.equ	0x27
+I_POP	.equ	0x28
+I_PUSH	.equ	0x29
+I_RET	.equ	0x2a
+I_RLA	.equ	0x2b
+I_RLCA	.equ	0x2c
+I_RRA	.equ	0x2d
+I_RRCA	.equ	0x2e
+I_SBC	.equ	0x2f
+I_SCF	.equ	0x30
+I_SUB	.equ	0x31
+I_XOR	.equ	0x32
+I_BAD	.equ	0xff
 
 ; Checks whether A is 'N' or 'M'
 checkNOrM:
@@ -22,6 +75,31 @@ checknmxy:
 	cp	'x'
 	ret	z
 	cp	'y'
+	ret
+
+; Reads instruction mnemonic in (HL) and returns the corresponding ID (I_*)
+; in A. I_BAD if there's no match.
+getInstID:
+	push	bc
+	push	de
+	ld	b, I_XOR+1	; I_XOR is the last
+	ld	de, instrNames
+.loop:
+	ld	a, 4
+	call	JUMP_STRNCMP
+	ld	a, 4
+	call	JUMP_ADDDE
+	jr	z, .match
+	djnz	.loop
+	; no match
+	ld	a, I_BAD
+	jr	.end
+.match:
+	ld	a, I_XOR+1
+	sub	b
+.end:
+	pop	de
+	pop	bc
 	ret
 
 ; Parse the decimal char at A and extract it's 0-9 numerical value. Put the
@@ -350,24 +428,23 @@ matchArg:
 	dec	hl
 	ret
 
-; Compare primary row at (DE) with string at tokInstr. Sets Z flag if there's a
+; Compare primary row at (DE) with ID at (tokInstr). Sets Z flag if there's a
 ; match, reset if not.
 matchPrimaryRow:
 	push	hl
 	push	ix
-	ld	hl, tokInstr
-	ld	a, 4
-	call	JUMP_STRNCMP
-	jr	nz, .end
-	; name matches, let's see the rest
 	ld	ixh, d
 	ld	ixl, e
+	ld	a, (tokInstr)
+	cp	(ix)
+	jr	nz, .end
+	; name matches, let's see the rest
 	ld	hl, curArg1
-	ld	a, (ix+4)
+	ld	a, (ix+1)
 	call	matchArg
 	jr	nz, .end
 	ld	hl, curArg2
-	ld	a, (ix+5)
+	ld	a, (ix+2)
 	call	matchArg
 .end:
 	pop	ix
@@ -547,23 +624,23 @@ getUpcode:
 	ld	ixl, e
 
 	; Are we a "special instruction"?
-	bit	5, (ix+6)
+	bit	5, (ix+3)
 	jr	z, .normalInstr		; not set: normal instruction
 	; We are a special instruction. Fetch handler (little endian, remember).
-	ld	l, (ix+7)
-	ld	h, (ix+8)
+	ld	l, (ix+4)
+	ld	h, (ix+5)
 	call	callHL
 	; We have our result written in curUpcode and C is set.
 	jp	.end
 
 .normalInstr:
 	; we begin by writing our "base upcode", which can be one or two bytes
-	ld	a, (ix+7)	; first upcode
+	ld	a, (ix+4)	; first upcode
 	ld	(curUpcode), a
 	ld	de, curUpcode	; from this point, DE points to "where we are"
 				; in terms of upcode writing.
 	inc	de		; make DE point to where we should write next.
-	ld	a, (ix+8)	; second upcode
+	ld	a, (ix+5)	; second upcode
 	cp	0		; do we have a second upcode?
 	jr	z, .onlyOneUpcode
 	; we have two upcodes
@@ -571,11 +648,11 @@ getUpcode:
 	inc	de
 .onlyOneUpcode:
 	; now, let's see if we're dealing with a group here
-	ld	a, (ix+4)	; first argspec
+	ld	a, (ix+1)	; first argspec
 	call	isGroupId
 	jr	z, .firstArgIsGroup
 	; First arg not a group. Maybe second is?
-	ld	a, (ix+5)	; 2nd argspec
+	ld	a, (ix+2)	; 2nd argspec
 	call	isGroupId
 	jr	nz, .writeExtraBytes	; not a group? nothing to do. go to
 					; next step: write extra bytes
@@ -592,7 +669,7 @@ getUpcode:
 	; Now, we have our arg "group value" in A. Were going to need to
 	; displace it left by the number of steps specified in the table.
 	push	af
-	ld	a, (ix+6)	; displacement bit
+	ld	a, (ix+3)	; displacement bit
 	and	a, 0xf		; we only use the lower nibble.
 	ld	b, a
 	pop	af
@@ -602,13 +679,13 @@ getUpcode:
 	; to OR it with the opcode.
 	; However, we first have to verify whether this ORing takes place on
 	; the second upcode or the first.
-	bit	6, (ix+6)
+	bit	6, (ix+3)
 	jr	z, .firstUpcode	; not set: first upcode
-	or	(ix+8)		; second upcode
+	or	(ix+5)		; second upcode
 	ld	(curUpcode+1), a
 	jr	.writeExtraBytes
 .firstUpcode:
-	or	(ix+7)		; first upcode
+	or	(ix+4)		; first upcode
 	ld	(curUpcode), a
 	jr	.writeExtraBytes
 .writeExtraBytes:
@@ -618,13 +695,13 @@ getUpcode:
 	; We still have our instruction row in IX and we have DE pointing to
 	; where we should write next (which could be the second or the third
 	; byte of curUpcode).
-	ld	a, (ix+4)	; first argspec
+	ld	a, (ix+1)	; first argspec
 	ld	hl, curArg1
 	call	checkNOrM
 	jr	z, .withWord
 	call	checknmxy
 	jr	z, .withByte
-	ld	a, (ix+5)	; second argspec
+	ld	a, (ix+2)	; second argspec
 	ld	hl, curArg2
 	call	checkNOrM
 	jr	z, .withWord
@@ -644,7 +721,7 @@ getUpcode:
 	; HL points to our number
 	; one last thing to check. Is the 7th bit on the displacement value set?
 	; if yes, we have to decrease our value by 2. Uses for djnz and jr.
-	bit	7, (ix+6)
+	bit	7, (ix+3)
 	jr	z, .skipDecrease
 	; Yup, it's set.
 	dec	(hl)
@@ -665,8 +742,8 @@ getUpcode:
 	; At this point, everything that we needed to write in curUpcode is
 	; written an C is 1 if we have no extra byte, 2 if we have an extra
 	; byte and 3 if we have an extra word. What we need to do here is check
-	; if ix+8 is non-zero and increase C if it is.
-	ld	a, (ix+8)
+	; if ix+5 is non-zero and increase C if it is.
+	ld	a, (ix+5)
 	cp	0
 	jr	z, .end		; no second upcode? nothing to do.
 	; We have 2 base upcodes
@@ -711,7 +788,7 @@ parseTokens:
 	push	hl
 	push	de
 	ld	a, (tokInstr)
-	cp	0
+	cp	I_BAD
 	jr	z, .error	; for now, we treat blank lines as errors
 	ld	hl, tokArg1
 	ld	de, curArg1
@@ -818,10 +895,64 @@ argGrpCC:
 argGrpABCDEHL:
 	.db	"BCDEHL_A"	; 0xb
 
+; Each row is 4 bytes wide, fill with zeroes
+instrNames:
+	.db "ADC", 0
+	.db "ADD", 0
+	.db "AND", 0
+	.db "BIT", 0
+	.db "CALL"
+	.db "CCF", 0
+	.db "CP",0,0
+	.db "CPD", 0
+	.db "CPDR"
+	.db "CPI", 0
+	.db "CPIR"
+	.db "CPL", 0
+	.db "DAA", 0
+	.db "DEC", 0
+	.db "DI",0,0
+	.db "DJNZ"
+	.db "EI",0,0
+	.db "EX",0,0
+	.db "EXX", 0
+	.db "HALT"
+	.db "IM",0,0
+	.db "IN",0,0
+	.db "INC", 0
+	.db "IND", 0
+	.db "INDR"
+	.db "INI", 0
+	.db "INIR"
+	.db "JP",0,0
+	.db "JR",0,0
+	.db "LD",0,0
+	.db "LDD", 0
+	.db "LDDR"
+	.db "LDI", 0
+	.db "LDIR"
+	.db "NEG", 0
+	.db "NOP", 0
+	.db "OR",0,0
+	.db "OTDR"
+	.db "OTIR"
+	.db "OUT", 0
+	.db "POP", 0
+	.db "PUSH"
+	.db "RET", 0
+	.db "RLA", 0
+	.db "RLCA"
+	.db "RRA", 0
+	.db "RRCA"
+	.db "SBC", 0
+	.db "SCF", 0
+	.db "SUB", 0
+	.db "XOR", 0
+
 ; This is a list of all supported instructions. Each row represent a combination
 ; of instr/argspecs (which means more than one row per instr). Format:
 ;
-; 4 bytes for the name (fill with zero)
+; 1 byte for the instruction ID
 ; 1 byte for arg constant
 ; 1 byte for 2nd arg constant
 ; 1 byte displacement for group arguments + flags
@@ -842,141 +973,141 @@ argGrpABCDEHL:
 ; custom code.
 
 instrTBl:
-	.db "ADC", 0, 'A', 'l', 0, 0x8e		, 0	; ADC A, (HL)
-	.db "ADC", 0, 'A', 0xb, 0, 0b10001000	, 0	; ADC A, r
-	.db "ADC", 0, 'A', 'n', 0, 0xce		, 0	; ADC A, n
-	.db "ADC", 0,'h',0x3,0x44, 0xed, 0b01001010	; ADC HL, ss
-	.db "ADD", 0, 'A', 'l', 0, 0x86		, 0	; ADD A, (HL)
-	.db "ADD", 0, 'A', 0xb, 0, 0b10000000	, 0	; ADD A, r
-	.db "ADD", 0, 'A', 'n', 0, 0xc6 	, 0	; ADD A, n
-	.db "ADD", 0, 'h', 0x3, 4, 0b00001001 	, 0	; ADD HL, ss
-	.db "ADD", 0,'X',0x4,0x44, 0xdd, 0b00001001	; ADD IX, pp
-	.db "ADD", 0,'Y',0x5,0x44, 0xfd, 0b00001001	; ADD IY, rr
-	.db "ADD", 0, 'A', 'x', 0, 0xdd, 0x86	 	; ADD A, (IX+d)
-	.db "ADD", 0, 'A', 'y', 0, 0xfd, 0x86	 	; ADD A, (IY+d)
-	.db "AND", 0, 'l', 0,   0, 0xa6		, 0	; AND (HL)
-	.db "AND", 0, 0xb, 0,   0, 0b10100000	, 0	; AND r
-	.db "AND", 0, 'n', 0,   0, 0xe6		, 0	; AND n
-	.db "AND", 0, 'x', 0,   0, 0xdd, 0xa6		; AND (IX+d)
-	.db "AND", 0, 'y', 0,   0, 0xfd, 0xa6		; AND (IY+d)
-	.db "BIT", 0,'n','l',0x20 \ .dw handleBITHL	; BIT b, (HL)
-	.db "BIT", 0,'n','x',0x20 \ .dw handleBITIX	; BIT b, (IX+d)
-	.db "BIT", 0,'n','y',0x20 \ .dw handleBITIY	; BIT b, (IY+d)
-	.db "BIT", 0,'n',0xb,0x20 \ .dw handleBITR	; BIT b, r
-	.db "CALL",   0xa, 'N', 3, 0b11000100	, 0	; CALL cc, NN
-	.db "CALL",   'N', 0,   0, 0xcd		, 0	; CALL NN
-	.db "CCF", 0, 0,   0,   0, 0x3f		, 0	; CCF
-	.db "CP",0,0, 'l', 0,   0, 0xbe		, 0	; CP (HL)
-	.db "CP",0,0, 0xb, 0,   0, 0b10111000	, 0	; CP r
-	.db "CP",0,0, 'n', 0,   0, 0xfe		, 0	; CP n
-	.db "CP",0,0, 'x', 0,   0, 0xdd, 0xbe		; CP (IX+d)
-	.db "CP",0,0, 'y', 0,   0, 0xfd, 0xbe		; CP (IY+d)
-	.db "CPD", 0, 0,   0,   0, 0xed, 0xa9		; CPD
-	.db "CPDR",   0,   0,   0, 0xed, 0xb9		; CPDR
-	.db "CPI", 0, 0,   0,   0, 0xed, 0xa1		; CPI
-	.db "CPIR",   0,   0,   0, 0xed, 0xb1		; CPIR
-	.db "CPL", 0, 0,   0,   0, 0x2f		, 0	; CPL
-	.db "DAA", 0, 0,   0,   0, 0x27		, 0	; DAA
-	.db "DEC", 0, 'l', 0,   0, 0x35		, 0	; DEC (HL)
-	.db "DEC", 0, 'X', 0,   0, 0xdd , 0x2b		; DEC IX
-	.db "DEC", 0, 'x', 0,   0, 0xdd , 0x35		; DEC (IX+d)
-	.db "DEC", 0, 'Y', 0,   0, 0xfd , 0x2b		; DEC IY
-	.db "DEC", 0, 'y', 0,   0, 0xfd , 0x35		; DEC (IY+d)
-	.db "DEC", 0, 0xb, 0,   3, 0b00000101	, 0	; DEC r
-	.db "DEC", 0, 0x3, 0,   4, 0b00001011	, 0	; DEC ss
-	.db "DI",0,0, 0,   0,   0, 0xf3		, 0	; DI
-	.db "DJNZ",   'n', 0,0x80, 0x10		, 0	; DJNZ e
-	.db "EI",0,0, 0,   0,   0, 0xfb		, 0	; EI
-	.db "EX",0,0, 'p', 'h', 0, 0xe3		, 0	; EX (SP), HL
-	.db "EX",0,0, 'p', 'X', 0, 0xdd, 0xe3		; EX (SP), IX
-	.db "EX",0,0, 'p', 'Y', 0, 0xfd, 0xe3		; EX (SP), IY
-	.db "EX",0,0, 'a', 'f', 0, 0x08		, 0	; EX AF, AF'
-	.db "EX",0,0, 'd', 'h', 0, 0xeb		, 0	; EX DE, HL
-	.db "EXX", 0, 0,   0,   0, 0xd9		, 0	; EXX
-	.db "HALT",   0,   0,   0, 0x76		, 0	; HALT
-	.db "IM",0,0,'n',  0,0x20 \ .dw handleIM	; IM {0,1,2}
-	.db "IN",0,0, 'A', 'm', 0, 0xdb		, 0	; IN A, (n)
-	.db "IN",0,0,0xb,'k',0x43, 0xed, 0b01000000	; IN r, (C)
-	.db "INC", 0, 'l', 0,   0, 0x34		, 0	; INC (HL)
-	.db "INC", 0, 'X', 0,   0, 0xdd , 0x23		; INC IX
-	.db "INC", 0, 'x', 0,   0, 0xdd , 0x34		; INC (IX+d)
-	.db "INC", 0, 'Y', 0,   0, 0xfd , 0x23		; INC IY
-	.db "INC", 0, 'y', 0,   0, 0xfd , 0x34		; INC (IY+d)
-	.db "INC", 0, 0xb, 0,   3, 0b00000100	, 0	; INC r
-	.db "INC", 0, 0x3, 0,   4, 0b00000011	, 0	; INC ss
-	.db "IND", 0, 0,   0,   0, 0xed, 0xaa		; IND
-	.db "INDR",   0,   0,   0, 0xed, 0xba		; INDR
-	.db "INI", 0, 0,   0,   0, 0xed, 0xa2		; INI
-	.db "INIR",   0,   0,   0, 0xed, 0xb2		; INIR
-	.db "JP",0,0, 'l', 0,   0, 0xe9		, 0	; JP (HL)
-	.db "JP",0,0, 0xa, 'N', 3, 0b11000010	, 0	; JP cc, NN
-	.db "JP",0,0, 'N', 0,   0, 0xc3		, 0	; JP NN
-	.db "JP",0,0, 'x', 0,0x20 \ .dw handleJPIX	; JP (IX)
-	.db "JP",0,0, 'y', 0,0x20 \ .dw handleJPIY	; JP (IY)
-	.db "JR",0,0, 'n', 0,0x80, 0x18		, 0	; JR e
-	.db "JR",0,0,'C','n',0x80, 0x38		, 0	; JR C, e
-	.db "JR",0,0,'=','n',0x80, 0x30		, 0	; JR NC, e
-	.db "JR",0,0,'Z','n',0x80, 0x28		, 0	; JR Z, e
-	.db "JR",0,0,'z','n',0x80, 0x20		, 0	; JR NZ, e
-	.db "LD",0,0, 'c', 'A', 0, 0x02		, 0	; LD (BC), A
-	.db "LD",0,0, 'e', 'A', 0, 0x12		, 0	; LD (DE), A
-	.db "LD",0,0, 'A', 'c', 0, 0x0a		, 0	; LD A, (BC)
-	.db "LD",0,0, 'A', 'e', 0, 0x1a		, 0	; LD A, (DE)
-	.db "LD",0,0, 's', 'h', 0, 0xf9		, 0	; LD SP, HL
-	.db "LD",0,0, 'A', 'I', 0, 0xed, 0x57		; LD A, I
-	.db "LD",0,0, 'I', 'A', 0, 0xed, 0x47		; LD I, A
-	.db "LD",0,0, 'A', 'R', 0, 0xed, 0x5f		; LD A, R
-	.db "LD",0,0, 'R', 'A', 0, 0xed, 0x4f		; LD R, A
-	.db "LD",0,0, 'l', 0xb, 0, 0b01110000	, 0	; LD (HL), r
-	.db "LD",0,0, 0xb, 'l', 3, 0b01000110	, 0	; LD r, (HL)
-	.db "LD",0,0, 'l', 'n', 0, 0x36		, 0	; LD (HL), n
-	.db "LD",0,0, 0xb, 'n', 3, 0b00000110	, 0	; LD r, (HL)
-	.db "LD",0,0, 0x3, 'N', 4, 0b00000001	, 0	; LD dd, n
-	.db "LD",0,0, 'M', 'A', 0, 0x32		, 0	; LD (NN), A
-	.db "LD",0,0, 'A', 'M', 0, 0x3a		, 0	; LD A, (NN)
-	.db "LD",0,0, 'M', 'h', 0, 0x22		, 0	; LD (NN), HL
-	.db "LD",0,0, 'h', 'M', 0, 0x2a		, 0	; LD HL, (NN)
-	.db "LD",0,0, 'M', 'X', 0, 0xdd, 0x22		; LD (NN), IX
-	.db "LD",0,0, 'X', 'M', 0, 0xdd, 0x2a		; LD IX, (NN)
-	.db "LD",0,0, 'M', 'Y', 0, 0xfd, 0x22		; LD (NN), IY
-	.db "LD",0,0, 'Y', 'M', 0, 0xfd, 0x2a		; LD IY, (NN)
-	.db "LD",0,0,'M',0x3,0x44, 0xed, 0b01000011	; LD (NN), dd
-	.db "LD",0,0,0x3,'M',0x44, 0xed, 0b01001011	; LD dd, (NN)
-	.db "LD",0,0, 'x','n',0x20 \ .dw handleLDIXn	; LD (IX+d), n
-	.db "LD",0,0, 'y','n',0x20 \ .dw handleLDIYn	; LD (IY+d), n
-	.db "LD",0,0, 'x',0xb,0x20 \ .dw handleLDIXr	; LD (IX+d), r
-	.db "LD",0,0, 'y',0xb,0x20 \ .dw handleLDIYr	; LD (IY+d), r
-	.db "LDD", 0, 0,   0,   0, 0xed, 0xa8		; LDD
-	.db "LDDR",   0,   0,   0, 0xed, 0xb8		; LDDR
-	.db "LDI", 0, 0,   0,   0, 0xed, 0xa0		; LDI
-	.db "LDIR",   0,   0,   0, 0xed, 0xb0		; LDIR
-	.db "NEG", 0, 0,   0,   0, 0xed, 0x44		; NEG
-	.db "NOP", 0, 0,   0,   0, 0x00		, 0	; NOP
-	.db "OR",0,0, 'l', 0,   0, 0xb6		, 0	; OR (HL)
-	.db "OR",0,0, 0xb, 0,   0, 0b10110000	, 0	; OR r
-	.db "OR",0,0, 'n', 0,   0, 0xf6		, 0	; OR n
-	.db "OR",0,0, 'x', 0,   0, 0xdd, 0xb6		; OR (IX+d)
-	.db "OR",0,0, 'y', 0,   0, 0xfd, 0xb6		; OR (IY+d)
-	.db "OTDR",   0,   0,   0, 0xed, 0xbb		; OTDR
-	.db "OTIR",   0,   0,   0, 0xed, 0xb3		; OTIR
-	.db "OUT", 0, 'm', 'A', 0, 0xd3		, 0	; OUT (n), A
-	.db "OUT", 0,'k',0xb,0x43, 0xed, 0b01000001	; OUT (C), r
-	.db "POP", 0, 0x1, 0,   4, 0b11000001	, 0	; POP qq
-	.db "PUSH",   0x1, 0,   4, 0b11000101	, 0	; PUSH qq
-	.db "RET", 0, 0,   0,   0, 0xc9		, 0	; RET
-	.db "RET", 0, 0xa, 0,   3, 0b11000000	, 0	; RET cc
-	.db "RLA", 0, 0,   0,   0, 0x17		, 0	; RLA
-	.db "RLCA",   0,   0,   0, 0x07		, 0	; RLCA
-	.db "RRA", 0, 0,   0,   0, 0x1f		, 0	; RRA
-	.db "RRCA",   0,   0,   0, 0x0f		, 0	; RRCA
-	.db "SBC", 0, 'A', 'l', 0, 0x9e		, 0	; SBC A, (HL)
-	.db "SBC", 0, 'A', 0xb, 0, 0b10011000	, 0	; SBC A, r
-	.db "SCF", 0, 0,   0,   0, 0x37		, 0	; SCF
-	.db "SUB", 0, 'A', 'l', 0, 0x96		, 0	; SUB A, (HL)
-	.db "SUB", 0, 'A', 0xb, 0, 0b10010000	, 0	; SUB A, r
-	.db "SUB", 0, 'n', 0,   0, 0xd6 	, 0	; SUB n
-	.db "XOR", 0, 'l', 0,   0, 0xae		, 0	; XOR (HL)
-	.db "XOR", 0, 0xb, 0,   0, 0b10101000	, 0	; XOR r
+	.db I_ADC, 'A', 'l', 0,    0x8e		, 0	; ADC A, (HL)
+	.db I_ADC, 'A', 0xb, 0,    0b10001000	, 0	; ADC A, r
+	.db I_ADC, 'A', 'n', 0,    0xce		, 0	; ADC A, n
+	.db I_ADC, 'h', 0x3, 0x44, 0xed, 0b01001010	; ADC HL, ss
+	.db I_ADD, 'A', 'l', 0,    0x86		, 0	; ADD A, (HL)
+	.db I_ADD, 'A', 0xb, 0,    0b10000000	, 0	; ADD A, r
+	.db I_ADD, 'A', 'n', 0,    0xc6 	, 0	; ADD A, n
+	.db I_ADD, 'h', 0x3, 4,    0b00001001 	, 0	; ADD HL, ss
+	.db I_ADD, 'X', 0x4, 0x44, 0xdd, 0b00001001	; ADD IX, pp
+	.db I_ADD, 'Y', 0x5, 0x44, 0xfd, 0b00001001	; ADD IY, rr
+	.db I_ADD, 'A', 'x', 0,    0xdd, 0x86	 	; ADD A, (IX+d)
+	.db I_ADD, 'A', 'y', 0,    0xfd, 0x86	 	; ADD A, (IY+d)
+	.db I_AND, 'l', 0,   0,    0xa6		, 0	; AND (HL)
+	.db I_AND, 0xb, 0,   0,    0b10100000	, 0	; AND r
+	.db I_AND, 'n', 0,   0,    0xe6		, 0	; AND n
+	.db I_AND, 'x', 0,   0,    0xdd, 0xa6		; AND (IX+d)
+	.db I_AND, 'y', 0,   0,    0xfd, 0xa6		; AND (IY+d)
+	.db I_BIT, 'n', 'l', 0x20 \ .dw handleBITHL	; BIT b, (HL)
+	.db I_BIT, 'n', 'x', 0x20 \ .dw handleBITIX	; BIT b, (IX+d)
+	.db I_BIT, 'n', 'y', 0x20 \ .dw handleBITIY	; BIT b, (IY+d)
+	.db I_BIT, 'n', 0xb, 0x20 \ .dw handleBITR	; BIT b, r
+	.db I_CALL,0xa, 'N', 3,    0b11000100	, 0	; CALL cc, NN
+	.db I_CALL,'N', 0,   0,    0xcd		, 0	; CALL NN
+	.db I_CCF, 0,   0,   0,    0x3f		, 0	; CCF
+	.db I_CP,  'l', 0,   0,    0xbe		, 0	; CP (HL)
+	.db I_CP,  0xb, 0,   0,    0b10111000	, 0	; CP r
+	.db I_CP,  'n', 0,   0,    0xfe		, 0	; CP n
+	.db I_CP,  'x', 0,   0,    0xdd, 0xbe		; CP (IX+d)
+	.db I_CP,  'y', 0,   0,    0xfd, 0xbe		; CP (IY+d)
+	.db I_CPD, 0,   0,   0,    0xed, 0xa9		; CPD
+	.db I_CPDR,0,   0,   0,    0xed, 0xb9		; CPDR
+	.db I_CPI, 0,   0,   0,    0xed, 0xa1		; CPI
+	.db I_CPIR,0,   0,   0,    0xed, 0xb1		; CPIR
+	.db I_CPL, 0,   0,   0,    0x2f		, 0	; CPL
+	.db I_DAA, 0,   0,   0,    0x27		, 0	; DAA
+	.db I_DEC, 'l', 0,   0,    0x35		, 0	; DEC (HL)
+	.db I_DEC, 'X', 0,   0,    0xdd, 0x2b		; DEC IX
+	.db I_DEC, 'x', 0,   0,    0xdd, 0x35		; DEC (IX+d)
+	.db I_DEC, 'Y', 0,   0,    0xfd, 0x2b		; DEC IY
+	.db I_DEC, 'y', 0,   0,    0xfd, 0x35		; DEC (IY+d)
+	.db I_DEC, 0xb, 0,   3,    0b00000101	, 0	; DEC r
+	.db I_DEC, 0x3, 0,   4,    0b00001011	, 0	; DEC ss
+	.db I_DI,  0,   0,   0,    0xf3		, 0	; DI
+	.db I_DJNZ,'n', 0,   0x80, 0x10		, 0	; DJNZ e
+	.db I_EI,  0,   0,   0,    0xfb		, 0	; EI
+	.db I_EX, 'p', 'h',  0,    0xe3		, 0	; EX (SP), HL
+	.db I_EX, 'p', 'X',  0,    0xdd, 0xe3		; EX (SP), IX
+	.db I_EX, 'p', 'Y',  0,    0xfd, 0xe3		; EX (SP), IY
+	.db I_EX, 'a', 'f',  0,    0x08		, 0	; EX AF, AF'
+	.db I_EX, 'd', 'h',  0,    0xeb		, 0	; EX DE, HL
+	.db I_EXX, 0,   0,   0,    0xd9		, 0	; EXX
+	.db I_HALT,0,   0,   0,    0x76		, 0	; HALT
+	.db I_IM,  'n', 0,   0x20 \ .dw handleIM	; IM {0,1,2}
+	.db I_IN,  'A', 'm', 0,    0xdb		, 0	; IN A, (n)
+	.db I_IN,  0xb, 'k', 0x43, 0xed, 0b01000000	; IN r, (C)
+	.db I_INC, 'l', 0,   0,    0x34		, 0	; INC (HL)
+	.db I_INC, 'X', 0,   0,    0xdd , 0x23		; INC IX
+	.db I_INC, 'x', 0,   0,    0xdd , 0x34		; INC (IX+d)
+	.db I_INC, 'Y', 0,   0,    0xfd , 0x23		; INC IY
+	.db I_INC, 'y', 0,   0,    0xfd , 0x34		; INC (IY+d)
+	.db I_INC, 0xb, 0,   3,    0b00000100	, 0	; INC r
+	.db I_INC, 0x3, 0,   4,    0b00000011	, 0	; INC ss
+	.db I_IND, 0,   0,   0,    0xed, 0xaa		; IND
+	.db I_INDR,0,   0,   0,    0xed, 0xba		; INDR
+	.db I_INI, 0,   0,   0,    0xed, 0xa2		; INI
+	.db I_INIR,0,   0,   0,    0xed, 0xb2		; INIR
+	.db I_JP,  'l', 0,   0,    0xe9		, 0	; JP (HL)
+	.db I_JP,  0xa, 'N', 3,    0b11000010	, 0	; JP cc, NN
+	.db I_JP,  'N', 0,   0,    0xc3		, 0	; JP NN
+	.db I_JP,  'x', 0,   0x20 \ .dw handleJPIX	; JP (IX)
+	.db I_JP,  'y', 0,   0x20 \ .dw handleJPIY	; JP (IY)
+	.db I_JR,  'n', 0,   0x80, 0x18		, 0	; JR e
+	.db I_JR,  'C', 'n', 0x80, 0x38		, 0	; JR C, e
+	.db I_JR,  '=', 'n', 0x80, 0x30		, 0	; JR NC, e
+	.db I_JR,  'Z', 'n', 0x80, 0x28		, 0	; JR Z, e
+	.db I_JR,  'z', 'n', 0x80, 0x20		, 0	; JR NZ, e
+	.db I_LD,  'c', 'A', 0,    0x02		, 0	; LD (BC), A
+	.db I_LD,  'e', 'A', 0,    0x12		, 0	; LD (DE), A
+	.db I_LD,  'A', 'c', 0,    0x0a		, 0	; LD A, (BC)
+	.db I_LD,  'A', 'e', 0,    0x1a		, 0	; LD A, (DE)
+	.db I_LD,  's', 'h', 0,    0xf9		, 0	; LD SP, HL
+	.db I_LD,  'A', 'I', 0,    0xed, 0x57		; LD A, I
+	.db I_LD,  'I', 'A', 0,    0xed, 0x47		; LD I, A
+	.db I_LD,  'A', 'R', 0,    0xed, 0x5f		; LD A, R
+	.db I_LD,  'R', 'A', 0,    0xed, 0x4f		; LD R, A
+	.db I_LD,  'l', 0xb, 0,    0b01110000	, 0	; LD (HL), r
+	.db I_LD,  0xb, 'l', 3,    0b01000110	, 0	; LD r, (HL)
+	.db I_LD,  'l', 'n', 0,    0x36		, 0	; LD (HL), n
+	.db I_LD,  0xb, 'n', 3,    0b00000110	, 0	; LD r, (HL)
+	.db I_LD,  0x3, 'N', 4,    0b00000001	, 0	; LD dd, n
+	.db I_LD,  'M', 'A', 0,    0x32		, 0	; LD (NN), A
+	.db I_LD,  'A', 'M', 0,    0x3a		, 0	; LD A, (NN)
+	.db I_LD,  'M', 'h', 0,    0x22		, 0	; LD (NN), HL
+	.db I_LD,  'h', 'M', 0,    0x2a		, 0	; LD HL, (NN)
+	.db I_LD,  'M', 'X', 0,    0xdd, 0x22		; LD (NN), IX
+	.db I_LD,  'X', 'M', 0,    0xdd, 0x2a		; LD IX, (NN)
+	.db I_LD,  'M', 'Y', 0,    0xfd, 0x22		; LD (NN), IY
+	.db I_LD,  'Y', 'M', 0,    0xfd, 0x2a		; LD IY, (NN)
+	.db I_LD,  'M', 0x3, 0x44, 0xed, 0b01000011	; LD (NN), dd
+	.db I_LD,  0x3, 'M', 0x44, 0xed, 0b01001011	; LD dd, (NN)
+	.db I_LD,  'x', 'n', 0x20 \ .dw handleLDIXn	; LD (IX+d), n
+	.db I_LD,  'y', 'n', 0x20 \ .dw handleLDIYn	; LD (IY+d), n
+	.db I_LD,  'x', 0xb, 0x20 \ .dw handleLDIXr	; LD (IX+d), r
+	.db I_LD,  'y', 0xb, 0x20 \ .dw handleLDIYr	; LD (IY+d), r
+	.db I_LDD, 0,   0,   0,    0xed, 0xa8		; LDD
+	.db I_LDDR,0,   0,   0,    0xed, 0xb8		; LDDR
+	.db I_LDI, 0,   0,   0,    0xed, 0xa0		; LDI
+	.db I_LDIR,0,   0,   0,    0xed, 0xb0		; LDIR
+	.db I_NEG, 0,   0,   0,    0xed, 0x44		; NEG
+	.db I_NOP, 0,   0,   0,    0x00		, 0	; NOP
+	.db I_OR,  'l', 0,   0,    0xb6		, 0	; OR (HL)
+	.db I_OR,  0xb, 0,   0,    0b10110000	, 0	; OR r
+	.db I_OR,  'n', 0,   0,    0xf6		, 0	; OR n
+	.db I_OR,  'x', 0,   0,    0xdd, 0xb6		; OR (IX+d)
+	.db I_OR,  'y', 0,   0,    0xfd, 0xb6		; OR (IY+d)
+	.db I_OTDR,0,   0,   0,    0xed, 0xbb		; OTDR
+	.db I_OTIR,0,   0,   0,    0xed, 0xb3		; OTIR
+	.db I_OUT, 'm', 'A', 0,    0xd3		, 0	; OUT (n), A
+	.db I_OUT, 'k', 0xb, 0x43, 0xed, 0b01000001	; OUT (C), r
+	.db I_POP, 0x1, 0,   4,    0b11000001	, 0	; POP qq
+	.db I_PUSH,0x1, 0,   4,    0b11000101	, 0	; PUSH qq
+	.db I_RET, 0,   0,   0,    0xc9		, 0	; RET
+	.db I_RET, 0xa, 0,   3,    0b11000000	, 0	; RET cc
+	.db I_RLA, 0,   0,   0,    0x17		, 0	; RLA
+	.db I_RLCA,0,   0,   0,    0x07		, 0	; RLCA
+	.db I_RRA, 0,   0,   0,    0x1f		, 0	; RRA
+	.db I_RRCA,0,   0,   0,    0x0f		, 0	; RRCA
+	.db I_SBC, 'A', 'l', 0,    0x9e		, 0	; SBC A, (HL)
+	.db I_SBC, 'A', 0xb, 0,    0b10011000	, 0	; SBC A, r
+	.db I_SCF, 0,   0,   0,    0x37		, 0	; SCF
+	.db I_SUB, 'A', 'l', 0,    0x96		, 0	; SUB A, (HL)
+	.db I_SUB, 'A', 0xb, 0,    0b10010000	, 0	; SUB A, r
+	.db I_SUB, 'n', 0,   0,    0xd6 	, 0	; SUB n
+	.db I_XOR, 'l', 0,   0,    0xae		, 0	; XOR (HL)
+	.db I_XOR, 0xb, 0,   0,    0b10101000	, 0	; XOR r
 
 
 ; *** Variables ***

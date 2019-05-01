@@ -118,11 +118,10 @@ def main():
     with open(asmfile, 'rt') as fp:
         instrTbl = getDbLines(fp, 'instrTBl')
     for row in instrTbl:
-        n = eval(row[0])
+        n = row[0][2:] # remove I_
         # we need to adjust for zero-char name filling
-        arg1index = 5 - len(n)
-        a1 = eval(row[arg1index])
-        a2 = eval(row[arg1index+1])
+        a1 = eval(row[1])
+        a2 = eval(row[2])
         args1 = genargs(a1)
         # special case handling
         if n == 'JP' and isinstance(a1, str) and a1 in 'xy':
