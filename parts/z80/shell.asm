@@ -26,7 +26,7 @@
 ; *** CONSTS ***
 
 ; number of entries in shellCmdTbl
-SHELL_CMD_COUNT	.equ	5+SHELL_EXTRA_CMD_COUNT
+SHELL_CMD_COUNT	.equ	7+SHELL_EXTRA_CMD_COUNT
 
 ; maximum number of bytes to receive as args in all commands. Determines the
 ; size of the args variable.
@@ -486,8 +486,32 @@ shellCall:
 	xor	a
 	ret
 
+shellIORDCmd:
+	.db	"iord", 0b001, 0, 0
+	push	bc
+	ld	a, (hl)
+	ld	c, a
+	in	a, (c)
+	call	printHex
+	xor	a
+	pop	bc
+	ret
+
+shellIOWRCmd:
+	.db	"iowr", 0b001, 0b001, 0
+	push	bc
+	ld	a, (hl)
+	ld	c, a
+	inc	hl
+	ld	a, (hl)
+	out	(c), a
+	xor	a
+	pop	bc
+	ret
+
 ; This table is at the very end of the file on purpose. The idea is to be able
 ; to graft extra commands easily after an include in the glue file.
 shellCmdTbl:
 	.dw shellMptrCmd, shellPeekCmd, shellLoadCmd, shellSaveCmd, shellCallCmd
+	.dw shellIORDCmd, shellIOWRCmd
 
