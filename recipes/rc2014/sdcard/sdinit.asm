@@ -38,6 +38,31 @@
 	jr	nz, .error
 	ld	hl, sOk
 	call	JUMP_PRINTSTR
+
+	; Now we need to repeatedly run CMD55+CMD41 (0x40000000) until we
+	; the card goes out of idle mode, that is, when it stops sending us
+	; 0x01 response and send us 0x00 instead. Any other response means that
+	; initialization failed.
+	ld	hl, sCmd41
+	call	JUMP_PRINTSTR
+.loop:
+	ld	a, 0b01110111	; CMD55
+	ld	hl, 0
+	ld	de, 0
+	call	JUMP_SDCCMDR1
+	cp	0x01
+	jr	nz, .error
+	ld	a, 0b01101001	; CMD41 (0x40000000)
+	ld	hl, 0x4000
+	ld	de, 0x0000
+	call	JUMP_SDCCMDR1
+	cp	0x01
+	jr	z, .loop
+	cp	0
+	jr	nz, .error
+	; Success! out of idle mode!
+	ld	hl, sOk
+	call	JUMP_PRINTSTR
 	ret
 .error:
 	ld	hl, sErr
@@ -48,6 +73,8 @@ sCmd0:
 	.db "Sending CMD0", 0xa, 0xd, 0
 sCmd8:
 	.db "Sending CMD8", 0xa, 0xd, 0
+sCmd41:
+	.db "Sending CMD41", 0xa, 0xd, 0
 sOk:
 	.db "Ok", 0xa, 0xd, 0
 sErr:
