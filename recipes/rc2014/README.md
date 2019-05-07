@@ -18,6 +18,13 @@ forget to set the A14 jumper to high because what is the A14 pin on the AT27
 ROM module is the WE pin on the AT28! Setting the jumper high will keep is
 disabled.
 
+## Related recipes
+
+This recipe is for installing a minimal Collapse OS system on the RC2014. There
+are other recipes related to the RC2014:
+
+* [Accessing a MicroSD card](sdcard/README.md)
+
 ## Goal
 
 Have the shell running and accessible through the Serial I/O.

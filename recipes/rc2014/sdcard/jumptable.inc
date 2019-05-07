@@ -1,0 +1,9 @@
+JUMP_PRINTSTR   .equ   0x03 
+JUMP_PRINTHEX   .equ   0x06 
+JUMP_SDCWAKEUP  .equ   0x09 
+JUMP_SDCSENDRECV .equ  0x0c 
+JUMP_SDCWAITRESP .equ  0x0f 
+JUMP_SDCCMD     .equ   0x12 
+JUMP_SDCCMDR1   .equ   0x15 
+JUMP_SDCCMDR7   .equ   0x18 
+
