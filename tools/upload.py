@@ -8,6 +8,7 @@
 import argparse
 import os
 import sys
+import time
 
 def sendcmd(fd, cmd):
     # The serial link echoes back all typed characters and expects us to read
@@ -35,7 +36,11 @@ def main():
     print("Loading...")
     with open(args.filename, 'rb') as fp:
         fcontents = fp.read()
-        os.write(fd, fcontents)
+        for c in fcontents:
+            os.write(fd, bytes([c]))
+            # Let's give the machine a bit of time to breathe. We ain't in a
+            # hurry now, are we?
+            time.sleep(0.0001)
     print("Loaded")
     os.read(fd, 5)
     print("Peeking back...")
@@ -43,6 +48,7 @@ def main():
     peek = b''
     while len(peek) < st.st_size * 2:
         peek += os.read(fd, 1)
+        time.sleep(0.0001)
     os.close(fd)
     print("Got {}".format(peek.decode()))
     print("Comparing...")
