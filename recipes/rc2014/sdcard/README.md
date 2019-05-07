@@ -83,9 +83,19 @@ the block creation part.
 
 ## Testing CD card initialization
 
-To test that you can properly initialize a SD card, you can compile this [user
-program](sdinit.asm) (see [Makefile](Makefile)) and then
-[run it from memory][run-from-mem]. Success means the card is initialized.
+This receipes contains a little [user program](sdinit.asm) that initializes a
+SD card, reads the first 12 bytes from its first sector and prints it.
+
+The first thing we'll do is fill the SD card's first 12 bytes with "Hello
+World!":
+
+    echo "Hello World!" > /dev/sdX
+
+Then, you can run `make` from within this folder to compile `sdinit.bin` and
+then [upload and run][run-from-mem] that code from memory. You might need to
+call the routine more than once (On my local tests, I need to call it twice).
+
+If all goes well, you should see your "Hello World!" printed to the console!
 
 ## Create a block device from the SD card reader
 
