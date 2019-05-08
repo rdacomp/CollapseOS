@@ -1,62 +1,9 @@
 #include "jumptable.inc"
 .org	0x9000
 
-	call	JUMP_SDCWAKEUP
-
-	; We expect a 0x01 R1 response
-	ld	hl, sCmd
-	call	JUMP_PRINTSTR
-	ld	a, 0b01000000	; CMD0
-	ld	hl, 0
-	ld	de, 0
-	ld	c, 0x95
-	call	JUMP_SDCCMDR1
-	cp	0x01
+	call	JUMP_SDCINITALIZE
+	or	a
 	jp	nz, .error
-	ld	hl, sOk
-	call	JUMP_PRINTSTR
-
-	; We expect a 0x01 R1 response followed by 0x0001aa R7 response
-	ld	hl, sCmd
-	call	JUMP_PRINTSTR
-	ld	a, 0b01001000	; CMD8
-	ld	hl, 0
-	ld	de, 0x01aa
-	ld	c, 0x87
-	call	JUMP_SDCCMDR7
-	ld	a, d
-	cp	0x01
-	jp	nz, .error
-	ld	a, e
-	cp	0xaa
-	jr	nz, .error
-	ld	hl, sOk
-	call	JUMP_PRINTSTR
-
-	; Now we need to repeatedly run CMD55+CMD41 (0x40000000) until we
-	; the card goes out of idle mode, that is, when it stops sending us
-	; 0x01 response and send us 0x00 instead. Any other response means that
-	; initialization failed.
-	ld	hl, sCmd
-	call	JUMP_PRINTSTR
-.loop1:
-	ld	a, 0b01110111	; CMD55
-	ld	hl, 0
-	ld	de, 0
-	call	JUMP_SDCCMDR1
-	cp	0x01
-	jr	nz, .error
-	ld	a, 0b01101001	; CMD41 (0x40000000)
-	ld	hl, 0x4000
-	ld	de, 0x0000
-	call	JUMP_SDCCMDR1
-	cp	0x01
-	jr	z, .loop1
-	cp	0
-	jr	nz, .error
-	; Success! out of idle mode!
-	ld	hl, sOk
-	call	JUMP_PRINTSTR
 
 	; Alright, normally we should configure block size and all, but this is
 	; too exciting and we'll play it dirty: we'll read just enough bytes
@@ -78,17 +25,17 @@
 	call	JUMP_PRINTSTR
 	; Command sent, no error, now let's wait for our data response.
 	ld	b, 20
-.loop3:
+.loop1:
 	call	JUMP_SDCWAITRESP
 	; 0xfe is the expected data token for CMD17
 	cp	0xfe
-	jr	z, .loop3end
+	jr	z, .loop1end
 	cp	0xff
 	jr	nz, .error
-	djnz	.loop3
+	djnz	.loop1
 	jr	.error
 
-.loop3end:
+.loop1end:
 	ld	hl, sGettingData
 	call	JUMP_PRINTSTR
 	; Data packets follow immediately

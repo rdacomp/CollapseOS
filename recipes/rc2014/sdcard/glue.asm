@@ -11,7 +11,7 @@ jr	init
 ; Why not use this unused space between 0x02 and 0x28 for a jump table?
 	jp	printstr
 	jp	printHex
-	jp	sdcWakeUp
+	jp	sdcInitialize
 	jp	sdcSendRecv
 	jp	sdcWaitResp
 	jp	sdcCmd
@@ -29,6 +29,8 @@ init:
 	ld	sp, hl
 	im 1
 	call	aciaInit
+	xor	a
+	call	blkSel
 	call	shellInit
 
 	; TODO - block device creation
@@ -43,9 +45,15 @@ ACIA_RAMSTART	.equ	RAMSTART
 .define STDIO_PUTC	call aciaPutC
 STDIO_RAMSTART	.equ	ACIA_RAMEND
 #include "stdio.asm"
-SHELL_RAMSTART	.equ	STDIO_RAMEND
-.define SHELL_IO_GETC	call aciaGetC
-.define SHELL_IO_PUTC	call aciaPutC
+BLOCKDEV_RAMSTART	.equ	STDIO_RAMEND
+BLOCKDEV_COUNT		.equ	1
+#include "blockdev.asm"
+; List of devices
+.dw	aciaGetC, aciaPutC, 0, 0
+
+SHELL_RAMSTART	.equ	BLOCKDEV_RAMEND
+.define SHELL_IO_GETC	call blkGetCW
+.define SHELL_IO_PUTC	call blkPutC
 SHELL_EXTRA_CMD_COUNT .equ 0
 #include "shell.asm"
 

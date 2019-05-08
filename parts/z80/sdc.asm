@@ -131,3 +131,85 @@ sdcCmdR7:
 
 	out	(SDC_PORT_CSHIGH), a
 	ret
+
+; Initialize a SD card. This should be called at least 1ms after the powering
+; up of the card. Sets result code in A. Zero means success, non-zero means
+; error.
+sdcInitialize:
+	push	hl
+	push	de
+	push	bc
+	call	sdcWakeUp
+
+	; Call CMD0 and expect a 0x01 response (card idle)
+	; This should be called multiple times. We're actually expected to.
+	; Let's call this for a maximum of 10 times.
+	ld	b, 10
+.loop1:
+	ld	a, 0b01000000	; CMD0
+	ld	hl, 0
+	ld	de, 0
+	ld	c, 0x95
+	call	sdcCmdR1
+	cp	0x01
+	jp	z, .cmd0ok
+	djnz	.loop1
+	; Nothing? error
+	jr	.error
+.cmd0ok:
+
+	; Then comes the CMD8. We send it with a 0x01aa argument and expect
+	; a 0x01aa argument back, along with a 0x01 R1 response.
+	ld	a, 0b01001000	; CMD8
+	ld	hl, 0
+	ld	de, 0x01aa
+	ld	c, 0x87
+	call	sdcCmdR7
+	cp	0x01
+	jr	nz, .error
+	xor	a
+	cp	h	; H is zero
+	jr	nz, .error
+	cp	l	; L is zero
+	jr	nz, .error
+	ld	a, d
+	cp	0x01
+	jp	nz, .error
+	ld	a, e
+	cp	0xaa
+	jr	nz, .error
+
+	; Now we need to repeatedly run CMD55+CMD41 (0x40000000) until we
+	; the card goes out of idle mode, that is, when it stops sending us
+	; 0x01 response and send us 0x00 instead. Any other response means that
+	; initialization failed.
+.loop2:
+	ld	a, 0b01110111	; CMD55
+	ld	hl, 0
+	ld	de, 0
+	call	sdcCmdR1
+	cp	0x01
+	jr	nz, .error
+	ld	a, 0b01101001	; CMD41 (0x40000000)
+	ld	hl, 0x4000
+	ld	de, 0x0000
+	call	sdcCmdR1
+	cp	0x01
+	jr	z, .loop2
+	or	a		; cp 0
+	jr	nz, .error
+	; Success! out of idle mode!
+	; At this point, you are ready to read and write data.
+	jr	.success
+
+.error:
+	ld	a, 0x01
+	jr	.end
+
+.success:
+	xor	a
+.end:
+	pop	bc
+	pop	de
+	pop	hl
+	ret
