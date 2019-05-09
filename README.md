@@ -85,14 +85,17 @@ to see what it can do) on a classic RC2014. Highlights:
 
 * Extremely flexible: this is not an OS, but a meta OS. You build your own OS
   through glue code.
-* 2K binary (but size vary wildly depending on what parts you include. 2K is for
-  a shell using all parts)
+* 2K binary (but size vary wildly depending on what parts you include. 2K is
+  for a shell using all parts).
 * Built with minimal tooling: only [scas][scas] is needed
 * Can read and write to memory through shell
 * Can run arbitrary routine from arbitrary address with arbitrary arguments
   from shell.
 * Can "upload" code from serial link into memory and execute it.
 * Can manage multiple "block devices"
+* Can read SD cards as block devices
+* A z80 assembler written in z80 that is progressing well and should soon be
+  able to replace `scas`.
 
 ## Organisation of this repository
 

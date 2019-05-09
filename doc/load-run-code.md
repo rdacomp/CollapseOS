@@ -58,6 +58,21 @@ So, we'll expect this to become `62` after we run the code. Let's go:
 
 Success!
 
+## The upload.py tool
+
+The serial connection is not always 100% reliable and a bad byte can slip in
+when you push your code and that's not fun when you try to debug your code (is
+this bad behavior caused by my logic or by a bad serial upload?).
+
+To this end, there is a `upload.py` file in `tools/` that takes care of loading
+the file and verify the contents. So, instead of doing `load 8` followed by
+your `cat` above, you would have done:
+
+    ./upload.py /dev/ttyUSB0 tosend.bin
+
+This emits `load` and `peek` commands and fail appropriately if the `peek`
+doesn't match sent contents. Very handy.
+
 ## Labels in RAM code
 
 If your code contains any label, make sure that you add a `.org` directive at
