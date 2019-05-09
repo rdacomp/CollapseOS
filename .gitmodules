@@ -1,0 +1,3 @@
+[submodule "tools/emul/libz80"]
+	path = tools/emul/libz80
+	url = https://github.com/ggambetta/libz80.git

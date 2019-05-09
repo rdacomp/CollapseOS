@@ -1,9 +1,13 @@
-# Running Collapse OS on an emulated RC2014
+# Running Collapse OS on an emulator
 
-To give Collapse OS a whirl or to use emulation as a development tool, I
-recommend using Alan Cox's [RC2014 emulator][rc2014-emul]. It runs Collapse OS
-fine. One caveat, however, is that it requires a ROM image bigger than 8K, so
-you have to pad the binary.
+The quickest way to give Collapse OS a whirl is to use `tools/emul` which is
+built around [libz80][libz80]. Everything is set up, you just have to run
+`make`.
+
+To emulate something at a lower level, I recommend using Alan Cox's [RC2014
+emulator][rc2014-emul]. It runs Collapse OS fine but you have to write the
+glue code yourself. One caveat, also, is that it requires a ROM image bigger
+than 8K, so you have to pad the binary.
 
 A working Makefile for a project with a glue code being called `main.asm` could
 look like:
@@ -27,4 +31,5 @@ look like:
 
 `CTRL+\` stops the emulation.
 
+[libz80]: https://github.com/ggambetta/libz80
 [rc2014-emul]: https://github.com/EtchedPixels/RC2014
