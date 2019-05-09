@@ -27,7 +27,6 @@ main:
 #include "parse.asm"
 #include "literal.asm"
 #include "instr.asm"
-#include "tok.asm"
 #include "directive.asm"
 
 ; Parse line in (HL), write the resulting opcode(s) in (DE) and returns the
