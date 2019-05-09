@@ -24,11 +24,12 @@
 .equ	SDC_BLKSIZE	512
 
 ; *** Variables ***
-; Index of the sector currently contained in SDC_BUF
-.equ	SDC_SECTOR	SDC_RAMSTART
+; Where the block dev current points to. This is a byte index. Higher 7 bits
+; indicate a sector number, lower 9 bits are an offset in the current SDC_BUF.
+.equ	SDC_PTR		SDC_RAMSTART
 ; Whenever we read a sector, we read a whole block at once and we store it
 ; in memory. That's where it goes.
-.equ	SDC_BUF		SDC_SECTOR+1
+.equ	SDC_BUF		SDC_PTR+2
 .equ	SDC_RAMEND	SDC_BUF+SDC_BLKSIZE
 
 ; *** Code ***
@@ -211,6 +212,9 @@ sdcInitialize:
 	or	a		; cp 0
 	jr	nz, .error
 	; Success! out of idle mode!
+	; We initialize out current PTR to 0
+	ld	hl, 0
+	ld	(SDC_PTR), hl
 	jr	.success
 
 .error:
@@ -244,9 +248,9 @@ sdcSetBlkSize:
 ; Read block index specified in A and place the contents in (SDC_BUF).
 ; Doesn't check CRC.
 ; Returns 0 in A if success, non-zero if error.
-; Returns SDC_BUF in HL
 sdcReadBlk:
 	push	bc
+	push	hl
 
 	out	(SDC_PORT_CSLOW), a
 	ld	hl, 0		; read single block at addr A
@@ -292,6 +296,71 @@ sdcReadBlk:
 	inc	a		; zero, adjust
 .end:
 	out	(SDC_PORT_CSHIGH), a
-	ld	hl, SDC_BUF
+	pop	hl
 	pop	bc
+	ret
+
+; *** shell cmds ***
+
+sdcInitializeCmd:
+	.db	"sdci", 0, 0, 0
+	call	sdcInitialize
+	call	sdcSetBlkSize
+	ret
+
+; *** blkdev routines ***
+
+sdcGetC:
+	; SDC_PTR points to the character we're supposed to read right now, but
+	; we first have to check whether we need to load a new sector in memory.
+	; This is rather easy: if the first 9 bits are zero, then we need to
+	; read the sector in the high 7 bits.
+	push	hl
+
+	xor	a
+	ld	hl, (SDC_PTR)
+	cp	l		; is L zero?
+	jr	nz, .mem	; non-zero? no need to read a sector
+	ld	a, h
+	and	0x1
+	jr	nz, .mem	; if H has first bit set, no need to read a
+				; sector
+	; Oh, first 9 bits unset. Se need to read a sector
+	; H is already in A. We just need a right shift.
+	rra			; now that's our sector
+	call	sdcReadBlk
+	jr	nz, .error
+.mem:
+	; Read byte from memory at proper offset
+	; Higher 256 bytes or lower ones?
+	ld	a, h
+	and	0x1
+	jr	nz, .highbuf
+	; We're on the lower part
+	ld	hl, SDC_BUF
+	jr	.read
+.highbuf:
+	; We're on the higher part
+	ld	hl, SDC_BUF+0x100
+.read:
+	; HL is now placed either on the lower or higher half of SDC_BUF and
+	; all we need is to increase HL by the number in SDC_PTR's LSB (little
+	; endian, remember).
+	ld	a, (SDC_PTR)	; LSB
+	call	addHL
+
+	; This is it!
+	ld	a, (hl)
+
+	; before we return A, we need to increase (SDC_PTR)
+	ld	hl, SDC_PTR
+	inc	(hl)
+
+	cp	a		; ensure Z
+	jr	.end
+
+.error:
+	call	unsetZ
+.end:
+	pop	hl
 	ret

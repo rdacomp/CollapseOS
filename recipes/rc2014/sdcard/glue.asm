@@ -35,8 +35,6 @@ init:
 	call	blkSel
 	call	shellInit
 
-	; TODO - block device creation
-
 	ei
 	jp	shellLoop
 
@@ -48,16 +46,20 @@ ACIA_RAMSTART	.equ	RAMSTART
 STDIO_RAMSTART	.equ	ACIA_RAMEND
 #include "stdio.asm"
 BLOCKDEV_RAMSTART	.equ	STDIO_RAMEND
-BLOCKDEV_COUNT		.equ	1
+BLOCKDEV_COUNT		.equ	2
 #include "blockdev.asm"
 ; List of devices
 .dw	aciaGetC, aciaPutC, 0, 0
+.dw	sdcGetC, 0, 0, 0
+
+#include "blockdev_cmds.asm"
 
 SHELL_RAMSTART	.equ	BLOCKDEV_RAMEND
 .define SHELL_IO_GETC	call blkGetCW
 .define SHELL_IO_PUTC	call blkPutC
-SHELL_EXTRA_CMD_COUNT .equ 0
+SHELL_EXTRA_CMD_COUNT .equ 3
 #include "shell.asm"
+.dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd
 
 .equ SDC_RAMSTART SHELL_RAMEND
 .equ SDC_PORT_CSHIGH 6
