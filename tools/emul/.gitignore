@@ -1,2 +1,4 @@
 /shell
-/shell-kernel.h
+/zasm
+/*-kernel.h
+/*-user.h

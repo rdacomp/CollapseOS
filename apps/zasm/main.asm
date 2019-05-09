@@ -1,8 +1,11 @@
-#include "user.inc"
+; *** Requirements ***
+; JUMP_STRNCMP
+; JUMP_ADDDE
+; JUMP_UPCASE
+; JUMP_UNSETZ
+; JUMP_INTODE
 
 ; *** Code ***
-.org	USER_CODE
-
 ; Parse asm file in (HL) and outputs its upcodes in (DE). Returns the number
 ; of bytes written in C.
 main:
