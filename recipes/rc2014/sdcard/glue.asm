@@ -17,6 +17,8 @@ jr	init
 	jp	sdcCmd
 	jp	sdcCmdR1
 	jp	sdcCmdR7
+	jp	sdcReadBlk
+	jp	sdcSetBlkSize
 
 ; interrupt hook
 .fill	0x38-$
@@ -57,6 +59,7 @@ SHELL_RAMSTART	.equ	BLOCKDEV_RAMEND
 SHELL_EXTRA_CMD_COUNT .equ 0
 #include "shell.asm"
 
+.equ SDC_RAMSTART SHELL_RAMEND
 .equ SDC_PORT_CSHIGH 6
 .equ SDC_PORT_CSLOW 5
 .equ SDC_PORT_SPI 4

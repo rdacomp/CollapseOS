@@ -6,4 +6,6 @@ JUMP_SDCWAITRESP .equ  0x0e
 JUMP_SDCCMD     .equ   0x11 
 JUMP_SDCCMDR1   .equ   0x14 
 JUMP_SDCCMDR7   .equ   0x17 
+JUMP_SDCREAD    .equ   0x1a
+JUMP_SDCSETBLKSIZE .equ   0x1d
 

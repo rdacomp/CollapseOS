@@ -20,6 +20,18 @@
 ; SDC_PORT_CSLOW: Port number to make CS low
 ; SDC_PORT_SPI: Port number to send/receive SPI data
 
+; *** Consts ***
+.equ	SDC_BLKSIZE	512
+
+; *** Variables ***
+; Index of the sector currently contained in SDC_BUF
+.equ	SDC_SECTOR	SDC_RAMSTART
+; Whenever we read a sector, we read a whole block at once and we store it
+; in memory. That's where it goes.
+.equ	SDC_BUF		SDC_SECTOR+1
+.equ	SDC_RAMEND	SDC_BUF+SDC_BLKSIZE
+
+; *** Code ***
 ; Wake the SD card up. After power up, a SD card has to receive at least 74
 ; dummy clocks with CS and DI high. We send 80.
 sdcWakeUp:
@@ -199,7 +211,6 @@ sdcInitialize:
 	or	a		; cp 0
 	jr	nz, .error
 	; Success! out of idle mode!
-	; At this point, you are ready to read and write data.
 	jr	.success
 
 .error:
@@ -212,4 +223,75 @@ sdcInitialize:
 	pop	bc
 	pop	de
 	pop	hl
+	ret
+
+; Send a command to set block size to SDC_BLKSIZE to the SD card.
+; Returns zero in A if a success, non-zero otherwise
+sdcSetBlkSize:
+	push	hl
+	push	de
+
+	ld	a, 0b01010000	; CMD16
+	ld	hl, 0
+	ld	de, SDC_BLKSIZE
+	call	sdcCmdR1
+	; Since we're out of idle mode, we expect a 0 response
+	; We need no further processing: A is already the correct value.
+	pop	de
+	pop	hl
+	ret
+
+; Read block index specified in A and place the contents in (SDC_BUF).
+; Doesn't check CRC.
+; Returns 0 in A if success, non-zero if error.
+; Returns SDC_BUF in HL
+sdcReadBlk:
+	push	bc
+
+	out	(SDC_PORT_CSLOW), a
+	ld	hl, 0		; read single block at addr A
+	ld	d, 0
+	ld	e, a
+	ld	a, 0b01010001	; CMD17
+	call	sdcCmd
+	or	a		; cp 0
+	jr	nz, .error
+
+	; Command sent, no error, now let's wait for our data response.
+	ld	b, 20
+.loop1:
+	call	sdcWaitResp
+	; 0xfe is the expected data token for CMD17
+	cp	0xfe
+	jr	z, .loop1end
+	cp	0xff
+	jr	nz, .error
+	djnz	.loop1
+	jr	.error		; timeout. error out
+.loop1end:
+	; We received our data token!
+	; Data packets follow immediately, we have 512 of them to read
+	ld	bc, SDC_BLKSIZE
+	ld	hl, SDC_BUF
+.loop2:
+	call	sdcWaitResp
+	ld	(hl), a
+	cpi			; a trick to inc HL and dec BC at the same time.
+				; P/V indicates whether BC reached 0
+	jp	pe, .loop2	; BC is not zero, loop
+	; Read our 2 CRC bytes
+	call	sdcWaitResp
+	call	sdcWaitResp
+	; success!
+	xor	a
+	jr	.end
+.error:
+	; try to preserve error code
+	or	a		; cp 0
+	jr	nz, .end	; already non-zero
+	inc	a		; zero, adjust
+.end:
+	out	(SDC_PORT_CSHIGH), a
+	ld	hl, SDC_BUF
+	pop	bc
 	ret
