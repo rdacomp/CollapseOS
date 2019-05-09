@@ -8,27 +8,6 @@ rlaX:
 	djnz	.loop
 	ret
 
-; Copy BC bytes from (HL) to (DE).
-copy:
-	; first, let's see if BC is zero. if it is, we have nothing to do.
-	; remember: 16-bit inc/dec don't modify flags. that's why we check B
-	; and C separately.
-	inc	b
-	dec	b
-	jr	nz, .proceed
-	inc	c
-	dec	c
-	ret	z	; zero? nothing to do
-.proceed:
-	push	bc
-	push	de
-	push	hl
-	ldir
-	pop	hl
-	pop	de
-	pop	bc
-	ret
-
 callHL:
 	jp	(hl)
 	ret

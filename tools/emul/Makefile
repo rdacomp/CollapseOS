@@ -1,5 +1,6 @@
 TARGETS = shell zasm
 KERNEL_HEADERS = shell-kernel.h zasm-kernel.h
+USER_HEADERS = zasm-user.h
 
 .PHONY: all
 all: $(TARGETS)
@@ -23,4 +24,4 @@ libz80/libz80.o: libz80/z80.c
 
 .PHONY: clean
 clean:
-	rm -f $(TARGETS) $(KERNEL_HEADERS)
+	rm -f $(TARGETS) $(KERNEL_HEADERS) $(USER_HEADERS)

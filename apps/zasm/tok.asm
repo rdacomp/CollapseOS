@@ -4,6 +4,7 @@
 ; *** Consts ***
 TOK_INSTR	.equ	0x01
 TOK_DIRECTIVE	.equ	0x02
+TOK_EMPTY	.equ	0xfe	; not a bad token, just an empty line
 TOK_BAD		.equ	0xff
 
 ; *** Code ***
@@ -14,6 +15,7 @@ TOK_BAD		.equ	0xff
 ; If no token matches, TOK_BAD is written to B
 tokenize:
 	call	toWord
+	jr	nz, .emptyline
 	call	readWord
 	push	hl		; Save advanced HL for later
 	ld	hl, scratchpad
@@ -32,4 +34,8 @@ tokenize:
 .end:
 	ld	c, a
 	pop	hl
+	ret
+.emptyline:
+	ld	b, TOK_EMPTY
+	; no HL to pop, we jumped before the push
 	ret
