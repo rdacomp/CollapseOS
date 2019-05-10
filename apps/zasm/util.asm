@@ -12,6 +12,37 @@ callHL:
 	jp	(hl)
 	ret
 
+; Compare HL with DE and sets Z and C in the same way as a regular cp X where
+; HL is A and DE is X.
+cpHLDE:
+	ld	a, h
+	cp	d
+	ret	nz	; if not equal, flags are correct
+	ld	a, l
+	cp	e
+	ret		; flags are correct
+
+; Returns length of string at (HL) in A.
+strlen:
+	push	bc
+	push	hl
+	ld	bc, 0
+	ld	a, 0	; look for null char
+.loop:
+	cpi
+	jp	z, .found
+	jr	.loop
+.found:
+	; How many char do we have? the (NEG BC)-1, which started at 0 and
+	; decreased at each CPI call. In this routine, we stay in the 8-bit
+	; realm, so C only.
+	ld	a, c
+	neg
+	dec	a
+	pop	hl
+	pop	bc
+	ret
+
 ; If string at (HL) starts with ( and ends with ), "enter" into the parens
 ; (advance HL and put a null char at the end of the string) and set Z.
 ; Otherwise, do nothing and reset Z.

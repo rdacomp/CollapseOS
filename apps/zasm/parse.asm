@@ -1,6 +1,7 @@
 ; *** Consts ***
 TOK_INSTR	.equ	0x01
 TOK_DIRECTIVE	.equ	0x02
+TOK_LABEL	.equ	0x03
 TOK_EMPTY	.equ	0xfe	; not a bad token, just an empty line
 TOK_BAD		.equ	0xff
 
@@ -32,6 +33,34 @@ isSepOrLineEnd:
 	call	isSep
 	ret	z
 	call	isLineEndOrComment
+	ret
+
+; Checks whether string at (HL) is a label, that is, whether it ends with a ":"
+; Sets Z if yes, unset if no.
+;
+; If it's a label, we change the trailing ':' char with a null char. It's a bit
+; dirty, but it's the easiest way to proceed.
+isLabel:
+	push	hl
+	ld	a, ':'
+	call	JUMP_FINDCHAR
+	ld	a, (hl)
+	cp	':'
+	jr	nz, .nomatch
+	; We also have to check that it's our last char.
+	inc	hl
+	ld	a, (hl)
+	or	a		; cp 0
+	jr	nz, .nomatch	; not a null char following the :. no match.
+	; We have a match!
+	; Remove trailing ':'
+	xor	a		; Z is set
+	ld	(hl), a
+	jr	.end
+.nomatch:
+	call	JUMP_UNSETZ
+.end:
+	pop	hl
 	ret
 
 ; read word in (HL) and put it in (scratchpad), null terminated, for a maximum
@@ -90,6 +119,8 @@ tokenize:
 	call	readWord
 	push	hl		; Save advanced HL for later
 	ld	hl, scratchpad
+	call	isLabel
+	jr	z, .label
 	call	getInstID
 	jr	z, .instr
 	call	getDirectiveID
@@ -102,6 +133,9 @@ tokenize:
 	jr	.end
 .direc:
 	ld	b, TOK_DIRECTIVE
+	jr	.end
+.label:
+	ld	b, TOK_LABEL
 .end:
 	ld	c, a
 	pop	hl

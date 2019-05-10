@@ -6,9 +6,10 @@ parseDecimal:
 	; First, let's see if we have an easy 0-9 case
 	cp	'0'
 	ret	c	; if < '0', we have a problem
-	cp	'9'+1
-	; We are in the 0-9 range
-	sub	a, '0'		; C is clear
+	sub	a, '0'		; our value now is valid if it's < 10
+	cp	10		; on success, C is set, which is the opposite
+				; of what we want
+	ccf			; invert C flag
 	ret
 
 ; Parses the string at (HL) and returns the 16-bit value in IX.

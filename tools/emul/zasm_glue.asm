@@ -7,9 +7,11 @@ jr	init	; 2 bytes
 ; *** JUMP TABLE ***
 jp	strncmp
 jp	addDE
+jp	addHL
 jp	upcase
 jp	unsetZ
 jp	intoDE
+jp	findchar
 
 init:
 	di

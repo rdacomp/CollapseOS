@@ -115,27 +115,23 @@ parseIXY:
 	pop	hl
 	ret
 
-; Returns length of string at (HL) in A.
-strlen:
-	push	bc
-	push	hl
-	ld	bc, 0
-	ld	a, 0	; look for null char
-.loop:
-	cpi
-	jp	z, .found
-	jr	.loop
-.found:
-	; How many char do we have? the (NEG BC)-1, which started at 0 and
-	; decreased at each CPI call. In this routine, we stay in the 8-bit
-	; realm, so C only.
-	ld	a, c
-	neg
-	dec	a
-	pop	hl
-	pop	bc
+; Parse string in (HL) and return its numerical value whether its a number
+; literal or a symbol. Returns value in IX.
+; Sets Z if number or symbol is valid, unset otherwise.
+parseNumberOrSymbol:
+	call	parseNumber
+	ret	z
+	; Not a number. Try symbol
+	push	de
+	call	symGetVal
+	jr	nz, .notfound	; Z already unset
+	; Found! value in DE. We need it in IX
+	ld	ixh, d
+	ld	ixl, e
+	; Z already set
+.notfound:
+	pop	de
 	ret
-
 ; find argspec for string at (HL). Returns matching argspec in A.
 ; Return value 0xff holds a special meaning: arg is not empty, but doesn't match
 ; any argspec (A == 0 means arg is empty). A return value of 0xff means an
@@ -174,7 +170,7 @@ parseArg:
 	call	enterParens
 	jr	z, .withParens
 	; (HL) has no parens
-	call	parseNumber
+	call	parseNumberOrSymbol
 	jr	nz, .nomatch
 	; We have a proper number in no parens. Number in IX.
 	ld	a, 'N'
@@ -198,7 +194,7 @@ parseArg:
 .notY:
 	ld	c, 'x'
 .parseNumberInParens:
-	call	parseNumber
+	call	parseNumberOrSymbol
 	jr	nz, .nomatch
 	; We have a proper number in parens. Number in IX
 	ld	a, c	; M, x, or y
