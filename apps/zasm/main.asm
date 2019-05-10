@@ -7,14 +7,30 @@
 ; JUMP_UNSETZ
 ; JUMP_INTODE
 ; JUMP_FINDCHAR
+; JUMP_BLKSEL
 ; RAMSTART	(where we put our variables in RAM)
 
+jp	main
+#include "util.asm"
+.equ	IO_RAMSTART	RAMSTART
+#include "io.asm"
+#include "parse.asm"
+#include "literal.asm"
+#include "instr.asm"
+#include "directive.asm"
+.equ	SYM_RAMSTART	IO_RAMEND
+#include "symbol.asm"
+
 ; *** Code ***
-; Read file through GetC routine pointer at HL and outputs its upcodes through
-; the PutC routine pointer at DE.
+; Read file through blockdev ID in H and outputs its upcodes through blockdev
+; ID in L.
 main:
-	ld	(ioGetCPtr), hl
-	ld	(ioPutCPtr), de
+	ld	a, h
+	ld	de, IO_IN_GETC
+	call	JUMP_BLKSEL
+	ld	a, l
+	ld	de, IO_OUT_GETC
+	call	JUMP_BLKSEL
 	ld	hl, 0
 	ld	(curOutputOffset), hl
 .loop:
@@ -26,15 +42,6 @@ main:
 	jr	.loop
 .stop:
 	ret
-
-#include "util.asm"
-#include "io.asm"
-#include "parse.asm"
-#include "literal.asm"
-#include "instr.asm"
-#include "directive.asm"
-.equ	SYM_RAMSTART	RAMSTART
-#include "symbol.asm"
 
 ; Increase (curOutputOffset) by A
 incOutputOffset:

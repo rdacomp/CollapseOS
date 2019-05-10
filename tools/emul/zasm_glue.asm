@@ -1,6 +1,6 @@
 ; Glue code for the emulated environment
-.equ USER_CODE		0x4000
-.equ RAMEND		0xffff
+.equ RAMSTART		0x4000
+.equ USER_CODE		0x4800
 .equ STDIO_PORT		0x00
 
 jr	init	; 2 bytes
@@ -13,13 +13,15 @@ jp	unsetZ
 jp	intoDE
 jp	findchar
 jp	parseHexPair
+jp	blkSel
 
 init:
 	di
-	ld	hl, RAMEND
+	; We put the stack at the end of the kernel memory
+	ld	hl, USER_CODE-1
 	ld	sp, hl
-	ld	hl, emulGetC
-	ld	de, emulPutC
+	ld	h, 0	; input blkdev
+	ld	l, 1	; output blkdev
 	call	USER_CODE
 	; signal the emulator we're done
 	halt
@@ -39,3 +41,9 @@ emulPutC:
 	ret
 
 #include "core.asm"
+.equ	BLOCKDEV_RAMSTART	RAMSTART
+.equ	BLOCKDEV_COUNT		2
+#include "blockdev.asm"
+; List of devices
+.dw	emulGetC, 0, 0, 0
+.dw	0, emulPutC, 0, 0

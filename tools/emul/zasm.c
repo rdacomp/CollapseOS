@@ -11,7 +11,9 @@
  * Memory layout:
  *
  * 0x0000 - 0x3fff: ROM code from zasm_glue.asm
- * 0x4000 - 0xffff: Userspace
+ * 0x4000 - 0x47ff: RAM for kernel and stack
+ * 0x4800 - 0x57ff: Userspace code
+ * 0x5800 - 0xffff: Userspace RAM
  *
  * I/O Ports:
  *
@@ -19,7 +21,7 @@
  */
 
 // in sync with zasm_glue.asm
-#define USER_CODE 0x4000
+#define USER_CODE 0x4800
 #define STDIO_PORT 0x00
 
 static Z80Context cpu;

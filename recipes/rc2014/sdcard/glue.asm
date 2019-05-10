@@ -5,10 +5,10 @@ RAMEND		.equ	0xffff
 ACIA_CTL	.equ	0x80	; Control and status. RS off.
 ACIA_IO		.equ	0x81	; Transmit. RS on.
 
-jr	init
+jp	init
 
 ; *** JUMP TABLE ***
-; Why not use this unused space between 0x02 and 0x28 for a jump table?
+; Why not use this unused space between 0x03 and 0x38 for a jump table?
 	jp	printstr
 	jp	printHex
 	jp	sdcInitialize
@@ -23,20 +23,6 @@ jr	init
 ; interrupt hook
 .fill	0x38-$
 jp	aciaInt
-
-init:
-	di
-	; setup stack
-	ld	hl, RAMEND
-	ld	sp, hl
-	im 1
-	call	aciaInit
-	xor	a
-	call	blkSel
-	call	shellInit
-
-	ei
-	jp	shellLoop
 
 #include "core.asm"
 ACIA_RAMSTART	.equ	RAMSTART
@@ -66,3 +52,19 @@ SHELL_EXTRA_CMD_COUNT .equ 3
 .equ SDC_PORT_CSLOW 5
 .equ SDC_PORT_SPI 4
 #include "sdc.asm"
+
+init:
+	di
+	; setup stack
+	ld	hl, RAMEND
+	ld	sp, hl
+	im 1
+	call	aciaInit
+	xor	a
+	ld	de, BLOCKDEV_GETC
+	call	blkSel
+	call	shellInit
+
+	ei
+	jp	shellLoop
+

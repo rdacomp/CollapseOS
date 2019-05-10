@@ -33,9 +33,11 @@ BLOCKDEV_TELL		.equ	BLOCKDEV_SEEK+2
 BLOCKDEV_RAMEND		.equ	BLOCKDEV_TELL+2
 
 ; *** CODE ***
-; Select block index specified in A
+; Select block index specified in A and place them in routine pointers at (DE).
+; For example, for a "regular" blkSel, you will want to set DE to BLOCKDEV_GETC.
 blkSel:
 	push	af
+	push	de
 	push	hl
 	ld	hl, blkDevTbl
 	cp	0
@@ -50,25 +52,32 @@ blkSel:
 .afterloop:
 	push	hl
 	call	intoHL
-	ld	(BLOCKDEV_GETC), hl
+	call	writeHLinDE
+	inc	de
+	inc	de
 	pop	hl
 	inc	hl
 	inc	hl
 	push	hl
 	call	intoHL
-	ld	(BLOCKDEV_PUTC), hl
+	call	writeHLinDE
+	inc	de
+	inc	de
 	pop	hl
 	inc	hl
 	inc	hl
 	push	hl
 	call	intoHL
-	ld	(BLOCKDEV_SEEK), hl
+	call	writeHLinDE
+	inc	de
+	inc	de
 	pop	hl
 	inc	hl
 	inc	hl
 	call	intoHL
-	ld	(BLOCKDEV_TELL), hl
+	call	writeHLinDE
 	pop	hl
+	pop	de
 	pop	af
 	ret
 
