@@ -2,7 +2,7 @@
 ; result in A.
 ;
 ; On success, the carry flag is reset. On error, it is set.
-parseDecimal:
+parseDecimalDigit:
 	; First, let's see if we have an easy 0-9 case
 	cp	'0'
 	ret	c	; if < '0', we have a problem
@@ -12,10 +12,9 @@ parseDecimal:
 	ccf			; invert C flag
 	ret
 
-; Parses the string at (HL) and returns the 16-bit value in IX.
-; As soon as the number doesn't fit 16-bit any more, parsing stops and the
-; number is invalid. If the number is valid, Z is set, otherwise, unset.
-parseNumber:
+; Parse string at (HL) as a decimal value and return value in IX under the
+; same conditions as parseNumber.
+parseDecimal:
 	push	hl
 	push	de
 	push	bc
@@ -25,7 +24,7 @@ parseNumber:
 	ld	a, (hl)
 	cp	0
 	jr	z, .end	; success!
-	call	parseDecimal
+	call	parseDecimalDigit
 	jr	c, .error
 
 	; Now, let's add A to IX. First, multiply by 10.
@@ -58,3 +57,59 @@ parseNumber:
 	pop	de
 	pop	hl
 	ret
+
+
+; Parse string at (HL) as a hexadecimal value and return value in IX under the
+; same conditions as parseNumber.
+parseHexadecimal:
+	push	hl
+	xor	a
+	ld	ixh, a
+	inc	hl	; get rid of "0x"
+	inc	hl
+	call	strlen
+	cp	3
+	jr	c, .single
+	cp	5
+	jr	c, .double
+	; too long, error
+	jr	.error
+.double:
+	call	JUMP_PARSEHEXPAIR	; moves HL to last char of pair
+	jr	c, .error
+	inc	hl			; now HL is on first char of next pair
+	ld	ixh, a
+.single:
+	call	JUMP_PARSEHEXPAIR
+	jr	c, .error
+	ld	ixl, a
+	cp	a			; ensure Z
+	jr	.end
+.error:
+	call	JUMP_UNSETZ
+.end:
+	pop	hl
+	ret
+
+; Sets Z if (HL) has a '0x' or '0X' prefix.
+hasHexPrefix:
+	ld	a, (hl)
+	cp	'0'
+	ret	nz
+	push	hl
+	inc	hl
+	ld	a, (hl)
+	cp	'x'
+	jr	z, .end
+	cp	'X'
+.end:
+	pop	hl
+	ret
+
+; Parses the string at (HL) and returns the 16-bit value in IX.
+; As soon as the number doesn't fit 16-bit any more, parsing stops and the
+; number is invalid. If the number is valid, Z is set, otherwise, unset.
+parseNumber:
+	call	hasHexPrefix
+	jr	z, parseHexadecimal
+	jr	parseDecimal

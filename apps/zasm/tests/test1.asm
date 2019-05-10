@@ -5,7 +5,8 @@ label1:
 	; comment
 	.db	42
 label2:
-	.dw	42
+	.dw	0x42
 	.dw	3742
+	.dw	0x3742
 	ld	a, (label1)
 	ld	hl, label2

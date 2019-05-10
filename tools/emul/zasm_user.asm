@@ -6,6 +6,7 @@ JUMP_UPCASE     .equ    0x0b
 JUMP_UNSETZ     .equ    0x0e
 JUMP_INTODE	.equ    0x11
 JUMP_FINDCHAR	.equ    0x14
+JUMP_PARSEHEXPAIR .equ    0x17
 
 .equ	USER_CODE	0x4000
 .equ	RAMSTART	0x6000

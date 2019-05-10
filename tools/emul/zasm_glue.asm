@@ -12,6 +12,7 @@ jp	upcase
 jp	unsetZ
 jp	intoDE
 jp	findchar
+jp	parseHexPair
 
 init:
 	di
