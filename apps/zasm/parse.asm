@@ -1,146 +1,133 @@
-; *** Consts ***
-TOK_INSTR	.equ	0x01
-TOK_DIRECTIVE	.equ	0x02
-TOK_LABEL	.equ	0x03
-TOK_EMPTY	.equ	0xfe	; not a bad token, just an empty line
-TOK_BAD		.equ	0xff
-
-.equ	SCRATCHPAD_SIZE	0x20
-; *** Variables ***
-scratchpad:
-	.fill	SCRATCHPAD_SIZE
-
-; *** Code ***
-
-; Sets Z is A is ';' or null.
-isLineEndOrComment:
-	cp	';'
-	ret	z
-	or	a	; cp 0
-	ret
-
-; Sets Z is A is ' ' '\t' or ','
-isSep:
-	cp	' '
-	ret	z
-	cp	0x09
-	ret	z
-	cp	','
-	ret
-
-; Sets Z is A is ' ', ',', ';', CR, LF, or null.
-isSepOrLineEnd:
-	call	isSep
-	ret	z
-	call	isLineEndOrComment
-	ret
-
-; Checks whether string at (HL) is a label, that is, whether it ends with a ":"
-; Sets Z if yes, unset if no.
+; Parse the decimal char at A and extract it's 0-9 numerical value. Put the
+; result in A.
 ;
-; If it's a label, we change the trailing ':' char with a null char. It's a bit
-; dirty, but it's the easiest way to proceed.
-isLabel:
+; On success, the carry flag is reset. On error, it is set.
+parseDecimalDigit:
+	; First, let's see if we have an easy 0-9 case
+	cp	'0'
+	ret	c	; if < '0', we have a problem
+	sub	a, '0'		; our value now is valid if it's < 10
+	cp	10		; on success, C is set, which is the opposite
+				; of what we want
+	ccf			; invert C flag
+	ret
+
+; Parse string at (HL) as a decimal value and return value in IX under the
+; same conditions as parseNumber.
+parseDecimal:
 	push	hl
-	ld	a, ':'
-	call	JUMP_FINDCHAR
-	ld	a, (hl)
-	cp	':'
-	jr	nz, .nomatch
-	; We also have to check that it's our last char.
-	inc	hl
-	ld	a, (hl)
-	or	a		; cp 0
-	jr	nz, .nomatch	; not a null char following the :. no match.
-	; We have a match!
-	; Remove trailing ':'
-	xor	a		; Z is set
-	ld	(hl), a
-	jr	.end
-.nomatch:
-	call	JUMP_UNSETZ
-.end:
-	pop	hl
-	ret
-
-; read word in (HL) and put it in (scratchpad), null terminated, for a maximum
-; of SCRATCHPAD_SIZE-1 characters. As a result, A is the read length. HL is
-; advanced to the next separator char.
-readWord:
-	push	bc
 	push	de
-	ld	de, scratchpad
-	ld	b, SCRATCHPAD_SIZE-1
-.loop:
-	ld	a, (hl)
-	call	isSepOrLineEnd
-	jr	z, .success
-	call	JUMP_UPCASE
-	ld	(de), a
-	inc	hl
-	inc	de
-	djnz	.loop
-.success:
-	xor	a
-	ld	(de), a
-	ld	a, SCRATCHPAD_SIZE-1
-	sub	a, b
-.end:
-	pop	de
-	pop	bc
-	ret
+	push	bc
 
-; (HL) being a string, advance it to the next non-sep character.
-; Set Z if we could do it before the line ended, reset Z if we couldn't.
-toWord:
+	ld	ix, 0
 .loop:
 	ld	a, (hl)
-	call	isLineEndOrComment
-	jr	z, .error
-	call	isSep
-	jr	nz, .success
+	cp	0
+	jr	z, .end	; success!
+	call	parseDecimalDigit
+	jr	c, .error
+
+	; Now, let's add A to IX. First, multiply by 10.
+	ld	d, ixh	; we need a copy of the initial copy for later
+	ld	e, ixl
+	add	ix, ix	; x2
+	add	ix, ix	; x4
+	add	ix, ix	; x8
+	add	ix, de	; x9
+	add	ix, de	; x10
+	add	a, ixl
+	jr	nc, .nocarry
+	inc	ixh
+.nocarry:
+	ld	ixl, a
+
+	; We didn't bother checking for the C flag at each step because we
+	; check for overflow afterwards. If ixh < d, we overflowed
+	ld	a, ixh
+	cp	d
+	jr	c, .error	; carry is set? overflow
+
 	inc	hl
 	jr	.loop
+
 .error:
 	call	JUMP_UNSETZ
-	ret
-.success:
-	xor	a	; ensure Z
-	ret
-
-; Parse line in (HL) and read the next token in BC. The token is written on
-; two bytes (B and C). B is a token type (TOK_* constants) and C is an ID
-; specific to that token type.
-; Advance HL to after the read word.
-; If no token matches, TOK_BAD is written to B
-tokenize:
-	call	toWord
-	jr	nz, .emptyline
-	call	readWord
-	push	hl		; Save advanced HL for later
-	ld	hl, scratchpad
-	call	isLabel
-	jr	z, .label
-	call	getInstID
-	jr	z, .instr
-	call	getDirectiveID
-	jr	z, .direc
-	; no match
-	ld	b, TOK_BAD
-	jr	.end
-.instr:
-	ld	b, TOK_INSTR
-	jr	.end
-.direc:
-	ld	b, TOK_DIRECTIVE
-	jr	.end
-.label:
-	ld	b, TOK_LABEL
 .end:
-	ld	c, a
+	pop	bc
+	pop	de
 	pop	hl
 	ret
-.emptyline:
-	ld	b, TOK_EMPTY
-	; no HL to pop, we jumped before the push
+
+
+; Parse string at (HL) as a hexadecimal value and return value in IX under the
+; same conditions as parseNumber.
+parseHexadecimal:
+	push	hl
+	xor	a
+	ld	ixh, a
+	inc	hl	; get rid of "0x"
+	inc	hl
+	call	strlen
+	cp	3
+	jr	c, .single
+	cp	5
+	jr	c, .double
+	; too long, error
+	jr	.error
+.double:
+	call	JUMP_PARSEHEXPAIR	; moves HL to last char of pair
+	jr	c, .error
+	inc	hl			; now HL is on first char of next pair
+	ld	ixh, a
+.single:
+	call	JUMP_PARSEHEXPAIR
+	jr	c, .error
+	ld	ixl, a
+	cp	a			; ensure Z
+	jr	.end
+.error:
+	call	JUMP_UNSETZ
+.end:
+	pop	hl
+	ret
+
+; Sets Z if (HL) has a '0x' or '0X' prefix.
+hasHexPrefix:
+	ld	a, (hl)
+	cp	'0'
+	ret	nz
+	push	hl
+	inc	hl
+	ld	a, (hl)
+	cp	'x'
+	jr	z, .end
+	cp	'X'
+.end:
+	pop	hl
+	ret
+
+; Parses the string at (HL) and returns the 16-bit value in IX.
+; As soon as the number doesn't fit 16-bit any more, parsing stops and the
+; number is invalid. If the number is valid, Z is set, otherwise, unset.
+parseNumber:
+	call	hasHexPrefix
+	jr	z, parseHexadecimal
+	jr	parseDecimal
+
+; Parse string in (HL) and return its numerical value whether its a number
+; literal or a symbol. Returns value in IX.
+; Sets Z if number or symbol is valid, unset otherwise.
+parseNumberOrSymbol:
+	call	parseNumber
+	ret	z
+	; Not a number. Try symbol
+	push	de
+	call	symGetVal
+	jr	nz, .notfound	; Z already unset
+	; Found! value in DE. We need it in IX
+	ld	ixh, d
+	ld	ixl, e
+	; Z already set
+.notfound:
+	pop	de
 	ret
