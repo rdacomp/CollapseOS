@@ -115,23 +115,6 @@ parseIXY:
 	pop	hl
 	ret
 
-; Parse string in (HL) and return its numerical value whether its a number
-; literal or a symbol. Returns value in IX.
-; Sets Z if number or symbol is valid, unset otherwise.
-parseNumberOrSymbol:
-	call	parseNumber
-	ret	z
-	; Not a number. Try symbol
-	push	de
-	call	symGetVal
-	jr	nz, .notfound	; Z already unset
-	; Found! value in DE. We need it in IX
-	ld	ixh, d
-	ld	ixl, e
-	; Z already set
-.notfound:
-	pop	de
-	ret
 ; find argspec for string at (HL). Returns matching argspec in A.
 ; Return value 0xff holds a special meaning: arg is not empty, but doesn't match
 ; any argspec (A == 0 means arg is empty). A return value of 0xff means an

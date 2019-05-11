@@ -3,6 +3,7 @@
 label1:
 	inc	a	; comment
 	ld	hl, label2
+	.dw	label2
 	; comment
 	.db	42
 label2:

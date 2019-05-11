@@ -33,7 +33,7 @@ handleDW:
 	call	toWord
 	call	readWord
 	ld	hl, scratchpad
-	call	parseNumber
+	call	parseNumberOrSymbol
 	ld	a, ixl
 	ld	(direcData), a
 	ld	a, ixh

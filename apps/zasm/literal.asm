@@ -113,3 +113,21 @@ parseNumber:
 	call	hasHexPrefix
 	jr	z, parseHexadecimal
 	jr	parseDecimal
+
+; Parse string in (HL) and return its numerical value whether its a number
+; literal or a symbol. Returns value in IX.
+; Sets Z if number or symbol is valid, unset otherwise.
+parseNumberOrSymbol:
+	call	parseNumber
+	ret	z
+	; Not a number. Try symbol
+	push	de
+	call	symGetVal
+	jr	nz, .notfound	; Z already unset
+	; Found! value in DE. We need it in IX
+	ld	ixh, d
+	ld	ixl, e
+	; Z already set
+.notfound:
+	pop	de
+	ret
