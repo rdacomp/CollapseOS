@@ -2,6 +2,7 @@
 .equ RAMSTART		0x4000
 .equ USER_CODE		0x4800
 .equ STDIO_PORT		0x00
+.equ STDIN_REWIND	0x01
 
 jr	init	; 2 bytes
 ; *** JUMP TABLE ***
@@ -40,10 +41,14 @@ emulPutC:
 	out	(STDIO_PORT), a
 	ret
 
+emulSeek:
+	out	(STDIN_REWIND), a
+	ret
+
 #include "core.asm"
 .equ	BLOCKDEV_RAMSTART	RAMSTART
 .equ	BLOCKDEV_COUNT		2
 #include "blockdev.asm"
 ; List of devices
-.dw	emulGetC, 0, 0, 0
+.dw	emulGetC, 0, emulSeek, 0
 .dw	0, emulPutC, 0, 0

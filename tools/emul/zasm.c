@@ -4,9 +4,12 @@
 #include "zasm-kernel.h"
 #include "zasm-user.h"
 
-/* zasm is a "pure memory" application. It starts up being told memory location
- * to read and memory location to write.
+/* zasm reads from a specified blkdev, assemble the file and writes the result
+ * in another specified blkdev. In our emulator layer, we use stdin and stdout
+ * as those specified blkdevs.
  *
+ * Because the input blkdev needs support for Seek, we buffer it in the emulator
+ * layer.
  *
  * Memory layout:
  *

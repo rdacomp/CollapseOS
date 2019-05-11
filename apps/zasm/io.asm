@@ -22,6 +22,11 @@ ioPutC:
 	ld	ix, (IO_OUT_PUTC)
 	jp	(ix)
 
+ioRewind:
+	ld	hl, 0
+	ld	ix, (IO_IN_SEEK)
+	jp	(ix)
+
 ; Sets Z is A is CR, LF, or null.
 isLineEnd:
 	or	a	; same as cp 0
