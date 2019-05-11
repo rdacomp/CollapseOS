@@ -169,6 +169,9 @@ symFind:
 ; Return value associated with symbol string in (HL) into DE.
 ; Sets Z on success, unset on error.
 symGetVal:
+	call	zasmIsFirstPass
+	ret	z		; first pass? we don't care about the value,
+				; return success.
 	call	symFind
 	ret	nz	; not found
 	; our index is in A. Let's fetch the proper value
