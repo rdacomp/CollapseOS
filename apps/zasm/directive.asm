@@ -50,7 +50,7 @@ handleDW:
 
 handleEQU:
 	call	zasmIsFirstPass
-	jr	z, .begin
+	jr	nz, .begin
 	; first pass? .equ are noops
 	xor	a
 	ret
@@ -74,7 +74,6 @@ handleEQU:
 	call	toWord
 	call	readWord
 	ld	hl, scratchpad
-	ld	a, (hl)
 	call	parseNumberOrSymbol
 	jr	nz, .error
 	ld	hl, DIREC_SCRATCHPAD
