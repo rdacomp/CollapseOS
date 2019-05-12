@@ -217,6 +217,7 @@ fsInitMeta:
 	ld	bc, 3
 	ldir
 	xor	a
+	ld	hl, FS_META+3
 	ld	b, FS_METASIZE-3
 	call	fill
 	pop	hl
