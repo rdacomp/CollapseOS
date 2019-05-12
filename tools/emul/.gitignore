@@ -2,3 +2,5 @@
 /zasm
 /*-kernel.h
 /*-user.h
+/cfsin
+/cfsout

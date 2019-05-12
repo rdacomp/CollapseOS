@@ -13,7 +13,7 @@ $(KERNEL_HEADERS):
 zasm-user.h: zasm_user.asm
 	scas -o - -I ../../apps/zasm $< | ./bin2c.sh USERSPACE | tee $@ > /dev/null
 
-shell: shell.c libz80/libz80.o shell-kernel.h
+shell: shell.c libz80/libz80.o shell-kernel.h ../cfspack/cfspack
 zasm: zasm.c libz80/libz80.o zasm-kernel.h zasm-user.h
 $(TARGETS):
 	cc $< libz80/libz80.o -o $@
@@ -21,6 +21,9 @@ $(TARGETS):
 libz80/libz80.o: libz80/z80.c
 	make -C libz80/codegen opcodes
 	gcc -Wall -ansi -g -c -o libz80/libz80.o libz80/z80.c
+
+../cfspack/cfspack:
+	make -C ../cfspack
 
 .PHONY: clean
 clean:

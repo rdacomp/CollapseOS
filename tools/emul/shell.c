@@ -4,7 +4,11 @@
 #include "libz80/z80.h"
 #include "shell-kernel.h"
 
-/* Collapse OS vanilla shell
+/* Collapse OS shell with filesystem
+ *
+ * On startup, if "cfsin" directory exists, it packs it as a afke block device
+ * and loads it in. Upon halting, unpcks the contents of that block device in
+ * "cfsout" directory.
  *
  * Memory layout:
  *
@@ -15,14 +19,23 @@
  * I/O Ports:
  *
  * 0 - stdin / stdout
+ * 1 - Filesystem blockdev data read/write. Reading and writing to it advances
+ *     the pointer.
+ * 2 - Filesystem blockdev seek / tell. Low byte
+ * 3 - Filesystem blockdev seek / tell. High byte
  */
 
 // in sync with shell.asm
 #define STDIO_PORT 0x00
-#define STDIN_ST_PORT 0x01
+#define FS_DATA_PORT 0x01
+#define FS_SEEKL_PORT 0x02
+#define FS_SEEKH_PORT 0x03
 
 static Z80Context cpu;
-static uint8_t mem[0xffff];
+static uint8_t mem[0xffff] = {0};
+static uint8_t fsdev[0xffff] = {0};
+static uint16_t fsdev_size = 0;
+static uint16_t fsdev_ptr = 0;
 static int running;
 
 static uint8_t io_read(int unused, uint16_t addr)
@@ -34,6 +47,16 @@ static uint8_t io_read(int unused, uint16_t addr)
             running = 0;
         }
         return c;
+    } else if (addr == FS_DATA_PORT) {
+        if (fsdev_ptr < fsdev_size) {
+            return fsdev[fsdev_ptr++];
+        } else {
+            return 0;
+        }
+    } else if (addr == FS_SEEKL_PORT) {
+        return fsdev_ptr && 0xff;
+    } else if (addr == FS_SEEKH_PORT) {
+        return fsdev_ptr >> 8;
     } else {
         fprintf(stderr, "Out of bounds I/O read: %d\n", addr);
         return 0;
@@ -49,6 +72,14 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
         } else {
             putchar(val);
         }
+    } else if (addr == FS_DATA_PORT) {
+        if (fsdev_ptr < fsdev_size) {
+            fsdev[fsdev_ptr++] = val;
+        }
+    } else if (addr == FS_SEEKL_PORT) {
+        fsdev_ptr = (fsdev_ptr & 0xff00) | val;
+    } else if (addr == FS_SEEKH_PORT) {
+        fsdev_ptr = (fsdev_ptr & 0x00ff) | (val << 8);
     } else {
         fprintf(stderr, "Out of bounds I/O write: %d / %d\n", addr, val);
     }
@@ -66,6 +97,23 @@ static void mem_write(int unused, uint16_t addr, uint8_t val)
 
 int main()
 {
+    // Setup fs blockdev
+    FILE *fp = popen("../cfspack/cfspack cfsin", "r");
+    if (fp != NULL) {
+        printf("Initializing filesystem\n");
+        int i = 0;
+        int c = fgetc(fp);
+        while (c != EOF) {
+            fsdev[i] = c & 0xff;
+            i++;
+            c = fgetc(fp);
+        }
+        fsdev_size = i;
+        pclose(fp);
+    } else {
+        printf("Can't initialize filesystem. Leaving blank.\n");
+    }
+
     // Turn echo off: the shell takes care of its own echoing.
     struct termios termInfo;
     if (tcgetattr(0, &termInfo) == -1) {
