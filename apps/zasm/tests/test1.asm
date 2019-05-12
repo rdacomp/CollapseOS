@@ -11,3 +11,5 @@ label2:
 	.dw	3742
 	.dw	0x3742
 	ld	a, (label1)
+.equ	foobar	0x1234
+	ld	hl, foobar

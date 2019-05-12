@@ -2,19 +2,25 @@
 
 .equ	D_DB	0x00
 .equ	D_DW	0x01
+.equ	D_EQU	0x02
 .equ	D_BAD	0xff
 
+; *** Variables ***
+.equ	DIREC_SCRATCHPAD	DIREC_RAMSTART
+.equ	DIREC_RAMEND		DIREC_SCRATCHPAD+SCRATCHPAD_SIZE
 ; *** CODE ***
 
 ; 4 bytes per row, fill with zero
 directiveNames:
 	.db	".DB", 0
 	.db	".DW", 0
+	.db	".EQU"
 
 ; This is a list of handlers corresponding to indexes in directiveNames
 directiveHandlers:
 	.dw	handleDB
 	.dw	handleDW
+	.dw	handleEQU
 
 handleDB:
 	push	hl
@@ -42,12 +48,54 @@ handleDW:
 	pop	hl
 	ret
 
+handleEQU:
+	call	zasmIsFirstPass
+	jr	z, .begin
+	; first pass? .equ are noops
+	xor	a
+	ret
+.begin:
+	push	hl
+	push	de
+	push	bc
+	; Read our constant name
+	call	toWord
+	call	readWord
+	; We can't register our symbol yet: we don't have our value!
+	; Let's copy it over.
+	push	hl
+		ld	hl, scratchpad
+		ld	de, DIREC_SCRATCHPAD
+		ld	bc, SCRATCHPAD_SIZE
+		ldir
+	pop	hl
+
+	; Now, read the value associated to it
+	call	toWord
+	call	readWord
+	ld	hl, scratchpad
+	ld	a, (hl)
+	call	parseNumberOrSymbol
+	jr	nz, .error
+	ld	hl, DIREC_SCRATCHPAD
+	ld	d, ixh
+	ld	e, ixl
+	call	symRegister
+	jr	.end
+.error:
+.end:
+	xor	a		; 0 bytes written
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+
 ; Reads string in (HL) and returns the corresponding ID (D_*) in A. Sets Z if
 ; there's a match.
 getDirectiveID:
 	push	bc
 	push	de
-	ld	b, D_DW+1		; D_DW is last
+	ld	b, D_EQU+1		; D_EQU is last
 	ld	c, 4
 	ld	de, directiveNames
 	call	findStringInList

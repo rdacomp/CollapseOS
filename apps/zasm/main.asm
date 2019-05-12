@@ -47,8 +47,9 @@ jp	zasmMain
 #include "tok.asm"
 #include "parse.asm"
 #include "instr.asm"
+.equ	DIREC_RAMSTART	IO_RAMEND
 #include "directive.asm"
-.equ	SYM_RAMSTART	IO_RAMEND
+.equ	SYM_RAMSTART	DIREC_RAMEND
 #include "symbol.asm"
 
 ; Read file through blockdev ID in H and outputs its upcodes through blockdev
@@ -134,6 +135,8 @@ parseLine:
 .direc:
 	ld	a, c		; D_*
 	call	parseDirective
+	or	a		; cp 0
+	jr	z, .success	; if zero, shortcut through
 	ld	b, a		; save output byte count
 	call	incOutputOffset
 	call	zasmIsFirstPass
