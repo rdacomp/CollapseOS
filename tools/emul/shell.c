@@ -26,6 +26,7 @@
  */
 
 // in sync with shell.asm
+#define RAMSTART 0x4000
 #define STDIO_PORT 0x00
 #define FS_DATA_PORT 0x01
 #define FS_SEEKL_PORT 0x02
@@ -54,7 +55,7 @@ static uint8_t io_read(int unused, uint16_t addr)
             return 0;
         }
     } else if (addr == FS_SEEKL_PORT) {
-        return fsdev_ptr && 0xff;
+        return fsdev_ptr & 0xff;
     } else if (addr == FS_SEEKH_PORT) {
         return fsdev_ptr >> 8;
     } else {
@@ -92,6 +93,9 @@ static uint8_t mem_read(int unused, uint16_t addr)
 
 static void mem_write(int unused, uint16_t addr, uint8_t val)
 {
+    if (addr < RAMSTART) {
+        fprintf(stderr, "Writing to ROM (%d)!\n", addr);
+    }
     mem[addr] = val;
 }
 
