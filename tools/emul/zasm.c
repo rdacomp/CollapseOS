@@ -31,6 +31,9 @@
 
 // Other consts
 #define STDIN_BUFSIZE 0x8000
+// When defined, we dump memory instead of dumping expected stdout
+//#define MEMDUMP
+
 static Z80Context cpu;
 static uint8_t mem[0x10000];
 // STDIN buffer, allows us to seek and tell
@@ -57,7 +60,10 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
 {
     addr &= 0xff;
     if (addr == STDIO_PORT) {
+// When mem-dumping, we don't output regular stuff.
+#ifndef MEMDUMP
         putchar(val);
+#endif
     } else if (addr == STDIN_REWIND) {
         inpt_ptr = 0;
     } else {
@@ -107,6 +113,11 @@ int main()
     while (!cpu.halted) {
         Z80Execute(&cpu);
     }
+#ifdef MEMDUMP
+    for (int i=0; i<0x10000; i++) {
+        putchar(mem[i]);
+    }
+#endif
     fflush(stdout);
     return 0;
 }
