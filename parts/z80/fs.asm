@@ -292,6 +292,25 @@ fsAlloc:
 	pop	bc
 	ret
 
+; Place FS_PTR to the filename with the name in (HL).
+; Sets Z on success, unset when not found.
+fsFindFN:
+	push	de
+	call	fsBegin
+	jr	nz, .end	; nothing to find, Z is unset
+	ld	a, FS_MAX_NAME_SIZE
+.loop:
+	ld	de, FS_META+FS_META_FNAME_OFFSET
+	call	strncmp
+	jr	z, .end		; Z is set
+	call	fsNext
+	jr	z, .loop
+	; End of the chain, not found
+	call	unsetZ
+.end:
+	pop	de
+	ret
+
 ; *** Metadata ***
 
 ; Sets Z according to whether the current block in FS_META is valid.
@@ -378,6 +397,7 @@ fsOpen:
 	pop	hl
 	ret
 
+; Place FS blockdev at proper position for file handle in (DE).
 fsPlaceH:
 	push	af
 	push	hl
@@ -393,23 +413,31 @@ fsPlaceH:
 	pop	af
 	ret
 
+; Advance file handle in (IX) by one byte
 fsAdvanceH:
+	push	af
 	inc	(ix)
 	ld	a, (ix)
-	ret	nc	; no carry
+	jr	nc, .end
 	inc	(ix+1)
+.end:
+	pop	af
 	ret
 
 ; Read a byte in handle at (DE), put it into A and advance the handle's
 ; position.
 ; Z is set on success, unset if handle is at the end of the file.
 fsGetC:
-	call	fsPlaceH
 	push	ix
+	call	fsPlaceH
+	push	ix		; Save handle in IX for fsAdvanceH
 	call	fsblkGetC
 	; increase current pos
-	pop	ix	; recall
+	pop	ix		; recall handle in IX
+	jr	nz, .end	; error, don't advance
 	call	fsAdvanceH
+.end:
+	pop	ix
 	ret
 
 ; Write byte A in handle (DE) and advance the handle's position.
@@ -494,7 +522,7 @@ flsCmd:
 	call	printcrlf
 .skip:
 	call	fsNext
-	jr	z, .loop	; Z set? fsNext was successfull
+	jr	z, .loop	; Z set? fsNext was successful
 	xor	a
 	jr	.end
 .error:
@@ -520,25 +548,42 @@ fdelCmd:
 	.db	"fdel", 0b1001, 0b001, 0
 	push	hl
 	push	de
-	ex	hl, de
-	call	intoDE		; DE now holds the string we look for
-	call	fsBegin
+	call	intoHL		; HL now holds the string we look for
+	call	fsFindFN
 	jr	nz, .notfound
-	ld	a, FS_MAX_NAME_SIZE
-.loop:
-	ld	hl, FS_META+FS_META_FNAME_OFFSET
-	call	strncmp
-	jr	z, .found
-	call	fsNext
-	jr	z, .loop
-	; End of chain, not found
-	jr	.notfound
-.found:
+	; Found! delete
 	xor	a
 	; Set filename to zero to flag it as deleted
 	ld	(FS_META+FS_META_FNAME_OFFSET), a
 	call	fsWriteMeta
 	; a already to 0, our result.
+	jr	.end
+.notfound:
+	ld	a, FS_ERR_NOT_FOUND
+.end:
+	pop	de
+	pop	hl
+	ret
+
+
+; Opens specified filename in specified file handle.
+; First argument is file handle, second one is file name.
+; Example: fopn 0 foo.txt
+fopnCmd:
+	.db	"fopn", 0b001, 0b1001, 0b001
+	push	hl
+	push	de
+	ld	a, (hl)		; file handle index
+	ld	de, FS_HANDLES
+	call	addDE		; DE now stores pointer to file handle
+	inc	hl
+	call	intoHL		; HL now holds the string we look for
+	call	fsFindFN
+	jr	nz, .notfound
+	; Found!
+	; FS_PTR points to the file we want to open
+	ex	hl, de		; HL now points to the file handle.
+	call	fsOpen
 	jr	.end
 .notfound:
 	ld	a, FS_ERR_NOT_FOUND

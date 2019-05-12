@@ -38,6 +38,9 @@ SHELL_ERR_UNKNOWN_CMD	.equ	0x01
 ; Arguments for the command weren't properly formatted
 SHELL_ERR_BAD_ARGS	.equ	0x02
 
+; IO routines (GetC, PutC) returned an error in a load/save command
+SHELL_ERR_IO_ERROR	.equ	0x05
+
 ; Size of the shell command buffer. If a typed command reaches this size, the
 ; command is flushed immediately (same as pressing return).
 SHELL_BUFSIZE		.equ	0x20
@@ -409,14 +412,18 @@ shellLoad:
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
 .loop:  SHELL_IO_GETC
+	jr	nz, .ioError
 	ld	(hl), a
 	inc	hl
 	djnz	.loop
-
+	; success
+	xor	a
+	jr	.end
+.ioError:
+	ld	a, SHELL_ERR_IO_ERROR
 .end:
 	pop	hl
 	pop	bc
-	xor	a
 	ret
 
 ; Load the specified number of bytes (max 0xff) from the current memory pointer

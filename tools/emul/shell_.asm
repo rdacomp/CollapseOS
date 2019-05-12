@@ -15,11 +15,13 @@ STDIO_RAMSTART	.equ	RAMEND
 #include "stdio.asm"
 
 BLOCKDEV_RAMSTART	.equ	STDIO_RAMEND
-BLOCKDEV_COUNT		.equ	2
+BLOCKDEV_COUNT		.equ	4
 #include "blockdev.asm"
 ; List of devices
 .dw	emulGetC, emulPutC, 0, 0
 .dw	fsdevGetC, fsdevPutC, fsdevSeek, fsdevTell
+.dw	stdoutGetC, stdoutPutC, stdoutSeek, stdoutTell
+.dw	stdinGetC, stdinPutC, stdinSeek, stdinTell
 
 #include "blockdev_cmds.asm"
 
@@ -28,11 +30,11 @@ BLOCKDEV_COUNT		.equ	2
 #include "fs.asm"
 
 SHELL_RAMSTART	.equ	FS_RAMEND
-.define SHELL_IO_GETC	call blkGetCW
+.define SHELL_IO_GETC	call blkGetC
 .define SHELL_IO_PUTC	call blkPutC
-SHELL_EXTRA_CMD_COUNT .equ 6
+SHELL_EXTRA_CMD_COUNT .equ 7
 #include "shell.asm"
-.dw	blkBselCmd, blkSeekCmd, fsOnCmd, flsCmd, fnewCmd, fdelCmd
+.dw	blkBselCmd, blkSeekCmd, fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
 init:
 	di
@@ -62,6 +64,7 @@ emulPutC:
 
 fsdevGetC:
 	in	a, (FS_DATA_PORT)
+	cp	a		; ensure Z
 	ret
 
 fsdevPutC:
@@ -69,15 +72,56 @@ fsdevPutC:
 	ret
 
 fsdevSeek:
+	push	af
 	ld	a, l
 	out	(FS_SEEKL_PORT), a
 	ld	a, h
 	out	(FS_SEEKH_PORT), a
+	pop	af
 	ret
 
 fsdevTell:
+	push	af
 	in	a, (FS_SEEKL_PORT)
 	ld	l, a
 	in	a, (FS_SEEKH_PORT)
 	ld	h, a
+	pop	af
 	ret
+
+.equ	STDOUT_HANDLE	FS_HANDLES
+
+stdoutGetC:
+	ld	de, STDOUT_HANDLE
+	jp	fsGetC
+
+stdoutPutC:
+	ld	de, STDOUT_HANDLE
+	jp	fsPutC
+
+stdoutSeek:
+	ld	de, STDOUT_HANDLE
+	jp	fsSeek
+
+stdoutTell:
+	ld	de, STDOUT_HANDLE
+	jp	fsTell
+
+.equ	STDIN_HANDLE	FS_HANDLES+FS_HANDLE_SIZE
+
+stdinGetC:
+	ld	de, STDIN_HANDLE
+	jp	fsGetC
+
+stdinPutC:
+	ld	de, STDIN_HANDLE
+	jp	fsPutC
+
+stdinSeek:
+	ld	de, STDIN_HANDLE
+	jp	fsSeek
+
+stdinTell:
+	ld	de, STDIN_HANDLE
+	jp	fsTell
+

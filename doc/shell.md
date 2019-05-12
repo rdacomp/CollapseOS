@@ -33,6 +33,7 @@ table describes those codes:
 | `02` | Badly formatted arguments |
 | `03` | Out of bounds             |
 | `04` | Unsupported command       |
+| `05` | I/O error                 |
 
 ## mptr
 
