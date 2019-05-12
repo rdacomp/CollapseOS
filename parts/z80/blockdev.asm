@@ -37,6 +37,8 @@
 ;
 ; Tell:
 ; Return the position of the "pointer" in HL
+;
+; All routines are expected to preserve unused registers.
 
 
 ; *** DEFINES ***
@@ -69,8 +71,9 @@ blkSel:
 	push	af
 	push	de
 	push	hl
+
 	ld	hl, blkDevTbl
-	cp	0
+	or	a		; cp 0
 	jr	z, .afterloop	; index is zero? don't loop
 	push	bc
 	ld	b, a
@@ -81,31 +84,32 @@ blkSel:
 	pop	bc
 .afterloop:
 	push	hl
-	call	intoHL
-	call	writeHLinDE
-	inc	de
-	inc	de
+		call	intoHL
+		call	writeHLinDE
+		inc	de
+		inc	de
 	pop	hl
 	inc	hl
 	inc	hl
 	push	hl
-	call	intoHL
-	call	writeHLinDE
-	inc	de
-	inc	de
+		call	intoHL
+		call	writeHLinDE
+		inc	de
+		inc	de
 	pop	hl
 	inc	hl
 	inc	hl
 	push	hl
-	call	intoHL
-	call	writeHLinDE
-	inc	de
-	inc	de
+		call	intoHL
+		call	writeHLinDE
+		inc	de
+		inc	de
 	pop	hl
 	inc	hl
 	inc	hl
 	call	intoHL
 	call	writeHLinDE
+
 	pop	hl
 	pop	de
 	pop	af
@@ -236,12 +240,12 @@ _blkSeek:
 	ld	hl, 0xffff
 .seek:
 	pop	de
-	jr	_blkCall
+	jp	_blkCall
 
 ; Returns the current position of the selected device in HL.
 blkTell:
 	ld	ix, (BLOCKDEV_TELL)
-	jr	_blkCall
+	jp	_blkCall
 
 ; This label is at the end of the file on purpose: the glue file should include
 ; a list of device routine table entries just after the include. Each line
