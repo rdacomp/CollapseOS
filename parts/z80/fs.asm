@@ -25,7 +25,7 @@
 ; error out if there's no metadata: we create a new CFS fs with an empty block.
 ;
 ; The can only be one "mounted" fs at once. Selecting another blockdev through
-; "bsel" foesn't affect the currently mounted fs, which can still be interacted
+; "bsel" doesn't affect the currently mounted fs, which can still be interacted
 ; with (which is important if we want to move data around).
 ;
 ; *** Block metadata

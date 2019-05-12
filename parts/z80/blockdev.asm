@@ -8,6 +8,36 @@
 ;
 ; This part exposes a new "bsel" command to select the currently active block
 ; device.
+;
+; *** Blockdev routines ***
+;
+; There are 4 blockdev routines that can be defined by would-be block devices
+; and they follow these specifications:
+;
+; GetC:
+; Reads one character from selected device and returns its value in A.
+; Sets Z according to whether read was successful: Set if successful, unset
+; if not.
+;
+; A successful GetC should advance the "pointer" of the device (if there is one)
+; by one byte so that a subsequent GetC will read the next char. Unsuccessful
+; reads generally mean that we reached EOF.
+;
+;
+; PutC:
+; Writes character in A in current position in the selected device. Sets Z
+; according to whether the operation was successful.
+;
+; A successful PutC should advance the "pointer" of the device (if there is one)
+; by one byte so that the next PutC places the next char next to this one.
+; Unsuccessful writes generally mean that we reached EOF.
+;
+; Seek:
+; Place device "pointer" at position dictated by HL.
+;
+; Tell:
+; Return the position of the "pointer" in HL
+
 
 ; *** DEFINES ***
 ; BLOCKDEV_COUNT: The number of devices we manage.
