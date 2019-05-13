@@ -65,6 +65,7 @@ zasmMain:
 	ld	a, 1
 	ld	(ZASM_FIRST_PASS), a
 	call	zasmParseFile
+	ret	nz
 	; Second pass
 	call	ioRewind
 	xor	a
@@ -95,7 +96,7 @@ zasmParseFile:
 	or	a		; is A 0?
 	ret	z		; We have EOF
 	call	parseLine
-	ret	nz
+	ret	nz		; error
 	jr	.loop
 
 ; Parse line in (HL), write the resulting opcode(s) in (DE) and increases
