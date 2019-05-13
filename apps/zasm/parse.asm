@@ -120,14 +120,18 @@ parseNumber:
 parseNumberOrSymbol:
 	call	parseNumber
 	ret	z
+	call	zasmIsFirstPass
+	ret	z		; first pass? we don't care about the value,
+				; return success.
 	; Not a number. Try symbol
+	call	symFind
+	ret	nz	; not found
+	; Found! index in A, let's fetch value
 	push	de
 	call	symGetVal
-	jr	nz, .notfound	; Z already unset
-	; Found! value in DE. We need it in IX
+	; value in DE. We need it in IX
 	ld	ixh, d
 	ld	ixl, e
-	; Z already set
-.notfound:
 	pop	de
+	cp	a		; ensure Z
 	ret

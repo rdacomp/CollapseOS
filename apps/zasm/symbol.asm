@@ -1,4 +1,11 @@
 ; Manages both constants and labels within a same namespace and registry.
+;
+; About local labels: They are treated as regular labels except they start with
+; a dot (example: ".foo"). Because labels are registered in order and because
+; constants are registered in the second pass, they end up at the end of the
+; symbol list and don't mix with labels. Therefore, we easily iterate through
+; local labels of a context by starting from that context's index and iterating
+; as long as symbol name start with a '.'
 
 ; *** Constants ***
 ; Duplicate symbol in registry
@@ -166,14 +173,9 @@ symFind:
 	pop	hl
 	ret
 
-; Return value associated with symbol string in (HL) into DE.
+; Return value associated with symbol index A into DE
 ; Sets Z on success, unset on error.
 symGetVal:
-	call	zasmIsFirstPass
-	ret	z		; first pass? we don't care about the value,
-				; return success.
-	call	symFind
-	ret	nz	; not found
 	; our index is in A. Let's fetch the proper value
 	push	hl
 	ld	hl, SYM_VALUES
