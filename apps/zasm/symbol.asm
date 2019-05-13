@@ -33,6 +33,25 @@
 
 ; *** Code ***
 
+; Advance HL to the beginning of the next symbol name in SYM_NAMES except if
+; (HL) is already zero, meaning we're at the end of the chain. In this case,
+; do nothing.
+; Sets Z if it succeeded, unset it if there is no next.
+_symNext:
+	xor	a
+	cp	(hl)
+	jr	nz, .do		; (HL) is not zero? we can advance.
+	; (HL) is zero? we're at the end of the chain.
+	call	JUMP_UNSETZ
+	ret
+.do:
+	; A is already 0
+	call	JUMP_FINDCHAR	; find next null char
+	; go to the char after it.
+	inc	hl
+	cp	a		; ensure Z
+	ret
+
 ; Place HL at the end of SYM_NAMES end (that is, at the point where we have two
 ; consecutive null chars. We return the index of that new name in A.
 ; If we're within bounds, Z is set, otherwise unset.
@@ -44,13 +63,8 @@ symNamesEnd:
 	ld	hl, SYM_NAMES
 	ld	de, SYM_NAMES+SYM_BUFSIZE
 .loop:
-	ld	a, (hl)
-	or	a		; cp 0
-	jr	z, .success	; We've reached the end, Z is set, all good
-	xor	a
-	call	JUMP_FINDCHAR	; find next null char
-	; go to the char after it.
-	inc	hl
+	call	_symNext
+	jr	nz, .success	; We've reached the end of the chain.
 	; Are we out of bounds?
 	call	cpHLDE
 	jr	nc, .outOfBounds	; HL >= DE
@@ -146,17 +160,12 @@ symFind:
 	ld	b, 0
 	ld	hl, SYM_NAMES
 .loop:
-	ld	a, (hl)
-	or	a		; cp 0
-	jr	z, .nomatch
-	ld	a, c
+	ld	a, c		; recall strlen
 	call	JUMP_STRNCMP
 	jr	z, .match
 	; ok, next!
-	xor	a
-	call	JUMP_FINDCHAR	; find next null char
-	; go to the char after it.
-	inc	hl
+	call	_symNext
+	jr	nz, .nomatch	; end of the chain, nothing found
 	djnz	.loop
 	; exhausted djnz? no match
 .nomatch:
@@ -174,7 +183,6 @@ symFind:
 	ret
 
 ; Return value associated with symbol index A into DE
-; Sets Z on success, unset on error.
 symGetVal:
 	; our index is in A. Let's fetch the proper value
 	push	hl
@@ -185,5 +193,4 @@ symGetVal:
 	inc	hl
 	ld	d, (hl)
 	pop	hl
-	cp	a		; ensure Z
 	ret
