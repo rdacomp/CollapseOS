@@ -2,7 +2,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	31
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	135
+INSTR_TBL_CNT		.equ	136
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	6
 ; Instruction IDs They correspond to the index of the table in instrNames
@@ -493,9 +493,6 @@ handleLDIXYn:
 	ld	(instrUpcode+3), a
 	ld	c, 4
 	ret
-.error:
-	xor	c
-	ret
 
 handleLDIXr:
 	ld	a, 0xdd
@@ -511,8 +508,20 @@ handleLDIXYr:
 	ld	(instrUpcode+2), a
 	ld	c, 3
 	ret
-.error:
-	xor	c
+
+handleLDrr:
+	; first argument is displaced by 3 bits, second argument is not
+	; displaced and we or that with a leading 0b01000000
+	ld	a, (curArg1+1)	; group value
+	rla
+	rla
+	rla
+	ld	c, a		; store it
+	ld	a, (curArg2+1)	; other group value
+	or	c
+	or	0b01000000
+	ld	(instrUpcode), a
+	ld	c, 1
 	ret
 
 ; Compute the upcode for argspec row at (DE) and arguments in curArg{1,2} and
@@ -1010,7 +1019,8 @@ instrTBl:
 	.db I_LD,  'l', 0xb, 0,    0b01110000	, 0	; LD (HL), r
 	.db I_LD,  0xb, 'l', 3,    0b01000110	, 0	; LD r, (HL)
 	.db I_LD,  'l', 'n', 0,    0x36		, 0	; LD (HL), n
-	.db I_LD,  0xb, 'n', 3,    0b00000110	, 0	; LD r, (HL)
+	.db I_LD,  0xb, 'n', 3,    0b00000110	, 0	; LD r, n
+	.db I_LD,  0xb, 0xb, 0x20  \ .dw handleLDrr	; LD r, r'
 	.db I_LD,  0x3, 'N', 4,    0b00000001	, 0	; LD dd, n
 	.db I_LD,  'M', 'A', 0,    0x32		, 0	; LD (NN), A
 	.db I_LD,  'A', 'M', 0,    0x3a		, 0	; LD A, (NN)
