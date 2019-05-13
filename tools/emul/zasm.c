@@ -119,6 +119,7 @@ int main()
     }
 #endif
     fflush(stdout);
+    fprintf(stderr, "Ended with A=%d DE=%d\n", cpu.R1.br.A, cpu.R1.wr.DE);
     return 0;
 }
 

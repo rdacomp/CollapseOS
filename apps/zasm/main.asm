@@ -88,10 +88,14 @@ incOutputOffset:
 	pop	de
 	ret
 
+; Repeatedly reads lines from IO, assemble them and spit the binary code in
+; IO. Z is set on success, unset on error. DE contains the last line number to
+; be read (first line is 1).
 zasmParseFile:
-	ld	hl, 0
-	ld	(curOutputOffset), hl
+	ld	de, 0
+	ld	(curOutputOffset), de
 .loop:
+	inc	de
 	call	ioReadLine
 	or	a		; is A 0?
 	ret	z		; We have EOF
