@@ -620,7 +620,7 @@ getUpcode:
 	inc	hl	; MSB is 2nd byte
 	ld	a, (hl)
 	dec	hl	; HL now points to LSB
-	cp	0
+	or	a	; cp 0
 	jr	nz, .numberTruncated
 	; HL points to our number
 	; one last thing to check. Is the 7th bit on the displacement value set?
@@ -655,7 +655,7 @@ getUpcode:
 	jr	.end
 .numberTruncated:
 	; problem: not zero, so value is truncated. error
-	xor	c
+	ld	c, 0
 .end:
 	ld	a, c
 	pop	bc
