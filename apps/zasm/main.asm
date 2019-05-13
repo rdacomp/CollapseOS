@@ -25,6 +25,7 @@
 ; JUMP_UPCASE
 ; JUMP_UNSETZ
 ; JUMP_INTODE
+; JUMP_INTOHL
 ; JUMP_FINDCHAR
 ; JUMP_BLKSEL
 ; RAMSTART	(where we put our variables in RAM)

@@ -615,22 +615,57 @@ getUpcode:
 	ld	c, 1
 	jr	.computeBytesWritten
 .withByte:
-	; verify that the MSB in argument is zero
 	inc	hl
+	; HL points to our number (LSB), with (HL+1) being our MSB which should
+	; normally by zero. However, if our instruction is jr or djnz, that
+	; number is actually a 2-bytes address that has to be relative to PC,
+	; so it's a special case. Let's check for this special case.
+	bit	7, (ix+3)
+	jr	z, .absoluteValue	; bit not set? regular byte value,
+	; Our argument is a relative address ("e" type in djnz and jr). We have
+	; to subtract (curOutputOffset) from it.
+
+	; First, check whether we're on first pass. If we are, skip processing
+	; below because not having real symbol value makes relative address
+	; verification falsely fail.
+	ld	c, 2	; this is a two bytes instruction
+	call	zasmIsFirstPass
+	jr	z, .computeBytesWritten
+
+	; We're on second pass
+	push	de		; Don't let go of this, that's our dest
+	ld	de, (curOutputOffset)
+	call	JUMP_INTOHL
+	dec	hl		; what we write is "e-2"
+	dec	hl
+	call	subDEFromHL
+	pop	de		; Still have it? good
+	; HL contains our number and we'll check its bounds. If It's negative,
+	; H is going to be 0xff and L has to be >= 0x80. If it's positive,
+	; H is going to be 0 and L has to be < 0x80.
+	ld	a, l
+	cp	0x80
+	jr	c, .skipHInc	; a < 0x80, H is expected to be 0
+	; A being >= 0x80 is only valid in cases where HL is negative and
+	; within bounds. This only happens is H == 0xff. Let's increase it to 0.
+	inc	h
+.skipHInc:
+	; Let's write our value now even though we haven't checked our bounds
+	; yet. This way, we don't have to store A somewhere else.
+	ld	(de), a
+	ld	a, h
+	or	a		; cp 0
+	jr	nz, .numberTruncated	; if A is anything but zero, we're out
+					; of bounds.
+	jr	.computeBytesWritten
+
+.absoluteValue:
+	; verify that the MSB in argument is zero
 	inc	hl	; MSB is 2nd byte
 	ld	a, (hl)
 	dec	hl	; HL now points to LSB
 	or	a	; cp 0
 	jr	nz, .numberTruncated
-	; HL points to our number
-	; one last thing to check. Is the 7th bit on the displacement value set?
-	; if yes, we have to decrease our value by 2. Uses for djnz and jr.
-	bit	7, (ix+3)
-	jr	z, .skipDecrease
-	; Yup, it's set.
-	dec	(hl)
-	dec	(hl)
-.skipDecrease:
 	ldi
 	ld	c, 2
 	jr	.computeBytesWritten

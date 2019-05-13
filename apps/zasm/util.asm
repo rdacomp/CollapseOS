@@ -22,6 +22,18 @@ cpHLDE:
 	cp	e
 	ret		; flags are correct
 
+; HL - DE -> HL
+subDEFromHL:
+	push	af
+	ld	a, l
+	sub	e
+	ld	l, a
+	ld	a, h
+	sbc	d
+	ld	h, a
+	pop	af
+	ret
+
 ; Returns length of string at (HL) in A.
 strlen:
 	push	bc

@@ -33,6 +33,7 @@
 #define STDIN_BUFSIZE 0x8000
 // When defined, we dump memory instead of dumping expected stdout
 //#define MEMDUMP
+//#define DEBUG
 
 static Z80Context cpu;
 static uint8_t mem[0x10000];
@@ -119,7 +120,9 @@ int main()
     }
 #endif
     fflush(stdout);
+#ifdef DEBUG
     fprintf(stderr, "Ended with A=%d DE=%d\n", cpu.R1.br.A, cpu.R1.wr.DE);
+#endif
     return 0;
 }
 

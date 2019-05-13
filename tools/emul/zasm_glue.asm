@@ -12,6 +12,7 @@ jp	addHL
 jp	upcase
 jp	unsetZ
 jp	intoDE
+jp	intoHL
 jp	findchar
 jp	parseHexPair
 jp	blkSel
