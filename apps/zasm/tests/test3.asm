@@ -4,8 +4,7 @@ addDE:
 	add	a, e
 	jr	nc, .end	; no carry? skip inc
 	inc	d
-.end:
-	ld	e, a
+.end:	ld	e, a
 	pop	af
 	ret
 

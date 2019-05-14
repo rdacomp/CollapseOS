@@ -133,7 +133,14 @@ parseLine:
 	call	_parseDirec
 	jr	.end		; Z is correct
 .label:
+	push	hl
 	call	_parseLabel
+	pop	hl
+	jr	nz, .end	; error out
+	; We're finished here. However, because it's a label, it's possible that
+	; another logical line follows directly after the label. Let's parse
+	; this and propagate error.
+	call	parseLine
 	; Continue to .end, Z has proper value
 .end:
 	pop	bc
@@ -194,18 +201,10 @@ _parseLabel:
 	; When we're not in the first pass, we set the context (if label is not
 	; local) to that label.
 	call	symIsLabelLocal
-	jr	z, .noContext		; local? don't set context
+	jr	z, .success		; local? don't set context
 	call	symSetContext
-	jr	nz, .error		; NZ? this means that (HL) couldn't be
-					; found in symbol list. Weird
-.noContext:
-	; We're finished here. However, because it's a label, it's possible that
-	; another logical line follows directly after the label. Let's parse
-	; this and propagate error.
-	ex	hl, de			; recall end of label position from DE
-					; into HL
-	call	parseLine
 	jr	z, .success
+	; NZ? this means that (HL) couldn't be found in symbol list. Weird
 	jr	.error
 .registerLabel:
 	ld	de, (curOutputOffset)
