@@ -10,6 +10,7 @@ label2: .dw	0x42
 	.dw	3742
 	.dw	0x3742
 	ld	a, (label1)
+	rla \ rla
 .equ	foo	0x1234
 .equ	bar	foo
 	ld	hl, bar

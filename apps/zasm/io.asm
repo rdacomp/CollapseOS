@@ -34,6 +34,8 @@ isLineEnd:
 	cp	0x0d
 	ret	z
 	cp	0x0a
+	ret	z
+	cp	'\'
 	ret
 
 ; Read a single line from ioGetCPtr and place it in IO_LINEBUF.
