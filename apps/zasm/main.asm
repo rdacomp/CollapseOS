@@ -56,12 +56,16 @@ jp	zasmMain
 ; Read file through blockdev ID in H and outputs its upcodes through blockdev
 ; ID in L.
 zasmMain:
+	; Init I/O
 	ld	a, h
 	ld	de, IO_IN_GETC
 	call	JUMP_BLKSEL
 	ld	a, l
 	ld	de, IO_OUT_GETC
 	call	JUMP_BLKSEL
+	; Init modules
+	call	symInit
+
 	; First pass
 	ld	a, 1
 	ld	(ZASM_FIRST_PASS), a
@@ -155,14 +159,25 @@ parseLine:
 	djnz	.loopDirec
 	jr	.success
 .label:
-	call	zasmIsFirstPass
-	jr	nz, .success		; not in first pass? nothing to do
 	; The string in (scratchpad) is a label with its trailing ':' removed.
 	ld	hl, scratchpad
+	call	zasmIsFirstPass
+	jr	z, .registerLabel	; When we encounter a label in the first
+					; pass, we register it in the symbol
+					; list
+	; When we're not in the first pass, we set the context (if label is not
+	; local) to that label.
+	call	symIsLabelLocal
+	jr	z, .success		; local? nothing to do.
+	call	symSetContext
+	jr	z, .success
+	; NZ? this means that (HL) couldn't be found in symbol list. Weird
+	jr	.error
+.registerLabel:
 	ld	de, (curOutputOffset)
 	call	symRegister
-
-	jr	.success
+	jr	nz, .error
+	; continue to .success
 .success:
 	xor	a		; ensure Z
 	jr	.end

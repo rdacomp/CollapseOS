@@ -29,7 +29,14 @@
 ; index of the name, then go get the value at that index in SYM_VALUES.
 .equ	SYM_NAMES	SYM_VALUES+(SYM_MAXCOUNT*2)
 
-.equ	SYM_RAMEND	SYM_NAMES+SYM_BUFSIZE
+; Index of the symbol found during the last symSetContext call
+.equ	SYM_CONTEXT_IDX	SYM_NAMES+SYM_BUFSIZE
+
+; Pointer, in the SYM_NAMES buffer, of the string found during the last
+; symSetContext call
+.equ	SYM_CONTEXT_PTR	SYM_CONTEXT_IDX+1
+
+.equ	SYM_RAMEND	SYM_CONTEXT_PTR+2
 
 ; *** Code ***
 
@@ -50,6 +57,20 @@ _symNext:
 	; go to the char after it.
 	inc	hl
 	cp	a		; ensure Z
+	ret
+
+symInit:
+	xor	a
+	ld	(SYM_NAMES), a
+	ld	(SYM_CONTEXT_IDX), a
+	ld	hl, SYM_CONTEXT_PTR
+	ld	(SYM_CONTEXT_PTR), hl
+	ret
+
+; Sets Z according to whether label in (HL) is local (starts with a dot)
+symIsLabelLocal:
+	ld	a, '.'
+	cp	(hl)
 	ret
 
 ; Place HL at the end of SYM_NAMES end (that is, at the point where we have two
@@ -148,6 +169,12 @@ symRegister:
 ; If we find something, Z is set, otherwise unset.
 symFind:
 	push	hl
+	call	_symFind
+	pop	hl
+	ret
+
+; Same as symFind, but leaks HL
+_symFind:
 	push	bc
 	push	de
 
@@ -155,10 +182,21 @@ symFind:
 	call	strlen
 	ld	c, a		; let's save that
 
+	call	symIsLabelLocal	; save Z for after the 3 next lines, which
+				; doesn't touch flags. We need to call this now
+				; before we lose HL.
 	ex	hl, de		; it's easier if HL is haystack and DE is
 				; needle.
 	ld	b, 0
 	ld	hl, SYM_NAMES
+	jr	nz, .loop	; not local? jump right to loop
+	; local? then we need to adjust B and HL
+	ld	hl, (SYM_CONTEXT_PTR)
+	ld	a, (SYM_CONTEXT_IDX)
+	ld	b, a
+	xor	a
+	sub	b
+	ld	b, a
 .loop:
 	ld	a, c		; recall strlen
 	call	JUMP_STRNCMP
@@ -179,7 +217,6 @@ symFind:
 .end:
 	pop	de
 	pop	bc
-	pop	hl
 	ret
 
 ; Return value associated with symbol index A into DE
@@ -192,5 +229,20 @@ symGetVal:
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
+	pop	hl
+	ret
+
+; Find symbol name (HL) in the symbol list and set SYM_CONTEXT_* accordingly.
+; When symFind will be called with a symbol name starting with a '.', the search
+; will begin at that context instead of the beginning of the register.
+; Sets Z if symbol is found, unsets it if not.
+symSetContext:
+	push	hl
+	call	_symFind
+	jr	nz, .end	; Z already unset
+	ld	(SYM_CONTEXT_IDX), a
+	ld	(SYM_CONTEXT_PTR), hl
+	; Z already set
+.end:
 	pop	hl
 	ret
