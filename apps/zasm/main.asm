@@ -108,9 +108,8 @@ zasmParseFile:
 	ret	nz		; error
 	jr	.loop
 
-; Parse line in (HL), write the resulting opcode(s) in (DE) and increases
-; (curOutputOffset) by the number of bytes written. Advances HL where
-; tokenization stopped and DE to where we should write the next upcode.
+; Parse line in (HL), write the resulting opcode(s) through ioPutC and increases
+; (curOutputOffset) by the number of bytes written.
 ; Sets Z if parse was successful, unset if there was an error or EOF.
 parseLine:
 	push	bc
@@ -160,6 +159,8 @@ parseLine:
 	jr	.success
 .label:
 	; The string in (scratchpad) is a label with its trailing ':' removed.
+	ex	hl, de			; save current HL (end of label) in DE,
+					; we will need it later
 	ld	hl, scratchpad
 	call	zasmIsFirstPass
 	jr	z, .registerLabel	; When we encounter a label in the first
@@ -170,8 +171,15 @@ parseLine:
 	call	symIsLabelLocal
 	jr	z, .success		; local? nothing to do.
 	call	symSetContext
+	jr	nz, .error		; NZ? this means that (HL) couldn't be
+					; found in symbol list. Weird
+	; We're finished here. However, because it's a label, it's possible that
+	; another logical line follows directly after the label. Let's parse
+	; this and propagate error.
+	ex	hl, de			; recall end of label position from DE
+					; into HL
+	call	parseLine
 	jr	z, .success
-	; NZ? this means that (HL) couldn't be found in symbol list. Weird
 	jr	.error
 .registerLabel:
 	ld	de, (curOutputOffset)
