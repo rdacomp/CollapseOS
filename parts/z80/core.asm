@@ -4,8 +4,8 @@
 ; in your glue file.
 
 ; *** CONSTS ***
-ASCII_CR	.equ	0x0d
-ASCII_LF	.equ	0x0a
+.equ	ASCII_CR	0x0d
+.equ	ASCII_LF	0x0a
 
 ; *** DATA ***
 ; Useful data to point to, when a pointer is needed.
@@ -136,7 +136,7 @@ findchar:
 
 ; Format the lower nibble of A into a hex char and stores the result in A.
 fmtHex:
-	and	a, 0xf
+	and	0xf
 	cp	10
 	jr	nc, .alpha	; if >= 10, we have alpha
 	add	a, '0'
