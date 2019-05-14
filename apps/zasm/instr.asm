@@ -143,7 +143,7 @@ parseArg:
 	ld	b, ARGSPEC_TBL_CNT
 .loop1:
 	ld	a, 4
-	call	JUMP_STRNCMP
+	call	strncmpI
 	jr	z, .found		; got it!
 	ld	a, 5
 	call	JUMP_ADDDE

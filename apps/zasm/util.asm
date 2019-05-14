@@ -55,6 +55,42 @@ strlen:
 	pop	bc
 	ret
 
+; Compares strings pointed to by HL and DE up to A count of characters in a
+; case-insensitive manner.
+; If equal, Z is set. If not equal, Z is reset.
+strncmpI:
+	push	bc
+	push	hl
+	push	de
+
+	ld	b, a
+.loop:
+	ld	a, (de)
+	call	JUMP_UPCASE
+	ld	c, a
+	ld	a, (hl)
+	call	JUMP_UPCASE
+	cp	c
+	jr	nz, .end	; not equal? break early. NZ is carried out
+				; to the called
+	or	a		; cp 0. If our chars are null, stop the cmp
+	jr	z, .end		; The positive result will be carried to the
+	                        ; caller
+	inc	hl
+	inc	de
+	djnz	.loop
+	; Success
+	; We went through all chars with success. Ensure Z
+	cp	a
+.end:
+	pop	de
+	pop	hl
+	pop	bc
+	; Because we don't call anything else than CP that modify the Z flag,
+	; our Z value will be that of the last cp (reset if we broke the loop
+	; early, set otherwise)
+	ret
+
 ; If string at (HL) starts with ( and ends with ), "enter" into the parens
 ; (advance HL and put a null char at the end of the string) and set Z.
 ; Otherwise, do nothing and reset Z.
@@ -87,14 +123,15 @@ enterParens:
 	call	JUMP_UNSETZ
 	ret
 
-; Find string (HL) in string list (DE) of size B. Each string is C bytes wide.
+; Find string (HL) in string list (DE) of size B, in a case-insensitive manner.
+; Each string is C bytes wide.
 ; Returns the index of the found string. Sets Z if found, unsets Z if not found.
 findStringInList:
 	push	de
 	push	bc
 .loop:
 	ld	a, c
-	call	JUMP_STRNCMP
+	call	strncmpI
 	ld	a, c
 	call	JUMP_ADDDE
 	jr	z, .match

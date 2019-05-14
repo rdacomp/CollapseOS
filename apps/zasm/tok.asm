@@ -75,7 +75,6 @@ readWord:
 	ld	a, (hl)
 	call	isSepOrLineEnd
 	jr	z, .success
-	call	JUMP_UPCASE
 	ld	(de), a
 	inc	hl
 	inc	de
