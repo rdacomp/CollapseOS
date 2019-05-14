@@ -159,7 +159,7 @@ fmtHexPair:
 	dec	hl
 	pop	af
 	push	af
-	and	a, 0xf0
+	and	0xf0
 	rra \ rra \ rra \ rra
 	call	fmtHex
 	ld	(hl), a
@@ -178,7 +178,7 @@ parseHex:
 	cp	'9'+1
 	jr	nc, .alpha	; if >= '9'+1, we might have alpha
 	; We are in the 0-9 range
-	sub	a, '0'		; C is clear
+	sub	'0'		; C is clear
 	ret
 
 .alpha:
@@ -188,7 +188,7 @@ parseHex:
 	cp	'F'+1
 	jr	nc, .error	; if >= 'F', we have a problem
 	; We have alpha.
-	sub	a, 'A'-10	; C is clear
+	sub	'A'-10		; C is clear
 	ret
 
 .error:
@@ -223,7 +223,7 @@ parseHexPair:
 	; If we have a single digit, our result is already stored in B, but
 	; we have to right-shift it back.
 	ld	a, b
-	and	a, 0xf0
+	and	0xf0
 	rra \ rra \ rra \ rra
 	dec	hl
 

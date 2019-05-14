@@ -21,6 +21,9 @@ cmpas() {
     fi
 }
 
+echo "Comparing core.asm"
+cmpas ../../../parts/z80/core.asm
+
 for fn in *.asm; do
     echo "Comparing ${fn}"
     cmpas $fn
