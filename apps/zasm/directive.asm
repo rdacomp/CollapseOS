@@ -39,7 +39,7 @@ handleDW:
 	call	toWord
 	call	readWord
 	ld	hl, scratchpad
-	call	parseNumberOrSymbol
+	call	parseExpr
 	ld	a, ixl
 	ld	(direcData), a
 	ld	a, ixh
@@ -74,7 +74,7 @@ handleEQU:
 	call	toWord
 	call	readWord
 	ld	hl, scratchpad
-	call	parseNumberOrSymbol
+	call	parseExpr
 	jr	nz, .error
 	ld	hl, DIREC_SCRATCHPAD
 	ld	d, ixh

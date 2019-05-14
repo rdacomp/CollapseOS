@@ -153,7 +153,7 @@ parseArg:
 	call	enterParens
 	jr	z, .withParens
 	; (HL) has no parens
-	call	parseNumberOrSymbol
+	call	parseExpr
 	jr	nz, .nomatch
 	; We have a proper number in no parens. Number in IX.
 	ld	a, 'N'
@@ -177,7 +177,7 @@ parseArg:
 .notY:
 	ld	c, 'x'
 .parseNumberInParens:
-	call	parseNumberOrSymbol
+	call	parseExpr
 	jr	nz, .nomatch
 	; We have a proper number in parens. Number in IX
 	ld	a, c	; M, x, or y

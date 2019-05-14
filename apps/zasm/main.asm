@@ -47,6 +47,7 @@ jp	zasmMain
 #include "io.asm"
 #include "tok.asm"
 #include "parse.asm"
+#include "expr.asm"
 #include "instr.asm"
 .equ	DIREC_RAMSTART	IO_RAMEND
 #include "directive.asm"

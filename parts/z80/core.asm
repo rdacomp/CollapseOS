@@ -108,6 +108,7 @@ fill:
 ; iterated in A.
 ; If a null char is encountered before we find A, processing is stopped in the
 ; same way as if we found our char (so, we look for A *or* 0)
+; Set Z if the character is found. Unsets it if not
 findchar:
 	push	bc
 	ld	c, a	; let's use C as our cp target
@@ -116,15 +117,20 @@ findchar:
 
 .loop:	ld	a, (hl)
 	cp	c
-	jr	z, .end
-	cp	0
-	jr	z, .end
+	jr	z, .match
+	or	a		; cp 0
+	jr	z, .nomatch
 	inc	hl
 	djnz	.loop
-.end:
+.nomatch:
+	call	unsetZ
+	jr	.end
+.match:
 	; We ran 0xff-B loops. That's the result that goes in A.
 	ld	a, 0xff
 	sub	a, b
+	cp	a	; ensure Z
+.end:
 	pop	bc
 	ret
 
