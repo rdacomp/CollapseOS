@@ -27,7 +27,7 @@ handleDB:
 	call	toWord
 	call	readWord
 	ld	hl, scratchpad
-	call	parseNumber
+	call	parseLiteral
 	ld	a, ixl
 	ld	(direcData), a
 	ld	a, 1

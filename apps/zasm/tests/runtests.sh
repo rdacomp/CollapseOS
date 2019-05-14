@@ -21,13 +21,14 @@ cmpas() {
     fi
 }
 
+for fn in *.asm; do
+    echo "Comparing ${fn}"
+    cmpas $fn
+done
+
 ./geninstrs.py $ASMFILE | \
 while read line; do
     echo $line | tee "${TMPFILE}"
     cmpas ${TMPFILE}
 done
 
-for fn in *.asm; do
-    echo "Comparing ${fn}"
-    cmpas $fn
-done

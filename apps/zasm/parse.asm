@@ -13,7 +13,7 @@ parseDecimalDigit:
 	ret
 
 ; Parse string at (HL) as a decimal value and return value in IX under the
-; same conditions as parseNumber.
+; same conditions as parseLiteral.
 parseDecimal:
 	push	hl
 	push	de
@@ -60,8 +60,10 @@ parseDecimal:
 
 
 ; Parse string at (HL) as a hexadecimal value and return value in IX under the
-; same conditions as parseNumber.
+; same conditions as parseLiteral.
 parseHexadecimal:
+	call	hasHexPrefix
+	ret	nz
 	push	hl
 	xor	a
 	ld	ixh, a
@@ -106,19 +108,55 @@ hasHexPrefix:
 	pop	hl
 	ret
 
-; Parses the string at (HL) and returns the 16-bit value in IX.
+; Parse string at (HL) and, if it is a char literal, sets Z and return
+; corresponding value in IXL. Clears IXH.
+;
+; A valid char literal starts with ', ends with ' and has one character in the
+; middle. No escape sequence are accepted, but ''' will return the apostrophe
+; character.
+parseCharLiteral:
+	ld	a, 0x27		; apostrophe (') char
+	cp	(hl)
+	ret	nz
+
+	push	hl
+	inc	hl
+	inc	hl
+	cp	(hl)
+	jr	nz, .end	; not ending with an apostrophe
+	inc	hl
+	ld	a, (hl)
+	or	a		; cp 0
+	jr	nz, .end	; string has to end there
+	; Valid char, good
+	ld	ixh, a		; A is zero, take advantage of that
+	dec	hl
+	dec	hl
+	ld	a, (hl)
+	ld	ixl, a
+	cp	a		; ensure Z
+.end:
+	pop	hl
+	ret
+
+; Parses the string at (HL) and returns the 16-bit value in IX. The string
+; can be a decimal literal (1234), a hexadecimal literal (0x1234) or a char
+; literal ('X').
+;
 ; As soon as the number doesn't fit 16-bit any more, parsing stops and the
 ; number is invalid. If the number is valid, Z is set, otherwise, unset.
-parseNumber:
-	call	hasHexPrefix
-	jr	z, parseHexadecimal
-	jr	parseDecimal
+parseLiteral:
+	call	parseCharLiteral
+	ret	z
+	call	parseHexadecimal
+	ret	z
+	jp	parseDecimal
 
 ; Parse string in (HL) and return its numerical value whether its a number
 ; literal or a symbol. Returns value in IX.
 ; Sets Z if number or symbol is valid, unset otherwise.
 parseNumberOrSymbol:
-	call	parseNumber
+	call	parseLiteral
 	ret	z
 	call	zasmIsFirstPass
 	ret	z		; first pass? we don't care about the value,
