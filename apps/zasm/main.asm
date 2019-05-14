@@ -123,9 +123,23 @@ parseLine:
 	cp	TOK_LABEL
 	jr	z, .label
 	cp	TOK_EMPTY
-	jr	z, .success	; empty line? do nothing but don't error out.
-	jr	.error		; token not supported
+	jr	.end		; Z is correct. If empty, Z is set and not an
+				; error, otherwise, it means bad token and
+				; errors out.
 .instr:
+	call	_parseInstr
+	jr	.end		; Z is correct
+.direc:
+	call	_parseDirec
+	jr	.end		; Z is correct
+.label:
+	call	_parseLabel
+	; Continue to .end, Z has proper value
+.end:
+	pop	bc
+	ret
+
+_parseInstr:
 	ld	a, c		; I_*
 	call	parseInstruction
 	or	a	; is zero?
@@ -140,8 +154,15 @@ parseLine:
 	call	ioPutC
 	inc	hl
 	djnz	.loopInstr
-	jr	.success
-.direc:
+	; continue to success
+.success:
+	xor	a		; ensure Z
+	ret
+.error:
+	call	JUMP_UNSETZ
+	ret
+
+_parseDirec:
 	ld	a, c		; D_*
 	call	parseDirective
 	or	a		; cp 0
@@ -156,8 +177,12 @@ parseLine:
 	call	ioPutC
 	inc	hl
 	djnz	.loopDirec
-	jr	.success
-.label:
+	; continue to success
+.success:
+	xor	a		; ensure Z
+	ret
+
+_parseLabel:
 	; The string in (scratchpad) is a label with its trailing ':' removed.
 	ex	hl, de			; save current HL (end of label) in DE,
 					; we will need it later
@@ -169,10 +194,11 @@ parseLine:
 	; When we're not in the first pass, we set the context (if label is not
 	; local) to that label.
 	call	symIsLabelLocal
-	jr	z, .success		; local? nothing to do.
+	jr	z, .noContext		; local? don't set context
 	call	symSetContext
 	jr	nz, .error		; NZ? this means that (HL) couldn't be
 					; found in symbol list. Weird
+.noContext:
 	; We're finished here. However, because it's a label, it's possible that
 	; another logical line follows directly after the label. Let's parse
 	; this and propagate error.
@@ -188,11 +214,9 @@ parseLine:
 	; continue to .success
 .success:
 	xor	a		; ensure Z
-	jr	.end
+	ret
 .error:
 	call	JUMP_UNSETZ
-.end:
-	pop	bc
 	ret
 
 ; *** Variables ***
