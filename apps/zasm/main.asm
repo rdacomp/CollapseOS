@@ -113,41 +113,32 @@ zasmParseFile:
 	jr	.loop
 
 ; Parse line in (HL), write the resulting opcode(s) through ioPutC and increases
-; (ZASM_PC) by the number of bytes written.
+; (ZASM_PC) by the number of bytes written. BC is set to the result of the call
+; to tokenize.
 ; Sets Z if parse was successful, unset if there was an error or EOF.
 parseLine:
-	push	bc
-
 	call	tokenize
 	ld	a, b		; TOK_*
 	cp	TOK_INSTR
-	jr	z, .instr
+	jp	z, _parseInstr
 	cp	TOK_DIRECTIVE
-	jr	z, .direc
+	jp	z, _parseDirec
 	cp	TOK_LABEL
 	jr	z, .label
 	cp	TOK_EMPTY
-	jr	.end		; Z is correct. If empty, Z is set and not an
+	ret			; Z is correct. If empty, Z is set and not an
 				; error, otherwise, it means bad token and
 				; errors out.
-.instr:
-	call	_parseInstr
-	jr	.end		; Z is correct
-.direc:
-	call	_parseDirec
-	jr	.end		; Z is correct
 .label:
 	push	hl
 	call	_parseLabel
 	pop	hl
-	jr	nz, .end	; error out
+	ret	nz		; error out
 	; We're finished here. However, because it's a label, it's possible that
 	; another logical line follows directly after the label. Let's parse
 	; this and propagate error.
 	call	parseLine
-	; Continue to .end, Z has proper value
-.end:
-	pop	bc
+	; Z has proper value
 	ret
 
 _parseInstr:
@@ -195,8 +186,6 @@ _parseDirec:
 
 _parseLabel:
 	; The string in (scratchpad) is a label with its trailing ':' removed.
-	ex	hl, de			; save current HL (end of label) in DE,
-					; we will need it later
 	ld	hl, scratchpad
 	call	zasmIsFirstPass
 	jr	z, .registerLabel	; When we encounter a label in the first
