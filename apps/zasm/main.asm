@@ -37,7 +37,9 @@
 ; that when we parse instructions and directive that error out because of a
 ; missing symbol, we don't error out and just write down a dummy value.
 .equ	ZASM_FIRST_PASS	RAMSTART
-.equ	ZASM_RAMEND	ZASM_FIRST_PASS+1
+; The offset where we currently are with regards to outputting opcodes
+.equ	ZASM_PC		ZASM_FIRST_PASS+1
+.equ	ZASM_RAMEND	ZASM_PC+2
 
 ; *** Code ***
 jp	zasmMain
@@ -85,12 +87,12 @@ zasmIsFirstPass:
 	cp	1
 	ret
 
-; Increase (curOutputOffset) by A
+; Increase (ZASM_PC) by A
 incOutputOffset:
 	push	de
-	ld	de, (curOutputOffset)
+	ld	de, (ZASM_PC)
 	call	JUMP_ADDDE
-	ld	(curOutputOffset), de
+	ld	(ZASM_PC), de
 	pop	de
 	ret
 
@@ -99,7 +101,7 @@ incOutputOffset:
 ; be read (first line is 1).
 zasmParseFile:
 	ld	de, 0
-	ld	(curOutputOffset), de
+	ld	(ZASM_PC), de
 .loop:
 	inc	de
 	call	ioReadLine
@@ -110,7 +112,7 @@ zasmParseFile:
 	jr	.loop
 
 ; Parse line in (HL), write the resulting opcode(s) through ioPutC and increases
-; (curOutputOffset) by the number of bytes written.
+; (ZASM_PC) by the number of bytes written.
 ; Sets Z if parse was successful, unset if there was an error or EOF.
 parseLine:
 	push	bc
@@ -208,7 +210,7 @@ _parseLabel:
 	; NZ? this means that (HL) couldn't be found in symbol list. Weird
 	jr	.error
 .registerLabel:
-	ld	de, (curOutputOffset)
+	ld	de, (ZASM_PC)
 	call	symRegister
 	jr	nz, .error
 	; continue to .success
@@ -218,8 +220,3 @@ _parseLabel:
 .error:
 	call	JUMP_UNSETZ
 	ret
-
-; *** Variables ***
-; The offset where we currently are with regards to outputting opcodes
-curOutputOffset:
-	.fill	2
