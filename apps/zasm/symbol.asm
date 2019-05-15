@@ -36,7 +36,12 @@
 ; symSetContext call
 .equ	SYM_CONTEXT_PTR	SYM_CONTEXT_IDX+1
 
-.equ	SYM_RAMEND	SYM_CONTEXT_PTR+2
+; Pointer to the currently selected registry
+.equ	SYM_CTX_NAMES		SYM_CONTEXT_PTR+2
+.equ	SYM_CTX_NAMESEND	SYM_CTX_NAMES+2
+.equ	SYM_CTX_VALUES		SYM_CTX_NAMESEND+2
+
+.equ	SYM_RAMEND		SYM_CTX_VALUES+2
 
 ; *** Code ***
 
@@ -65,6 +70,12 @@ symInit:
 	ld	(SYM_CONTEXT_IDX), a
 	ld	hl, SYM_CONTEXT_PTR
 	ld	(SYM_CONTEXT_PTR), hl
+	ld	hl, SYM_NAMES
+	ld	(SYM_CTX_NAMES), hl
+	ld	hl, SYM_NAMES+SYM_BUFSIZE
+	ld	(SYM_CTX_NAMESEND), hl
+	ld	hl, SYM_VALUES
+	ld	(SYM_CTX_VALUES), hl
 	ret
 
 ; Sets Z according to whether label in (HL) is local (starts with a dot)
@@ -73,7 +84,7 @@ symIsLabelLocal:
 	cp	(hl)
 	ret
 
-; Place HL at the end of SYM_NAMES end (that is, at the point where we have two
+; Place HL at the end of (SYM_CTX_NAMES) end (that is, at the point where we have two
 ; consecutive null chars. We return the index of that new name in A.
 ; If we're within bounds, Z is set, otherwise unset.
 symNamesEnd:
@@ -81,8 +92,8 @@ symNamesEnd:
 	push	de
 
 	ld	b, 0
-	ld	hl, SYM_NAMES
-	ld	de, SYM_NAMES+SYM_BUFSIZE
+	ld	hl, (SYM_CTX_NAMES)
+	ld	de, (SYM_CTX_NAMESEND)
 .loop:
 	call	_symNext
 	jr	nz, .success	; We've reached the end of the chain.
@@ -125,7 +136,7 @@ symRegister:
 	; Is our new name going to make us go out of bounds?
 	push	hl
 	push	de
-		ld	de, SYM_NAMES+SYM_BUFSIZE
+		ld	de, (SYM_CTX_NAMESEND)
 		ld	a, c
 		call	JUMP_ADDHL
 		call	cpHLDE
@@ -144,17 +155,17 @@ symRegister:
 
 	; I'd say we're pretty good just about now. What we need to do is to
 	; save the value in our original DE that is just on top of the stack
-	; into the proper index in SYM_VALUES. Our index, remember, is
+	; into the proper index in (SYM_CTX_VALUES). Our index, remember, is
 	; currently in A'.
 	ex	af, af'
 	pop	de
 	push	de	; push it right back to avoid stack imbalance
-	ld	hl, SYM_VALUES
+	ld	hl, (SYM_CTX_VALUES)
 	call	JUMP_ADDHL
 	call	JUMP_ADDHL	; twice because our values are words
 
 	; Everything is set! DE is our value HL points to the proper index in
-	; SYM_VALUES. Let's just write it (little endian).
+	; (SYM_CTX_VALUES). Let's just write it (little endian).
 	ld	(hl), e
 	inc	hl
 	ld	(hl), d
@@ -165,7 +176,7 @@ symRegister:
 	pop	hl
 	ret
 
-; Find name (HL) in SYM_NAMES and returns matching index in A.
+; Find name (HL) in (SYM_CTX_NAMES) and returns matching index in A.
 ; If we find something, Z is set, otherwise unset.
 symFind:
 	push	hl
@@ -188,7 +199,7 @@ _symFind:
 	ex	hl, de		; it's easier if HL is haystack and DE is
 				; needle.
 	ld	b, 0
-	ld	hl, SYM_NAMES
+	ld	hl, (SYM_CTX_NAMES)
 	jr	nz, .loop	; not local? jump right to loop
 	; local? then we need to adjust B and HL
 	ld	hl, (SYM_CONTEXT_PTR)
