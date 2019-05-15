@@ -2,7 +2,7 @@
 .equ RAMSTART		0x4000
 .equ USER_CODE		0x4800
 .equ STDIO_PORT		0x00
-.equ STDIN_REWIND	0x01
+.equ STDIN_SEEK		0x01
 
 jr	init	; 2 bytes
 ; *** JUMP TABLE ***
@@ -43,7 +43,12 @@ emulPutC:
 	ret
 
 emulSeek:
-	out	(STDIN_REWIND), a
+	; the STDIN_SEEK port works by poking it twice. First poke is for high
+	; byte, second poke is for low one.
+	ld	a, h
+	out	(STDIN_SEEK), a
+	ld	a, l
+	out	(STDIN_SEEK), a
 	ret
 
 #include "core.asm"

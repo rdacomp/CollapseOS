@@ -27,7 +27,7 @@
 // in sync with zasm_glue.asm
 #define USER_CODE 0x4800
 #define STDIO_PORT 0x00
-#define STDIN_REWIND 0x01
+#define STDIN_SEEK 0x01
 
 // Other consts
 #define STDIN_BUFSIZE 0x8000
@@ -41,6 +41,7 @@ static uint8_t mem[0x10000];
 static uint8_t inpt[STDIN_BUFSIZE];
 static int inpt_size;
 static int inpt_ptr;
+static uint8_t received_first_seek_byte = 0;
 
 static uint8_t io_read(int unused, uint16_t addr)
 {
@@ -65,8 +66,14 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
 #ifndef MEMDUMP
         putchar(val);
 #endif
-    } else if (addr == STDIN_REWIND) {
-        inpt_ptr = 0;
+    } else if (addr == STDIN_SEEK) {
+        if (received_first_seek_byte) {
+            inpt_ptr |= val;
+            received_first_seek_byte = 0;
+        } else {
+            inpt_ptr = (val << 8) & 0xff00;
+            received_first_seek_byte = 1;
+        }
     } else {
         fprintf(stderr, "Out of bounds I/O write: %d / %d\n", addr, val);
     }

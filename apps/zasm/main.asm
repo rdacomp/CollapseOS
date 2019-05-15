@@ -75,7 +75,8 @@ zasmMain:
 	call	zasmParseFile
 	ret	nz
 	; Second pass
-	call	ioRewind
+	ld	hl, 0
+	call	ioSeek
 	xor	a
 	ld	(ZASM_FIRST_PASS), a
 	call	zasmParseFile
