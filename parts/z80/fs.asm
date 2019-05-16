@@ -150,9 +150,9 @@ fsNext:
 				; end of the line.
 	call	fsPlace
 	ld	b, a		; we will seek A times
+.loop:
 	ld	a, BLOCKDEV_SEEK_FORWARD
 	ld	hl, FS_BLOCKSIZE
-.loop:
 	call	fsblkSeek
 	djnz	.loop
 	; Good, were here. We're going to read meta from our current position.
