@@ -708,16 +708,14 @@ getUpcode:
 	pop	ix
 	ret
 
-; Parse next argument in string (HL) and place it in (DE)
+; Parse next argument in I/O and place it in (DE)
 ; Sets Z on success, reset on error.
 processArg:
-	call	toWord
 	call	readWord
-	; Read word is in scratchpad, HL is properly advanced. Now, let's push
+	jr	nz, .noarg
+	; Read word is in (HL). Now, let's push
 	; that HL value and replace it with (scratchpad) so that we can parse
 	; that arg.
-	push	hl
-	ld	hl, scratchpad
 
 	call	parseArg
 	cp	0xff
@@ -733,15 +731,18 @@ processArg:
 	ld	a, ixh
 	ld	(de), a
 	cp	a		; ensure Z is set
-	jr	.end
+	ret
 .error:
 	call	JUMP_UNSETZ
-.end:
-	pop	hl
+	ret
+.noarg:
+	xor	a
+	ld	(de), a
 	ret
 
-; Parse instruction specified in A (I_* const) with args in (HL) and write
-; resulting opcode(s) in (instrUpcode). Returns the number of bytes written in A.
+; Parse instruction specified in A (I_* const) with args in I/O and write
+; resulting opcode(s) in (instrUpcode). Returns the number of bytes written in
+; A.
 parseInstruction:
 	push	bc
 	push	hl

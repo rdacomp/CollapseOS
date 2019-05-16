@@ -24,7 +24,6 @@ directiveHandlers:
 
 handleDB:
 	push	hl
-	call	toWord
 	call	readWord
 	ld	hl, scratchpad
 	call	parseLiteral
@@ -36,7 +35,6 @@ handleDB:
 
 handleDW:
 	push	hl
-	call	toWord
 	call	readWord
 	ld	hl, scratchpad
 	call	parseExpr
@@ -51,7 +49,9 @@ handleDW:
 handleEQU:
 	call	zasmIsFirstPass
 	jr	nz, .begin
-	; first pass? .equ are noops
+	; first pass? .equ are noops Consume args and return
+	call	readWord
+	call	readWord
 	xor	a
 	ret
 .begin:
@@ -59,19 +59,14 @@ handleEQU:
 	push	de
 	push	bc
 	; Read our constant name
-	call	toWord
 	call	readWord
 	; We can't register our symbol yet: we don't have our value!
 	; Let's copy it over.
-	push	hl
-		ld	hl, scratchpad
-		ld	de, DIREC_SCRATCHPAD
-		ld	bc, SCRATCHPAD_SIZE
-		ldir
-	pop	hl
+	ld	de, DIREC_SCRATCHPAD
+	ld	bc, SCRATCHPAD_SIZE
+	ldir
 
 	; Now, read the value associated to it
-	call	toWord
 	call	readWord
 	ld	hl, scratchpad
 	call	parseExpr
@@ -102,7 +97,7 @@ getDirectiveID:
 	pop	bc
 	ret
 
-; Parse directive specified in A (D_* const) with args in (HL) and act in
+; Parse directive specified in A (D_* const) with args in I/O and act in
 ; an appropriate manner. If the directive results in writing data at its
 ; current location, that data is in (direcData) and A is the number of bytes
 ; in it.

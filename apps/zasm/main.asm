@@ -67,6 +67,7 @@ zasmMain:
 	ld	de, IO_OUT_GETC
 	call	JUMP_BLKSEL
 	; Init modules
+	call	ioInit
 	call	symInit
 
 	; First pass
@@ -105,17 +106,18 @@ zasmParseFile:
 	ld	(ZASM_PC), de
 .loop:
 	inc	de
-	call	ioReadLine
-	or	a		; is A 0?
-	ret	z		; We have EOF
 	call	parseLine
 	ret	nz		; error
+	ld	a, b		; TOK_*
+	cp	TOK_EOF
+	ret	z		; if EOF, return now with success
 	jr	.loop
 
-; Parse line in (HL), write the resulting opcode(s) through ioPutC and increases
-; (ZASM_PC) by the number of bytes written. BC is set to the result of the call
-; to tokenize.
-; Sets Z if parse was successful, unset if there was an error or EOF.
+; Parse next token and accompanying args (when relevant) in I/O, write the
+; resulting opcode(s) through ioPutC and increases (ZASM_PC) by the number of
+; bytes written. BC is set to the result of the call to tokenize.
+; Sets Z if parse was successful, unset if there was an error. EOF is not an
+; error.
 parseLine:
 	call	tokenize
 	ld	a, b		; TOK_*
@@ -124,22 +126,11 @@ parseLine:
 	cp	TOK_DIRECTIVE
 	jp	z, _parseDirec
 	cp	TOK_LABEL
-	jr	z, .label
-	cp	TOK_EMPTY
-	ret			; Z is correct. If empty, Z is set and not an
+	jr	z, _parseLabel
+	cp	TOK_EOF
+	ret			; Z is correct. If EOF, Z is set and not an
 				; error, otherwise, it means bad token and
 				; errors out.
-.label:
-	push	hl
-	call	_parseLabel
-	pop	hl
-	ret	nz		; error out
-	; We're finished here. However, because it's a label, it's possible that
-	; another logical line follows directly after the label. Let's parse
-	; this and propagate error.
-	call	parseLine
-	; Z has proper value
-	ret
 
 _parseInstr:
 	ld	a, c		; I_*
