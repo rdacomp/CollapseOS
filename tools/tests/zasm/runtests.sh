@@ -4,8 +4,8 @@ set -e
 
 TMPFILE=$(mktemp)
 SCAS=scas
-ZASM=../../../tools/emul/zasm
-ASMFILE=../instr.asm
+ZASM=../../emul/zasm
+ASMFILE=../../../apps/zasm/instr.asm
 
 cmpas() {
     EXPECTED=$($SCAS -o - "$1" | xxd)
