@@ -3,8 +3,10 @@
 .equ USER_CODE		0x4800
 .equ STDIO_PORT		0x00
 .equ STDIN_SEEK		0x01
+.equ FS_DATA_PORT	0x02
+.equ FS_SEEK_PORT	0x03
 
-jr	init	; 2 bytes
+jp	init	; 3 bytes
 ; *** JUMP TABLE ***
 jp	strncmp
 jp	addDE
@@ -17,11 +19,28 @@ jp	findchar
 jp	parseHexPair
 jp	blkSel
 
+#include "core.asm"
+.equ	BLOCKDEV_RAMSTART	RAMSTART
+.equ	BLOCKDEV_COUNT		3
+#include "blockdev.asm"
+; List of devices
+.dw	emulGetC, 0, emulSeek, emulTell
+.dw	0, emulPutC, 0, 0
+.dw	fsdevGetC, fsdevPutC, fsdevSeek, fsdevTell
+
+.equ	FS_RAMSTART	BLOCKDEV_RAMEND
+.equ	FS_HANDLE_COUNT	0
+#include "fs.asm"
+
 init:
 	di
 	; We put the stack at the end of the kernel memory
 	ld	hl, USER_CODE-1
 	ld	sp, hl
+	ld	a, 2	; select fsdev
+	ld	de, BLOCKDEV_GETC
+	call	blkSel
+	call	fsOn
 	ld	h, 0	; input blkdev
 	ld	l, 1	; output blkdev
 	call	USER_CODE
@@ -59,10 +78,30 @@ emulTell:
 	ld	l, a
 	ret
 
-#include "core.asm"
-.equ	BLOCKDEV_RAMSTART	RAMSTART
-.equ	BLOCKDEV_COUNT		2
-#include "blockdev.asm"
-; List of devices
-.dw	emulGetC, 0, emulSeek, emulTell
-.dw	0, emulPutC, 0, 0
+fsdevGetC:
+	in	a, (FS_DATA_PORT)
+	cp	a		; ensure Z
+	ret
+
+fsdevPutC:
+	out	(FS_DATA_PORT), a
+	ret
+
+fsdevSeek:
+	push	af
+	ld	a, l
+	out	(FS_SEEK_PORT), a
+	ld	a, h
+	out	(FS_SEEK_PORT), a
+	pop	af
+	ret
+
+fsdevTell:
+	push	af
+	in	a, (FS_SEEK_PORT)
+	ld	l, a
+	in	a, (FS_SEEK_PORT)
+	ld	h, a
+	pop	af
+	ret
+
