@@ -1,5 +1,6 @@
 /shell
 /zasm
+/zasm-includes.h
 /*-kernel.h
 /*-user.h
 /cfsin

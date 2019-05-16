@@ -3,6 +3,7 @@
 #include "libz80/z80.h"
 #include "zasm-kernel.h"
 #include "zasm-user.h"
+#include "zasm-includes.h"
 
 /* zasm reads from a specified blkdev, assemble the file and writes the result
  * in another specified blkdev. In our emulator layer, we use stdin and stdout
@@ -27,7 +28,9 @@
 // in sync with zasm_glue.asm
 #define USER_CODE 0x4800
 #define STDIO_PORT 0x00
-#define STDIN_SEEK 0x01
+#define STDIN_SEEK_PORT 0x01
+#define FS_DATA_PORT 0x02
+#define FS_SEEK_PORT 0x03
 
 // Other consts
 #define STDIN_BUFSIZE 0x8000
@@ -43,6 +46,11 @@ static int inpt_size;
 static int inpt_ptr;
 static uint8_t middle_of_seek_tell = 0;
 
+static uint8_t fsdev[0xffff] = {0};
+static uint16_t fsdev_size = 0;
+static uint16_t fsdev_ptr = 0;
+static uint8_t fsdev_middle_of_seek_tell = 0;
+
 static uint8_t io_read(int unused, uint16_t addr)
 {
     addr &= 0xff;
@@ -52,7 +60,7 @@ static uint8_t io_read(int unused, uint16_t addr)
         } else {
             return 0;
         }
-    } else if (addr == STDIN_SEEK) {
+    } else if (addr == STDIN_SEEK_PORT) {
         if (middle_of_seek_tell) {
             middle_of_seek_tell = 0;
             return inpt_ptr & 0xff;
@@ -62,6 +70,23 @@ static uint8_t io_read(int unused, uint16_t addr)
 #endif
             middle_of_seek_tell = 1;
             return inpt_ptr >> 8;
+        }
+    } else if (addr == FS_DATA_PORT) {
+        if (fsdev_ptr < fsdev_size) {
+            return fsdev[fsdev_ptr++];
+        } else {
+            return 0;
+        }
+    } else if (addr == FS_SEEK_PORT) {
+        if (fsdev_middle_of_seek_tell) {
+            fsdev_middle_of_seek_tell = 0;
+            return fsdev_ptr & 0xff;
+        } else {
+#ifdef DEBUG
+            fprintf(stderr, "tell %d\n", fsdev_ptr);
+#endif
+            fsdev_middle_of_seek_tell = 1;
+            return fsdev_ptr >> 8;
         }
     } else {
         fprintf(stderr, "Out of bounds I/O read: %d\n", addr);
@@ -77,7 +102,7 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
 #ifndef MEMDUMP
         putchar(val);
 #endif
-    } else if (addr == STDIN_SEEK) {
+    } else if (addr == STDIN_SEEK_PORT) {
         if (middle_of_seek_tell) {
             inpt_ptr |= val;
             middle_of_seek_tell = 0;
@@ -87,6 +112,21 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
         } else {
             inpt_ptr = (val << 8) & 0xff00;
             middle_of_seek_tell = 1;
+        }
+    } else if (addr == FS_DATA_PORT) {
+        if (fsdev_ptr < fsdev_size) {
+            fsdev[fsdev_ptr++] = val;
+        }
+    } else if (addr == FS_SEEK_PORT) {
+        if (fsdev_middle_of_seek_tell) {
+            fsdev_ptr |= val;
+            fsdev_middle_of_seek_tell = 0;
+#ifdef DEBUG
+            fprintf(stderr, "seek %d\n", fsdev_ptr);
+#endif
+        } else {
+            fsdev_ptr = (val << 8) & 0xff00;
+            fsdev_middle_of_seek_tell = 1;
         }
     } else {
         fprintf(stderr, "Out of bounds I/O write: %d / %d\n", addr, val);
@@ -111,6 +151,9 @@ int main()
     }
     for (int i=0; i<sizeof(USERSPACE); i++) {
         mem[i+USER_CODE] = USERSPACE[i];
+    }
+    for (int i=0; i<sizeof(FSDEV); i++) {
+        fsdev[i] = FSDEV[i];
     }
     // read stdin in buffer
     inpt_size = 0;
