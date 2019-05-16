@@ -51,10 +51,18 @@ emulSeek:
 	out	(STDIN_SEEK), a
 	ret
 
+emulTell:
+	; same principle as STDIN_SEEK
+	in	a, (STDIN_SEEK)
+	ld	h, a
+	in	a, (STDIN_SEEK)
+	ld	l, a
+	ret
+
 #include "core.asm"
 .equ	BLOCKDEV_RAMSTART	RAMSTART
 .equ	BLOCKDEV_COUNT		2
 #include "blockdev.asm"
 ; List of devices
-.dw	emulGetC, 0, emulSeek, 0
+.dw	emulGetC, 0, emulSeek, emulTell
 .dw	0, emulPutC, 0, 0

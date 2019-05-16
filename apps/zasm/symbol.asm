@@ -1,11 +1,14 @@
 ; Manages both constants and labels within a same namespace and registry.
 ;
-; About local labels: They are treated as regular labels except they start with
-; a dot (example: ".foo"). Because labels are registered in order and because
-; constants are registered in the second pass, they end up at the end of the
-; symbol list and don't mix with labels. Therefore, we easily iterate through
-; local labels of a context by starting from that context's index and iterating
-; as long as symbol name start with a '.'
+; Local Labels
+;
+; Local labels during the "official" first pass are ignored. To register them
+; in the global registry during that pass would be wasteful in terms of memory.
+;
+; What we don instead is set up a separate register for them and have a "second
+; first pass" whenever we encounter a new context. That is, we wipe the local
+; registry, parse the code until the next global symbol (or EOF), then rewind
+; and continue second pass as usual.
 
 ; *** Constants ***
 ; Duplicate symbol in registry
@@ -14,30 +17,30 @@
 .equ	SYM_ERR_FULLBUF		0x02
 
 ; Maximum number of symbols we can have in the registry
-.equ	SYM_MAXCOUNT	0x100
+.equ	SYM_MAXCOUNT		0x100
 
 ; Size of the symbol name buffer size. This is a pool. There is no maximum name
 ; length for a single symbol, just a maximum size for the whole pool.
-.equ	SYM_BUFSIZE	0x1000
+.equ	SYM_BUFSIZE		0x1000
+
+; Size of the names buffer for the local context registry
+.equ	SYM_LOC_BUFSIZE		0x200
 
 ; *** Variables ***
 ; Each symbol is mapped to a word value saved here.
-.equ	SYM_VALUES	SYM_RAMSTART
+.equ	SYM_VALUES		SYM_RAMSTART
 
 ; A list of symbol names separated by null characters. When we encounter a
 ; symbol name and want to get its value, we search the name here, retrieve the
 ; index of the name, then go get the value at that index in SYM_VALUES.
-.equ	SYM_NAMES	SYM_VALUES+(SYM_MAXCOUNT*2)
+.equ	SYM_NAMES		SYM_VALUES+(SYM_MAXCOUNT*2)
 
-; Index of the symbol found during the last symSetContext call
-.equ	SYM_CONTEXT_IDX	SYM_NAMES+SYM_BUFSIZE
-
-; Pointer, in the SYM_NAMES buffer, of the string found during the last
-; symSetContext call
-.equ	SYM_CONTEXT_PTR	SYM_CONTEXT_IDX+1
+; Registry for local labels. Wiped out after each context change.
+.equ	SYM_LOC_VALUES		SYM_NAMES+SYM_BUFSIZE
+.equ	SYM_LOC_NAMES		SYM_LOC_VALUES+(SYM_MAXCOUNT*2)
 
 ; Pointer to the currently selected registry
-.equ	SYM_CTX_NAMES		SYM_CONTEXT_PTR+2
+.equ	SYM_CTX_NAMES		SYM_LOC_NAMES+SYM_LOC_BUFSIZE
 .equ	SYM_CTX_NAMESEND	SYM_CTX_NAMES+2
 .equ	SYM_CTX_VALUES		SYM_CTX_NAMESEND+2
 
@@ -67,15 +70,35 @@ _symNext:
 symInit:
 	xor	a
 	ld	(SYM_NAMES), a
-	ld	(SYM_CONTEXT_IDX), a
-	ld	hl, SYM_CONTEXT_PTR
-	ld	(SYM_CONTEXT_PTR), hl
+	ld	(SYM_LOC_NAMES), a
+	; Continue to symSelectGlobalRegistry
+
+symSelectGlobalRegistry:
+	push	af
+	push	hl
 	ld	hl, SYM_NAMES
 	ld	(SYM_CTX_NAMES), hl
 	ld	hl, SYM_NAMES+SYM_BUFSIZE
 	ld	(SYM_CTX_NAMESEND), hl
 	ld	hl, SYM_VALUES
 	ld	(SYM_CTX_VALUES), hl
+	pop	hl
+	pop	af
+	ret
+
+symSelectLocalRegistry:
+	push	af
+	push	hl
+	ld	hl, SYM_LOC_NAMES
+	ld	(SYM_CTX_NAMES), hl
+	ld	hl, SYM_LOC_NAMES+SYM_LOC_BUFSIZE
+	ld	(SYM_CTX_NAMESEND), hl
+	ld	hl, SYM_LOC_VALUES
+	ld	(SYM_CTX_VALUES), hl
+	ld	a, h
+	ld	a, l
+	pop	hl
+	pop	af
 	ret
 
 ; Sets Z according to whether label in (HL) is local (starts with a dot)
@@ -153,6 +176,11 @@ symRegister:
 	ld	b, 0
 	ldir		; copy C chars from HL to DE
 
+	; We need to add a second null char to indicate the end of the name
+	; list. DE is already correctly placed.
+	xor	a
+	ld	(de), a
+
 	; I'd say we're pretty good just about now. What we need to do is to
 	; save the value in our original DE that is just on top of the stack
 	; into the proper index in (SYM_CTX_VALUES). Our index, remember, is
@@ -176,16 +204,16 @@ symRegister:
 	pop	hl
 	ret
 
+; Select global or local registry according to label name in (HL)
+symSelect:
+	call	symIsLabelLocal
+	jp	z, symSelectLocalRegistry
+	jp	symSelectGlobalRegistry
+
 ; Find name (HL) in (SYM_CTX_NAMES) and returns matching index in A.
 ; If we find something, Z is set, otherwise unset.
 symFind:
 	push	hl
-	call	_symFind
-	pop	hl
-	ret
-
-; Same as symFind, but leaks HL
-_symFind:
 	push	bc
 	push	de
 
@@ -193,21 +221,10 @@ _symFind:
 	call	strlen
 	ld	c, a		; let's save that
 
-	call	symIsLabelLocal	; save Z for after the 3 next lines, which
-				; doesn't touch flags. We need to call this now
-				; before we lose HL.
 	ex	hl, de		; it's easier if HL is haystack and DE is
 				; needle.
 	ld	b, 0
 	ld	hl, (SYM_CTX_NAMES)
-	jr	nz, .loop	; not local? jump right to loop
-	; local? then we need to adjust B and HL
-	ld	hl, (SYM_CONTEXT_PTR)
-	ld	a, (SYM_CONTEXT_IDX)
-	ld	b, a
-	xor	a
-	sub	b
-	ld	b, a
 .loop:
 	ld	a, c		; recall strlen
 	call	JUMP_STRNCMP
@@ -218,6 +235,7 @@ _symFind:
 	djnz	.loop
 	; exhausted djnz? no match
 .nomatch:
+	out	(99), a
 	call	JUMP_UNSETZ
 	jr	.end
 .match:
@@ -228,32 +246,18 @@ _symFind:
 .end:
 	pop	de
 	pop	bc
+	pop	hl
 	ret
 
 ; Return value associated with symbol index A into DE
 symGetVal:
 	; our index is in A. Let's fetch the proper value
 	push	hl
-	ld	hl, SYM_VALUES
+	ld	hl, (SYM_CTX_VALUES)
 	call	JUMP_ADDHL
 	call	JUMP_ADDHL	; twice because our values are words
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
-	pop	hl
-	ret
-
-; Find symbol name (HL) in the symbol list and set SYM_CONTEXT_* accordingly.
-; When symFind will be called with a symbol name starting with a '.', the search
-; will begin at that context instead of the beginning of the register.
-; Sets Z if symbol is found, unsets it if not.
-symSetContext:
-	push	hl
-	call	_symFind
-	jr	nz, .end	; Z already unset
-	ld	(SYM_CONTEXT_IDX), a
-	ld	(SYM_CONTEXT_PTR), hl
-	; Z already set
-.end:
 	pop	hl
 	ret

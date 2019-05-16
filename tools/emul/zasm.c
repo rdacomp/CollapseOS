@@ -41,7 +41,7 @@ static uint8_t mem[0x10000];
 static uint8_t inpt[STDIN_BUFSIZE];
 static int inpt_size;
 static int inpt_ptr;
-static uint8_t received_first_seek_byte = 0;
+static uint8_t middle_of_seek_tell = 0;
 
 static uint8_t io_read(int unused, uint16_t addr)
 {
@@ -51,6 +51,17 @@ static uint8_t io_read(int unused, uint16_t addr)
             return inpt[inpt_ptr++];
         } else {
             return 0;
+        }
+    } else if (addr == STDIN_SEEK) {
+        if (middle_of_seek_tell) {
+            middle_of_seek_tell = 0;
+            return inpt_ptr & 0xff;
+        } else {
+#ifdef DEBUG
+            fprintf(stderr, "tell %d\n", inpt_ptr);
+#endif
+            middle_of_seek_tell = 1;
+            return inpt_ptr >> 8;
         }
     } else {
         fprintf(stderr, "Out of bounds I/O read: %d\n", addr);
@@ -67,12 +78,15 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
         putchar(val);
 #endif
     } else if (addr == STDIN_SEEK) {
-        if (received_first_seek_byte) {
+        if (middle_of_seek_tell) {
             inpt_ptr |= val;
-            received_first_seek_byte = 0;
+            middle_of_seek_tell = 0;
+#ifdef DEBUG
+            fprintf(stderr, "seek %d\n", inpt_ptr);
+#endif
         } else {
             inpt_ptr = (val << 8) & 0xff00;
-            received_first_seek_byte = 1;
+            middle_of_seek_tell = 1;
         }
     } else {
         fprintf(stderr, "Out of bounds I/O write: %d / %d\n", addr, val);

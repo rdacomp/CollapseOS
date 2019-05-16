@@ -46,3 +46,6 @@ ioSeek:
 	ld	ix, (IO_IN_SEEK)
 	jp	(ix)
 
+ioTell:
+	ld	ix, (IO_IN_TELL)
+	jp	(ix)

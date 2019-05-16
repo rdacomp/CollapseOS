@@ -162,6 +162,7 @@ parseNumberOrSymbol:
 	ret	z		; first pass? we don't care about the value,
 				; return success.
 	; Not a number. Try symbol
+	call	symSelect
 	call	symFind
 	ret	nz	; not found
 	; Found! index in A, let's fetch value

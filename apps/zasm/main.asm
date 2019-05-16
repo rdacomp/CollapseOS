@@ -36,10 +36,19 @@
 ; about actual output, but only about the length of each upcode. This means
 ; that when we parse instructions and directive that error out because of a
 ; missing symbol, we don't error out and just write down a dummy value.
-.equ	ZASM_FIRST_PASS	RAMSTART
+.equ	ZASM_FIRST_PASS		RAMSTART
 ; The offset where we currently are with regards to outputting opcodes
-.equ	ZASM_PC		ZASM_FIRST_PASS+1
-.equ	ZASM_RAMEND	ZASM_PC+2
+.equ	ZASM_PC			ZASM_FIRST_PASS+1
+; whether we're in "local pass", that is, in local label scanning mode. During
+; this special pass, ZASM_FIRST_PASS will also be set so that the rest of the
+; code behaves as is we were in the first pass.
+.equ	ZASM_LOCAL_PASS		ZASM_PC+2
+; I/O position (in terms of ioSeek/ioTell) of the current context. Used to
+; rewind to it after having parsed local labels.
+.equ	ZASM_CTX_POS		ZASM_LOCAL_PASS+1
+; What ZASM_PC was when we started our context
+.equ	ZASM_CTX_PC		ZASM_CTX_POS+2
+.equ	ZASM_RAMEND		ZASM_CTX_PC+2
 
 ; *** Code ***
 jp	zasmMain
@@ -66,7 +75,10 @@ zasmMain:
 	ld	a, l
 	ld	de, IO_OUT_GETC
 	call	JUMP_BLKSEL
+
 	; Init modules
+	xor	a
+	ld	(ZASM_LOCAL_PASS), a
 	call	ioInit
 	call	symInit
 
@@ -89,6 +101,12 @@ zasmIsFirstPass:
 	cp	1
 	ret
 
+; Sets Z according to whether we're in local pass.
+zasmIsLocalPass:
+	ld	a, (ZASM_LOCAL_PASS)
+	cp	1
+	ret
+
 ; Increase (ZASM_PC) by A
 incOutputOffset:
 	push	de
@@ -105,13 +123,21 @@ zasmParseFile:
 	ld	de, 0
 	ld	(ZASM_PC), de
 .loop:
-	inc	de
 	call	parseLine
 	ret	nz		; error
 	ld	a, b		; TOK_*
 	cp	TOK_EOF
-	ret	z		; if EOF, return now with success
+	jr	z, .eof
 	jr	.loop
+.eof:
+	call	zasmIsLocalPass
+	jr	nz, .end	; EOF and not local pass
+	; we're in local pass and EOF. Unwind this
+	call	_endLocalPass
+	jr	.loop
+.end:
+	cp	a		; ensure Z
+	ret
 
 ; Parse next token and accompanying args (when relevant) in I/O, write the
 ; resulting opcode(s) through ioPutC and increases (ZASM_PC) by the number of
@@ -178,18 +204,32 @@ _parseDirec:
 _parseLabel:
 	; The string in (scratchpad) is a label with its trailing ':' removed.
 	ld	hl, scratchpad
+
+	call	zasmIsLocalPass
+	jr	z, .processLocalPass
+
+	; Is this a local label? If yes, we don't process it in the context of
+	; parseLine, whether it's first or second pass. Local labels are only
+	; parsed during the Local Pass
+	call	symIsLabelLocal
+	jr	z, .success		; local? don't do anything.
+
 	call	zasmIsFirstPass
 	jr	z, .registerLabel	; When we encounter a label in the first
 					; pass, we register it in the symbol
 					; list
-	; When we're not in the first pass, we set the context (if label is not
-	; local) to that label.
+	; At this point, we're in second pass, we've encountered a global label
+	; and we'll soon continue processing our file. However, before we do
+	; that, we should process our local labels.
+	call	_beginLocalPass
+	jr	.success
+.processLocalPass:
 	call	symIsLabelLocal
-	jr	z, .success		; local? don't set context
-	call	symSetContext
-	jr	z, .success
-	; NZ? this means that (HL) couldn't be found in symbol list. Weird
-	jr	.error
+	jr	z, .registerLabel	; local label? all good, register it
+					; normally
+	; not a local label? Then we need to end local pass
+	call	_endLocalPass
+	jr	.success
 .registerLabel:
 	ld	de, (ZASM_PC)
 	call	symRegister
@@ -200,4 +240,39 @@ _parseLabel:
 	ret
 .error:
 	call	JUMP_UNSETZ
+	ret
+
+_beginLocalPass:
+	; remember were I/O was
+	call	ioTell
+	ld	(ZASM_CTX_POS), hl
+	; Remember where PC was
+	ld	hl, (ZASM_PC)
+	ld	(ZASM_CTX_PC), hl
+	; Fake first pass
+	ld	a, 1
+	ld	(ZASM_FIRST_PASS), a
+	; Set local pass
+	ld	(ZASM_LOCAL_PASS), a
+	; Empty local label registry
+	xor	a
+	ld	(SYM_LOC_NAMES), a
+	call	symSelectLocalRegistry
+	ret
+
+
+_endLocalPass:
+	call	symSelectGlobalRegistry
+	; recall I/O pos
+	ld	hl, (ZASM_CTX_POS)
+	call	ioSeek
+	; recall PC
+	ld	hl, (ZASM_CTX_PC)
+	ld	(ZASM_PC), hl
+	; unfake first pass
+	xor	a
+	ld	(ZASM_FIRST_PASS), a
+	; Unset local pass
+	ld	(ZASM_LOCAL_PASS), a
+	cp	a		; ensure Z
 	ret
