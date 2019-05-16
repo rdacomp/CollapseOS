@@ -28,6 +28,7 @@ BLOCKDEV_COUNT		.equ	4
 .equ	FS_RAMSTART	BLOCKDEV_RAMEND
 .equ	FS_HANDLE_COUNT	2
 #include "fs.asm"
+#include "fs_cmds.asm"
 
 SHELL_RAMSTART	.equ	FS_RAMEND
 .define SHELL_IO_GETC	call blkGetC
