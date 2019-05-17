@@ -56,7 +56,7 @@
 ; *** Code ***
 jp	zasmMain
 
-#include "util.asm"
+#include "util_z.asm"
 .equ	IO_RAMSTART	ZASM_RAMEND
 #include "io.asm"
 #include "tok.asm"
