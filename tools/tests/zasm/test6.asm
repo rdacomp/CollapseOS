@@ -10,3 +10,7 @@
 .equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
 .equ	BLOCKDEV_COUNT		1
 #include "blockdev.asm"
+.dw	aciaGetC, aciaPutC, 0, 0
+
+.equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
+#include "stdio.asm"

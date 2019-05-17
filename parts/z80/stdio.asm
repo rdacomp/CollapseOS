@@ -9,10 +9,10 @@
 
 ; *** VARIABLES ***
 ; Used to store formatted hex values just before printing it.
-STDIO_HEX_FMT	.equ	STDIO_RAMSTART
-STDIO_GETC	.equ	STDIO_HEX_FMT+2
-STDIO_PUTC	.equ	STDIO_GETC+2
-STDIO_RAMEND	.equ	STDIO_PUTC+2
+.equ	STDIO_HEX_FMT	STDIO_RAMSTART
+.equ	STDIO_GETC	STDIO_HEX_FMT+2
+.equ	STDIO_PUTC	STDIO_GETC+2
+.equ	STDIO_RAMEND	STDIO_PUTC+2
 
 ; Select the blockdev to use as stdio before calling this.
 stdioInit:
