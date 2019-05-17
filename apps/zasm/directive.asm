@@ -27,16 +27,20 @@ directiveHandlers:
 
 handleDB:
 	push	hl
+.loop:
 	call	readWord
 	ld	hl, scratchpad
 	call	parseLiteral
 	ld	a, ixl
 	call	ioPutC
+	call	readComma
+	jr	z, .loop
 	pop	hl
 	ret
 
 handleDW:
 	push	hl
+.loop:
 	call	readWord
 	ld	hl, scratchpad
 	call	parseExpr
@@ -45,6 +49,8 @@ handleDW:
 	call	ioPutC
 	ld	a, h
 	call	ioPutC
+	call	readComma
+	jr	z, .loop
 	pop	hl
 	ret
 
