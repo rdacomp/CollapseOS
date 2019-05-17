@@ -2,7 +2,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	31
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	136
+INSTR_TBL_CNT		.equ	138
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	6
 ; Instruction IDs They correspond to the index of the table in instrNames
@@ -49,14 +49,16 @@ I_OUT	.equ	0x27
 I_POP	.equ	0x28
 I_PUSH	.equ	0x29
 I_RET	.equ	0x2a
-I_RLA	.equ	0x2b
-I_RLCA	.equ	0x2c
-I_RRA	.equ	0x2d
-I_RRCA	.equ	0x2e
-I_SBC	.equ	0x2f
-I_SCF	.equ	0x30
-I_SUB	.equ	0x31
-I_XOR	.equ	0x32
+I_RETI	.equ	0x2b
+I_RETN	.equ	0x2c
+I_RLA	.equ	0x2d
+I_RLCA	.equ	0x2e
+I_RRA	.equ	0x2f
+I_RRCA	.equ	0x30
+I_SBC	.equ	0x31
+I_SCF	.equ	0x32
+I_SUB	.equ	0x33
+I_XOR	.equ	0x34
 
 ; Checks whether A is 'N' or 'M'
 checkNOrM:
@@ -899,6 +901,8 @@ instrNames:
 	.db "POP", 0
 	.db "PUSH"
 	.db "RET", 0
+	.db "RETI"
+	.db "RETN"
 	.db "RLA", 0
 	.db "RLCA"
 	.db "RRA", 0
@@ -1056,6 +1060,8 @@ instrTBl:
 	.db I_PUSH,0x1, 0,   4,    0b11000101	, 0	; PUSH qq
 	.db I_RET, 0,   0,   0,    0xc9		, 0	; RET
 	.db I_RET, 0xa, 0,   3,    0b11000000	, 0	; RET cc
+	.db I_RETI,0,   0,   0,    0xed, 0x4d		; RETI
+	.db I_RETN,0,   0,   0,    0xed, 0x45		; RETN
 	.db I_RLA, 0,   0,   0,    0x17		, 0	; RLA
 	.db I_RLCA,0,   0,   0,    0x07		, 0	; RLCA
 	.db I_RRA, 0,   0,   0,    0x1f		, 0	; RRA
