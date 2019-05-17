@@ -102,9 +102,6 @@ hasHexPrefix:
 	inc	hl
 	ld	a, (hl)
 	cp	'x'
-	jr	z, .end
-	cp	'X'
-.end:
 	pop	hl
 	ret
 
