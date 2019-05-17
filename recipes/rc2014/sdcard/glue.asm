@@ -27,11 +27,7 @@ jp	aciaInt
 #include "core.asm"
 ACIA_RAMSTART	.equ	RAMSTART
 #include "acia.asm"
-.define STDIO_GETC	call aciaGetC
-.define STDIO_PUTC	call aciaPutC
-STDIO_RAMSTART	.equ	ACIA_RAMEND
-#include "stdio.asm"
-BLOCKDEV_RAMSTART	.equ	STDIO_RAMEND
+BLOCKDEV_RAMSTART	.equ	ACIA_RAMEND
 BLOCKDEV_COUNT		.equ	2
 #include "blockdev.asm"
 ; List of devices
@@ -40,7 +36,10 @@ BLOCKDEV_COUNT		.equ	2
 
 #include "blockdev_cmds.asm"
 
-SHELL_RAMSTART	.equ	BLOCKDEV_RAMEND
+STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
+#include "stdio.asm"
+
+SHELL_RAMSTART	.equ	STDIO_RAMEND
 .define SHELL_IO_GETC	call blkGetCW
 .define SHELL_IO_PUTC	call blkPutC
 SHELL_EXTRA_CMD_COUNT .equ 3
@@ -63,6 +62,7 @@ init:
 	xor	a
 	ld	de, BLOCKDEV_GETC
 	call	blkSel
+	call	stdioInit
 	call	shellInit
 
 	ei

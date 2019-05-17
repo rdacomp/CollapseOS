@@ -9,12 +9,8 @@ FS_SEEKH_PORT	.equ	0x03
 jp	init
 
 #include "core.asm"
-.define STDIO_GETC	call emulGetC
-.define STDIO_PUTC	call emulPutC
-STDIO_RAMSTART	.equ	RAMSTART
-#include "stdio.asm"
 
-BLOCKDEV_RAMSTART	.equ	STDIO_RAMEND
+BLOCKDEV_RAMSTART	.equ	RAMSTART
 BLOCKDEV_COUNT		.equ	4
 #include "blockdev.asm"
 ; List of devices
@@ -25,7 +21,10 @@ BLOCKDEV_COUNT		.equ	4
 
 #include "blockdev_cmds.asm"
 
-.equ	FS_RAMSTART	BLOCKDEV_RAMEND
+STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
+#include "stdio.asm"
+
+.equ	FS_RAMSTART	STDIO_RAMEND
 .equ	FS_HANDLE_COUNT	2
 #include "fs.asm"
 #include "fs_cmds.asm"
@@ -42,6 +41,10 @@ init:
 	; setup stack
 	ld	hl, RAMEND
 	ld	sp, hl
+	xor	a
+	ld	de, BLOCKDEV_GETC
+	call	blkSel
+	call	stdioInit
 	call	fsInit
 	ld	a, 1	; select fsdev
 	ld	de, BLOCKDEV_GETC

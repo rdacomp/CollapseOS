@@ -141,7 +141,7 @@ int main()
     cpu.memRead = mem_read;
     cpu.memWrite = mem_write;
 
-    while (running) {
+    while (running && !cpu.halted) {
         Z80Execute(&cpu);
     }
 

@@ -79,7 +79,7 @@ shellInit:
 ; to it rather than call it. Saves two precious bytes in the stack.
 shellLoop:
 	; First, let's wait until something is typed.
-	STDIO_GETC
+	call	stdioGetC
 	jr	nz, shellLoop	; nothing typed? loop
 	; got it. Now, is it a CR or LF?
 	cp	ASCII_CR
@@ -88,7 +88,7 @@ shellLoop:
 	jr	z, .do		; char is LF? do!
 
 	; Echo the received character right away so that we see what we type
-	STDIO_PUTC
+	call	stdioPutC
 
 	; Ok, gotta add it do the buffer
 	; save char for later

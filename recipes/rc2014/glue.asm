@@ -5,11 +5,30 @@ RAMEND		.equ	0xffff
 ACIA_CTL	.equ	0x80	; Control and status. RS off.
 ACIA_IO		.equ	0x81	; Transmit. RS on.
 
-jr	init
+jp	init
 
 ; interrupt hook
 .fill	0x38-$
 jp	aciaInt
+
+#include "core.asm"
+ACIA_RAMSTART	.equ	RAMSTART
+#include "acia.asm"
+
+BLOCKDEV_RAMSTART	.equ	ACIA_RAMEND
+BLOCKDEV_COUNT		.equ	1
+#include "blockdev.asm"
+; List of devices
+.dw	aciaGetC, aciaPutC, 0, 0
+
+STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
+#include "stdio.asm"
+
+SHELL_RAMSTART	.equ	STDIO_RAMEND
+.define SHELL_IO_GETC	call aciaGetC
+.define SHELL_IO_PUTC	call aciaPutC
+SHELL_EXTRA_CMD_COUNT .equ 0
+#include "shell.asm"
 
 init:
 	di
@@ -17,20 +36,13 @@ init:
 	ld	hl, RAMEND
 	ld	sp, hl
 	im 1
+
 	call	aciaInit
+	xor	a
+	ld	de, BLOCKDEV_GETC
+	call	blkSel
+	call	stdioInit
 	call	shellInit
 	ei
 	jp	shellLoop
 
-#include "core.asm"
-ACIA_RAMSTART	.equ	RAMSTART
-#include "acia.asm"
-.define STDIO_GETC	call aciaGetC
-.define STDIO_PUTC	call aciaPutC
-STDIO_RAMSTART	.equ	ACIA_RAMEND
-#include "stdio.asm"
-SHELL_RAMSTART	.equ	STDIO_RAMEND
-.define SHELL_IO_GETC	call aciaGetC
-.define SHELL_IO_PUTC	call aciaPutC
-SHELL_EXTRA_CMD_COUNT .equ 0
-#include "shell.asm"

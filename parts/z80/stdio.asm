@@ -4,13 +4,33 @@
 ; which the user is connected in a decoupled manner.
 ;
 ; *** REQUIREMENTS ***
-; STDIO_GETC: a macro that follows GetC API
-; STDIO_PUTC: a macro that follows GetC API
+; blkdev. select the block device you want to use as stdio just before you call
+; stdioInit.
 
 ; *** VARIABLES ***
 ; Used to store formatted hex values just before printing it.
 STDIO_HEX_FMT	.equ	STDIO_RAMSTART
-STDIO_RAMEND	.equ	STDIO_HEX_FMT+2
+STDIO_GETC	.equ	STDIO_HEX_FMT+2
+STDIO_PUTC	.equ	STDIO_GETC+2
+STDIO_RAMEND	.equ	STDIO_PUTC+2
+
+; Select the blockdev to use as stdio before calling this.
+stdioInit:
+	push	hl
+	ld	hl, (BLOCKDEV_GETC)
+	ld	(STDIO_GETC), hl
+	ld	hl, (BLOCKDEV_PUTC)
+	ld	(STDIO_PUTC), hl
+	pop	hl
+	ret
+
+stdioGetC:
+	ld	ix, (STDIO_GETC)
+	jp	(ix)
+
+stdioPutC:
+	ld	ix, (STDIO_PUTC)
+	jp	(ix)
 
 ; print null-terminated string pointed to by HL
 printstr:
@@ -21,7 +41,7 @@ printstr:
 	ld	a, (hl)		; load character to send
 	or	a		; is it zero?
 	jr	z, .end		; if yes, we're finished
-	STDIO_PUTC
+	call	stdioPutC
 	inc	hl
 	jr	.loop
 
@@ -38,7 +58,7 @@ printnstr:
 	ld	b, a
 .loop:
 	ld	a, (hl)		; load character to send
-	STDIO_PUTC
+	call	stdioPutC
 	inc	hl
 	djnz	.loop
 
@@ -49,9 +69,9 @@ printnstr:
 
 printcrlf:
 	ld	a, ASCII_CR
-	STDIO_PUTC
+	call	stdioPutC
 	ld	a, ASCII_LF
-	STDIO_PUTC
+	call	stdioPutC
 	ret
 
 ; Print the hex char in A
