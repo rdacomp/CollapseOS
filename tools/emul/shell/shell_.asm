@@ -11,7 +11,7 @@ jp	init
 #include "core.asm"
 .define STDIO_GETC	call emulGetC
 .define STDIO_PUTC	call emulPutC
-STDIO_RAMSTART	.equ	RAMEND
+STDIO_RAMSTART	.equ	RAMSTART
 #include "stdio.asm"
 
 BLOCKDEV_RAMSTART	.equ	STDIO_RAMEND
