@@ -6,3 +6,7 @@
 #include "parse.asm"
 .equ	ACIA_RAMSTART	RAMSTART
 #include "acia.asm"
+
+.equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
+.equ	BLOCKDEV_COUNT		1
+#include "blockdev.asm"
