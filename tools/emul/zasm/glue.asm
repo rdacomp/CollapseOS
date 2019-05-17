@@ -5,6 +5,7 @@
 .equ STDIN_SEEK		0x01
 .equ FS_DATA_PORT	0x02
 .equ FS_SEEK_PORT	0x03
+.equ STDERR_PORT	0x04
 
 jp	init	; 3 bytes
 ; *** JUMP TABLE ***
@@ -53,6 +54,7 @@ init:
 	; signal the emulator we're done
 	halt
 
+; *** I/O ***
 emulGetC:
 	in	a, (STDIO_PORT)
 	or	a		; cp 0

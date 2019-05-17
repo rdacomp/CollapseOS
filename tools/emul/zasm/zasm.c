@@ -31,6 +31,7 @@
 #define STDIN_SEEK_PORT 0x01
 #define FS_DATA_PORT 0x02
 #define FS_SEEK_PORT 0x03
+#define STDERR_PORT 0x04
 
 // Other consts
 #define STDIN_BUFSIZE 0x8000
@@ -128,6 +129,8 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
             fsdev_ptr = (val << 8) & 0xff00;
             fsdev_middle_of_seek_tell = 1;
         }
+    } else if (addr == STDERR_PORT) {
+        fputc(val, stderr);
     } else {
         fprintf(stderr, "Out of bounds I/O write: %d / %d\n", addr, val);
     }

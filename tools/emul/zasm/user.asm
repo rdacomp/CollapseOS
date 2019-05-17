@@ -16,7 +16,51 @@ fsSeek		.equ    0x2a
 fsTell		.equ    0x2d
 
 .equ	FS_HANDLE_SIZE	8
+.equ	STDERR_PORT	0x04
 .equ	USER_CODE	0x4800
 .equ	RAMSTART	0x5800
 .org	USER_CODE
+
+	call	zasmMain
+	;call	dumpSymTable
+	ret
+
 #include "main.asm"
+
+; *** Debug ***
+debugPrint:
+	push	af
+	push	hl
+.loop:
+	ld	a, (hl)
+	or	a
+	jr	z, .end
+	out	(STDERR_PORT), a
+	inc	hl
+	jr	.loop
+.end:
+	ld	a, 0x0a
+	out	(STDERR_PORT), a
+	pop	hl
+	pop	af
+	ret
+
+dumpSymTable:
+	ld	hl, SYM_NAMES
+	ld	de, SYM_VALUES
+.loop:
+	call	debugPrint
+	ld	a, (de)
+	out	(12), a
+	inc	de
+	ld	a, (de)
+	out	(12), a
+	inc	de
+	xor	a
+	call	findchar
+	inc	hl
+	ld	a, (hl)
+	or	a
+	ret	z
+	jr	.loop
+
