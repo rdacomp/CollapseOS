@@ -26,40 +26,40 @@
 ; *** CONSTS ***
 
 ; number of entries in shellCmdTbl
-SHELL_CMD_COUNT	.equ	7+SHELL_EXTRA_CMD_COUNT
+.equ	SHELL_CMD_COUNT		7+SHELL_EXTRA_CMD_COUNT
 
 ; maximum number of bytes to receive as args in all commands. Determines the
 ; size of the args variable.
-SHELL_CMD_ARGS_MAXSIZE	.equ	3
+.equ	SHELL_CMD_ARGS_MAXSIZE	3
 
 ; The command that was type isn't known to the shell
-SHELL_ERR_UNKNOWN_CMD	.equ	0x01
+.equ	SHELL_ERR_UNKNOWN_CMD	0x01
 
 ; Arguments for the command weren't properly formatted
-SHELL_ERR_BAD_ARGS	.equ	0x02
+.equ	SHELL_ERR_BAD_ARGS	0x02
 
 ; IO routines (GetC, PutC) returned an error in a load/save command
-SHELL_ERR_IO_ERROR	.equ	0x05
+.equ	SHELL_ERR_IO_ERROR	0x05
 
 ; Size of the shell command buffer. If a typed command reaches this size, the
 ; command is flushed immediately (same as pressing return).
-SHELL_BUFSIZE		.equ	0x20
+.equ	SHELL_BUFSIZE		0x20
 
 ; *** VARIABLES ***
 ; Memory address that the shell is currently "pointing at" for peek, load, call
 ; operations. Set with mptr.
-SHELL_MEM_PTR	.equ	SHELL_RAMSTART
+.equ	SHELL_MEM_PTR	SHELL_RAMSTART
 
 ; Places where we store arguments specifiers and where resulting values are
 ; written to after parsing.
-SHELL_CMD_ARGS	.equ	SHELL_MEM_PTR+2
+.equ	SHELL_CMD_ARGS	SHELL_MEM_PTR+2
 
 ; Command buffer. We read types chars into this buffer until return is pressed
 ; This buffer is null-terminated and we don't keep an index around: we look
 ; for the null-termination every time we write to it. Simpler that way.
-SHELL_BUF	.equ	SHELL_CMD_ARGS+SHELL_CMD_ARGS_MAXSIZE
+.equ	SHELL_BUF	SHELL_CMD_ARGS+SHELL_CMD_ARGS_MAXSIZE
 
-SHELL_RAMEND	.equ	SHELL_BUF+SHELL_BUFSIZE
+.equ	SHELL_RAMEND	SHELL_BUF+SHELL_BUFSIZE
 
 ; *** CODE ***
 shellInit:
@@ -178,8 +178,7 @@ shellParse:
 	; let's have DE point to the jump line
 	ld	a, SHELL_CMD_ARGS_MAXSIZE
 	call	addDE
-	ld	ixh, d
-	ld	ixl, e
+	push	ix \ pop de
 	; Ready to roll!
 	call	callIX
 	cp	0
@@ -467,10 +466,7 @@ shellCall:
 	; 2. our A arg as the first byte of (HL)
 	; 2. our HL arg as (HL+1) and (HL+2)
 	; Ready, set, go!
-	ld	a, (SHELL_MEM_PTR)
-	ld	ixl, a
-	ld	a, (SHELL_MEM_PTR+1)
-	ld	ixh, a
+	ld	ix, (SHELL_MEM_PTR)
 	ld	a, (hl)
 	ex	af, af'
 	inc	hl
