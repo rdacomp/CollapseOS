@@ -180,7 +180,7 @@ gotoNextLine:
 	jr	z, .eof
 	call	isLineEnd
 	jr	z, .loop3	; good!
-	cp	';'
+	cp	0x3b		; ';'
 	jr	z, .loop2	; comment starting, go to "fast lane"
 	jr	.loop1
 .loop2:
@@ -201,7 +201,7 @@ gotoNextLine:
 	call	ioGetC
 	or	a		; cp 0
 	jr	z, .eof
-	cp	';'
+	cp	0x3b		; ';'
 	jr	z, .loop2	; oh, another comment! go back to loop2!
 	call	isSepOrLineEnd
 	jr	z, .loop3
