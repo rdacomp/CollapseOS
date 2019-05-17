@@ -92,10 +92,12 @@ readWord:
 	ld	hl, scratchpad
 	ld	b, SCRATCHPAD_SIZE-1
 	; A contains the first letter to read
-	; Let's first check if we open with a quote. If we do, let's have the
-	; special quote treatment.
+	; Are we opening a double quote?
 	cp	'"'
 	jr	z, .insideQuote
+	; Are we opening a single quote?
+	cp	0x27		; '
+	jr	z, .singleQuote
 .loop2:
 	ld	(hl), a
 	inc	hl
@@ -134,6 +136,21 @@ readWord:
 	djnz	.insideQuote
 	; out of space. error.
 	jr	.error
+.singleQuote:
+	; single quote is more straightforward: we have 3 chars and we put them
+	; right in scratchpad
+	ld	(hl), a
+	call	ioGetC
+	or	a
+	jr	z, .error
+	inc	hl
+	ld	(hl), a
+	call	ioGetC
+	cp	0x27		; '
+	jr	nz, .error
+	inc	hl
+	ld	(hl), a
+	jr	.loop2
 
 ; Reads the next char in I/O. If it's a comma, Set Z and return. If it's not,
 ; Put the read char back in I/O and unset Z.
