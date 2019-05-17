@@ -16,21 +16,21 @@
 ; *** CONSTS ***
 ; size of the input buffer. If our input goes over this size, we start losing
 ; data.
-ACIA_BUFSIZE	.equ	0x20
+.equ	ACIA_BUFSIZE	0x20
 
 ; *** VARIABLES ***
 ; Our input buffer starts there. This is a circular buffer.
-ACIA_BUF	.equ	ACIA_RAMSTART
+.equ	ACIA_BUF	ACIA_RAMSTART
 
 ; The "read" index of the circular buffer. It points to where the next char
 ; should be read. If rd == wr, the buffer is empty. Not touched by the
 ; interrupt.
-ACIA_BUFRDIDX	.equ	ACIA_BUF+ACIA_BUFSIZE
+.equ	ACIA_BUFRDIDX	ACIA_BUF+ACIA_BUFSIZE
 ; The "write" index of the circular buffer. Points to where the next char
 ; should be written. Should only be touched by the interrupt. if wr == rd-1,
 ; the interrupt will *not* write in the buffer until some space has been freed.
-ACIA_BUFWRIDX	.equ	ACIA_BUFRDIDX+1
-ACIA_RAMEND	.equ	ACIA_BUFWRIDX+1
+.equ	ACIA_BUFWRIDX	ACIA_BUFRDIDX+1
+.equ	ACIA_RAMEND	ACIA_BUFWRIDX+1
 
 aciaInit:
 	; initialize variables
