@@ -381,7 +381,7 @@ handleJPIXY:
 	ld	c, 2
 	ret
 .error:
-	xor	c
+	ld	c, 0
 	ret
 
 ; Handle the first argument of BIT. Sets Z if first argument is valid, unset it
@@ -394,7 +394,7 @@ handleBIT:
 	cp	a		; ensure Z
 	ret
 .error:
-	xor	c
+	ld	c, 0
 	call	unsetZ
 	ret
 
@@ -733,8 +733,8 @@ processArg:
 	ret
 
 ; Parse instruction specified in A (I_* const) with args in I/O and write
-; resulting opcode(s) in (instrUpcode). Returns the number of bytes written in
-; A.
+; resulting opcode(s) in I/O.
+; Sets Z on success.
 parseInstruction:
 	push	bc
 	push	hl
@@ -775,9 +775,19 @@ parseInstruction:
 	; We have our matching instruction row. We're getting pretty near our
 	; goal here!
 	call	getUpcode
+	or	a	; is zero?
+	jr	z, .error
+	ld	b, a		; save output byte count
+	ld	hl, instrUpcode
+.loopWrite:
+	ld	a, (hl)
+	call	ioPutC
+	inc	hl
+	djnz	.loopWrite
+	cp	a	; ensure Z
 	jr	.end
 .error:
-	xor	a
+	call	unsetZ
 .end:
 	pop	de
 	pop	hl

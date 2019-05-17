@@ -150,23 +150,7 @@ parseLine:
 
 _parseInstr:
 	ld	a, c		; I_*
-	call	parseInstruction
-	or	a	; is zero?
-	jr	z, .error
-	ld	b, a		; save output byte count
-	ld	hl, instrUpcode
-.loopInstr:
-	ld	a, (hl)
-	call	ioPutC
-	inc	hl
-	djnz	.loopInstr
-	; continue to success
-.success:
-	xor	a		; ensure Z
-	ret
-.error:
-	call	unsetZ
-	ret
+	jp	parseInstruction
 
 _parseDirec:
 	ld	a, c		; D_*
