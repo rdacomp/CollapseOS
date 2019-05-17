@@ -45,24 +45,24 @@
 ; BLOCKDEV_COUNT: The number of devices we manage.
 
 ; *** CONSTS ***
-BLOCKDEV_ERR_OUT_OF_BOUNDS	.equ	0x03
-BLOCKDEV_ERR_UNSUPPORTED	.equ	0x04
+.equ	BLOCKDEV_ERR_OUT_OF_BOUNDS	0x03
+.equ	BLOCKDEV_ERR_UNSUPPORTED	0x04
 
-BLOCKDEV_SEEK_ABSOLUTE		.equ	0
-BLOCKDEV_SEEK_FORWARD		.equ	1
-BLOCKDEV_SEEK_BACKWARD		.equ	2
-BLOCKDEV_SEEK_BEGINNING		.equ	3
-BLOCKDEV_SEEK_END		.equ	4
+.equ	BLOCKDEV_SEEK_ABSOLUTE		0
+.equ	BLOCKDEV_SEEK_FORWARD		1
+.equ	BLOCKDEV_SEEK_BACKWARD		2
+.equ	BLOCKDEV_SEEK_BEGINNING		3
+.equ	BLOCKDEV_SEEK_END		4
 
 ; *** VARIABLES ***
 ; Pointer to the selected block device. A block device is a 8 bytes block of
 ; memory with pointers to GetC, PutC, Seek and Tell routines, in that order.
 ; 0 means unsupported.
-BLOCKDEV_GETC		.equ	BLOCKDEV_RAMSTART
-BLOCKDEV_PUTC		.equ	BLOCKDEV_GETC+2
-BLOCKDEV_SEEK		.equ	BLOCKDEV_PUTC+2
-BLOCKDEV_TELL		.equ	BLOCKDEV_SEEK+2
-BLOCKDEV_RAMEND		.equ	BLOCKDEV_TELL+2
+.equ	BLOCKDEV_GETC		BLOCKDEV_RAMSTART
+.equ	BLOCKDEV_PUTC		BLOCKDEV_GETC+2
+.equ	BLOCKDEV_SEEK		BLOCKDEV_PUTC+2
+.equ	BLOCKDEV_TELL		BLOCKDEV_SEEK+2
+.equ	BLOCKDEV_RAMEND		BLOCKDEV_TELL+2
 
 ; *** CODE ***
 ; Select block index specified in A and place them in routine pointers at (DE).
@@ -120,15 +120,19 @@ _blkCall:
 	; Before we call... is IX zero? We don't want to call a zero.
 	push	af
 	xor	a
-	cp	ixh
+	push	hl
+	push	ix \ pop hl
+	cp	h
 	jr	nz, .ok		; not zero, ok
-	cp	ixl
+	cp	l
 	jr	z, .error	; zero, error
 .ok:
+	pop	hl
 	pop	af
 	call	callIX
 	ret
 .error:
+	pop	hl
 	pop	af
 	ld	a, BLOCKDEV_ERR_UNSUPPORTED
 	ret
@@ -222,7 +226,7 @@ _blkSeek:
 	; all other modes are considered absolute
 	jr	.seek		; for absolute mode, HL is already correct
 .forward:
-	ex	hl, de		; DE has our offset
+	ex	de, hl		; DE has our offset
 	; We want to be able to plug our own TELL function, which is why we
 	; don't call blkTell directly here.
 	; Calling TELL
