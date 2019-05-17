@@ -26,7 +26,7 @@ int spitblock(char *fullpath, char *fn)
     if (fsize2 > 0) {
         blockcount += (fsize2 / BLKSIZE);
     }
-    if (blockcount * BLKSIZE < fsize) {
+    if (blockcount * BLKSIZE < fsize + HEADERSIZE) {
         blockcount++;
     }
     putchar('C');
