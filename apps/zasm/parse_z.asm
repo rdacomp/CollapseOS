@@ -93,7 +93,7 @@ parseHexadecimal:
 	pop	hl
 	ret
 
-; Sets Z if (HL) has a '0x' or '0X' prefix.
+; Sets Z if (HL) has a '0x' prefix.
 hasHexPrefix:
 	ld	a, (hl)
 	cp	'0'
@@ -102,6 +102,62 @@ hasHexPrefix:
 	inc	hl
 	ld	a, (hl)
 	cp	'x'
+	pop	hl
+	ret
+
+; Parse string at (HL) as a binary value (0b010101) and return value in IXL.
+; Clears IXH.
+; Sets Z on success.
+parseBinaryLiteral:
+	call	hasBinPrefix
+	ret	nz
+	push	bc
+	push	hl
+	xor	a
+	ld	ixh, a
+	inc	hl	; get rid of "0x"
+	inc	hl
+	call	strlen
+	or	a
+	jr	z, .error	; empty, error
+	cp	9
+	jr	nc, .error	; >= 9, too long
+	; We have a string of 8 or less chars. What we'll do is that for each
+	; char, we rotate left and set the LSB according to whether we have '0'
+	; or '1'. Error out on anything else. C is our stored result.
+	ld	b, a		; we loop for "strlen" times
+	ld	c, 0		; our stored result
+.loop:
+	rlc	c
+	ld	a, (hl)
+	inc	hl
+	cp	'0'
+	jr	z, .nobit	; no bit to set
+	cp	'1'
+	jr	nz, .error	; not 0 or 1
+	; We have a bit to set
+	inc	c
+.nobit:
+	djnz	.loop
+	ld	ixl, c
+	cp	a		; ensure Z
+	jr	.end
+.error:
+	call	unsetZ
+.end:
+	pop	hl
+	pop	bc
+	ret
+
+; Sets Z if (HL) has a '0b' prefix.
+hasBinPrefix:
+	ld	a, (hl)
+	cp	'0'
+	ret	nz
+	push	hl
+	inc	hl
+	ld	a, (hl)
+	cp	'b'
 	pop	hl
 	ret
 
@@ -146,6 +202,8 @@ parseLiteral:
 	call	parseCharLiteral
 	ret	z
 	call	parseHexadecimal
+	ret	z
+	call	parseBinaryLiteral
 	ret	z
 	jp	parseDecimal
 
