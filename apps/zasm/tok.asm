@@ -64,6 +64,7 @@ isLabel:
 	; We have a match!
 	; Remove trailing ':'
 	xor	a		; Z is set
+	dec	hl
 	ld	(hl), a
 	jr	.end
 .nomatch:

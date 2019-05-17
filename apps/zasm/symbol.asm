@@ -217,17 +217,12 @@ symFind:
 	push	bc
 	push	de
 
-	; First, what's our strlen?
-	call	strlen
-	ld	c, a		; let's save that
-
 	ex	hl, de		; it's easier if HL is haystack and DE is
 				; needle.
 	ld	b, 0
 	ld	hl, (SYM_CTX_NAMES)
 .loop:
-	ld	a, c		; recall strlen
-	call	strncmp
+	call	strcmp
 	jr	z, .match
 	; ok, next!
 	call	_symNext
