@@ -16,3 +16,4 @@ label2: .dw	0x42
 	ld	hl, bar
 	ld	ix, 1234
 	ld	iy, 2345
+	ld	(ix+1), l

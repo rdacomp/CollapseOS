@@ -96,10 +96,12 @@ getInstID:
 parseIXY:
 	push	hl
 	ld	a, (hl)
+	call	upcase
 	cp	'I'
 	jr	nz, .end	; Z already unset
 	inc	hl
 	ld	a, (hl)
+	call	upcase
 	cp	'X'
 	jr	z, .match1
 	cp	'Y'
