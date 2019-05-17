@@ -34,8 +34,6 @@ isSep:
 	cp	' '
 	ret	z
 	cp	0x09
-	ret	z
-	cp	','
 	ret
 
 ; Sets Z is A is ' ', ',', ';', CR, LF, or null.
@@ -100,6 +98,8 @@ readWord:
 	call	ioGetC
 	call	isSepOrLineEnd
 	jr	z, .success
+	cp	','
+	jr	z, .success
 	djnz	.loop2
 	; out of space. error.
 .error:
@@ -116,6 +116,16 @@ readWord:
 	ld	hl, scratchpad
 .end:
 	pop	bc
+	ret
+
+; Reads the next char in I/O. If it's a comma, Set Z and return. If it's not,
+; Put the read char back in I/O and unset Z.
+readComma:
+	call	ioGetC
+	cp	','
+	ret	z
+	call	ioPutBack
+	call	unsetZ
 	ret
 
 ; Read ioGetC until we reach the beginning of next line, skipping comments if

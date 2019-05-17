@@ -710,15 +710,9 @@ getUpcode:
 	pop	ix
 	ret
 
-; Parse next argument in I/O and place it in (DE)
+; Parse argument in (HL) and place it in (DE)
 ; Sets Z on success, reset on error.
 processArg:
-	call	readWord
-	jr	nz, .noarg
-	; Read word is in (HL). Now, let's push
-	; that HL value and replace it with (scratchpad) so that we can parse
-	; that arg.
-
 	call	parseArg
 	cp	0xff
 	jr	z, .error
@@ -737,10 +731,6 @@ processArg:
 .error:
 	call	unsetZ
 	ret
-.noarg:
-	xor	a
-	ld	(de), a
-	ret
 
 ; Parse instruction specified in A (I_* const) with args in I/O and write
 ; resulting opcode(s) in (instrUpcode). Returns the number of bytes written in
@@ -752,12 +742,22 @@ parseInstruction:
 	; A is reused in matchPrimaryRow but that register is way too changing.
 	; Let's keep a copy in a more cosy register.
 	ld	c, a
+	xor	a
+	ld	(curArg1), a
+	ld	(curArg2), a
+	call	readWord
+	jr	nz, .nomorearg
 	ld	de, curArg1
 	call	processArg
+	jr	nz, .error
+	call	readComma
+	jr	nz, .nomorearg
+	call	readWord
 	jr	nz, .error
 	ld	de, curArg2
 	call	processArg
 	jr	nz, .error
+.nomorearg:
 	; Parsing done, no error, let's move forward to instr row matching!
 	ld	de, instrTBl
 	ld	b, INSTR_TBL_CNT
