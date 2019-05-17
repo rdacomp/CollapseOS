@@ -66,10 +66,10 @@ strncmpI:
 	ld	b, a
 .loop:
 	ld	a, (de)
-	call	JUMP_UPCASE
+	call	upcase
 	ld	c, a
 	ld	a, (hl)
-	call	JUMP_UPCASE
+	call	upcase
 	cp	c
 	jr	nz, .end	; not equal? break early. NZ is carried out
 				; to the called
@@ -120,7 +120,7 @@ enterParens:
 	ret		; we're good!
 .doNotEnter:
 	pop	hl
-	call	JUMP_UNSETZ
+	call	unsetZ
 	ret
 
 ; Find string (HL) in string list (DE) of size B, in a case-insensitive manner.
@@ -133,7 +133,7 @@ findStringInList:
 	ld	a, c
 	call	strncmpI
 	ld	a, c
-	call	JUMP_ADDDE
+	call	addDE
 	jr	z, .match
 	djnz	.loop
 	; no match, Z is unset

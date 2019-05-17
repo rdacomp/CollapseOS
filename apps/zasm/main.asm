@@ -19,20 +19,20 @@
 ;
 ; *** Requirements ***
 ; blockdev
-; JUMP_STRNCMP
-; JUMP_ADDDE
-; JUMP_ADDHL
-; JUMP_UPCASE
-; JUMP_UNSETZ
-; JUMP_INTODE
-; JUMP_INTOHL
-; JUMP_FINDCHAR
-; JUMP_BLKSEL
-; JUMP_FSFINDFN
-; JUMP_FSOPEN
-; JUMP_FSGETC
-; JUMP_FSSEEK
-; JUMP_FSTELL
+; strncmp
+; addDE
+; addHL
+; upcase
+; unsetZ
+; intoDE
+; intoHL
+; findchar
+; blkSel
+; fsFindFN
+; fsOpen
+; fsGetC
+; fsSeek
+; fsTell
 ; RAMSTART	(where we put our variables in RAM)
 ; FS_HANDLE_SIZE
 
@@ -60,7 +60,7 @@ jp	zasmMain
 .equ	IO_RAMSTART	ZASM_RAMEND
 #include "io.asm"
 #include "tok.asm"
-#include "parse.asm"
+#include "parse_z.asm"
 #include "expr.asm"
 #include "instr.asm"
 .equ	DIREC_RAMSTART	IO_RAMEND
@@ -74,10 +74,10 @@ zasmMain:
 	; Init I/O
 	ld	a, h
 	ld	de, IO_IN_GETC
-	call	JUMP_BLKSEL
+	call	blkSel
 	ld	a, l
 	ld	de, IO_OUT_GETC
-	call	JUMP_BLKSEL
+	call	blkSel
 
 	; Init modules
 	xor	a
@@ -113,7 +113,7 @@ zasmIsLocalPass:
 incOutputOffset:
 	push	de
 	ld	de, (ZASM_PC)
-	call	JUMP_ADDDE
+	call	addDE
 	ld	(ZASM_PC), de
 	pop	de
 	ret
@@ -180,7 +180,7 @@ _parseInstr:
 	xor	a		; ensure Z
 	ret
 .error:
-	call	JUMP_UNSETZ
+	call	unsetZ
 	ret
 
 _parseDirec:
@@ -241,7 +241,7 @@ _parseLabel:
 	xor	a		; ensure Z
 	ret
 .error:
-	call	JUMP_UNSETZ
+	call	unsetZ
 	ret
 
 _beginLocalPass:

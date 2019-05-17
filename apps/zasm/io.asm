@@ -66,7 +66,7 @@ ioGetC:
 	; We're in "include mode", read from FS
 	push	de
 	ld	de, IO_INCLUDE_HDL
-	call	JUMP_FSGETC
+	call	fsGetC
 	pop	de
 	or	a		; cp 0
 	ret	nz		; not zero, all good
@@ -129,7 +129,7 @@ _ioSeek:
 	; We're in "include mode", seek in FS
 	push	de
 	ld	de, IO_INCLUDE_HDL
-	call	JUMP_FSSEEK
+	call	fsSeek
 	pop	de
 	ret
 
@@ -143,7 +143,7 @@ _ioTell:
 	; We're in "include mode", tell from FS
 	push	de
 	ld	de, IO_INCLUDE_HDL
-	call	JUMP_FSTELL
+	call	fsTell
 	pop	de
 	ret
 
@@ -156,10 +156,10 @@ ioInInclude:
 ; Open include file name specified in (HL).
 ; Sets Z on success, unset on error.
 ioOpenInclude:
-	call	JUMP_FSFINDFN
+	call	fsFindFN
 	ret	nz
 	ld	hl, IO_INCLUDE_HDL
-	call	JUMP_FSOPEN
+	call	fsOpen
 	ld	a, 1
 	ld	(IO_IN_INCLUDE), a
 	cp	a		; ensure Z

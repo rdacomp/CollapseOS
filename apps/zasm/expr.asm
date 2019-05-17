@@ -6,12 +6,12 @@ parseExpr:
 	push	de
 	push	hl
 	ld	a, '+'
-	call	JUMP_FINDCHAR
+	call	findchar
 	jr	z, .hasExpr
 	pop	hl
 	push	hl
 	ld	a, '-'
-	call	JUMP_FINDCHAR
+	call	findchar
 	jr	nz, .noExpr
 	ld	c, '-'
 	jr	.hasExpr

@@ -146,7 +146,7 @@ parseArg:
 	call	strncmpI
 	jr	z, .found		; got it!
 	ld	a, 5
-	call	JUMP_ADDDE
+	call	addDE
 	djnz	.loop1
 
 	; We exhausted the argspecs. Let's see if we're inside parens.
@@ -206,7 +206,7 @@ isGroupId:
 	cp	a
 	ret
 .notgroup:
-	call	JUMP_UNSETZ
+	call	unsetZ
 	ret
 
 ; Find argspec A in group id H.
@@ -237,7 +237,7 @@ findInGroup:
 	ld	a, h
 	rla
 	rla
-	call	JUMP_ADDDE	; At this point, DE points to our group
+	call	addDE		; At this point, DE points to our group
 	pop	af
 	ex	hl, de		; And now, HL points to the group
 	pop	de
@@ -276,7 +276,7 @@ findInGroup:
 	jr	.end
 .notfound:
 	pop	bc	; from the push bc in .find
-	call	JUMP_UNSETZ
+	call	unsetZ
 .end:
 	pop	hl
 	pop	bc
@@ -297,11 +297,11 @@ matchArg:
 	cp	0
 	jr	nz, .checkIfNumber	; not a zero, we can continue
 	; zero, stop here
-	call	JUMP_UNSETZ
+	call	unsetZ
 	ret
 .checkIfNumber:
 	; not an exact match, let's check for numerical constants.
-	call	JUMP_UPCASE
+	call	upcase
 	call	checkNOrM
 	jr	z, .expectsNumber
 	jr	.notNumber
@@ -393,7 +393,7 @@ handleBIT:
 	ret
 .error:
 	xor	c
-	call	JUMP_UNSETZ
+	call	unsetZ
 	ret
 
 handleBITHL:
@@ -644,7 +644,7 @@ getUpcode:
 	; We're on second pass
 	push	de		; Don't let go of this, that's our dest
 	ld	de, (ZASM_PC)
-	call	JUMP_INTOHL
+	call	intoHL
 	dec	hl		; what we write is "e-2"
 	dec	hl
 	call	subDEFromHL
@@ -733,7 +733,7 @@ processArg:
 	cp	a		; ensure Z is set
 	ret
 .error:
-	call	JUMP_UNSETZ
+	call	unsetZ
 	ret
 .noarg:
 	xor	a
@@ -764,7 +764,7 @@ parseInstruction:
 	call	matchPrimaryRow
 	jr	z, .match
 	ld	a, INSTR_TBL_ROWSIZE
-	call	JUMP_ADDDE
+	call	addDE
 	djnz	.loop
 	; no match
 	xor	a

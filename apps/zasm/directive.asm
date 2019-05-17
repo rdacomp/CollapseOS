@@ -98,7 +98,7 @@ handleINC:
 	; We have opening quote
 	inc	hl
 	xor	a
-	call	JUMP_FINDCHAR	; go to end of string
+	call	findchar	; go to end of string
 	dec	hl
 	ld	a, (hl)
 	cp	'"'
@@ -135,8 +135,8 @@ parseDirective:
 	; double A to have a proper offset in directiveHandlers
 	add	a, a
 	ld	de, directiveHandlers
-	call	JUMP_ADDDE
-	call	JUMP_INTODE
+	call	addDE
+	call	intoDE
 	ld	ixh, d
 	ld	ixl, e
 	pop	de

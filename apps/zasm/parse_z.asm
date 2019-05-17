@@ -51,7 +51,7 @@ parseDecimal:
 	jr	.loop
 
 .error:
-	call	JUMP_UNSETZ
+	call	unsetZ
 .end:
 	pop	bc
 	pop	de
@@ -77,18 +77,18 @@ parseHexadecimal:
 	; too long, error
 	jr	.error
 .double:
-	call	JUMP_PARSEHEXPAIR	; moves HL to last char of pair
+	call	parseHexPair	; moves HL to last char of pair
 	jr	c, .error
 	inc	hl			; now HL is on first char of next pair
 	ld	ixh, a
 .single:
-	call	JUMP_PARSEHEXPAIR
+	call	parseHexPair
 	jr	c, .error
 	ld	ixl, a
 	cp	a			; ensure Z
 	jr	.end
 .error:
-	call	JUMP_UNSETZ
+	call	unsetZ
 .end:
 	pop	hl
 	ret

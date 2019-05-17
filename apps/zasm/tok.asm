@@ -52,7 +52,7 @@ isSepOrLineEnd:
 isLabel:
 	push	hl
 	ld	a, ':'
-	call	JUMP_FINDCHAR
+	call	findchar
 	ld	a, (hl)
 	cp	':'
 	jr	nz, .nomatch
@@ -67,7 +67,7 @@ isLabel:
 	ld	(hl), a
 	jr	.end
 .nomatch:
-	call	JUMP_UNSETZ
+	call	unsetZ
 .end:
 	pop	hl
 	ret
@@ -105,7 +105,7 @@ readWord:
 	; We need to put the last char we've read back so that gotoNextLine
 	; behaves properly.
 	call	ioPutBack
-	call	JUMP_UNSETZ
+	call	unsetZ
 	jr	.end
 .success:
 	call	ioPutBack

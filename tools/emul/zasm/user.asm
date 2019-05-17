@@ -1,19 +1,19 @@
 ; *** JUMP TABLE ***
-JUMP_STRNCMP    .equ    0x03
-JUMP_ADDDE      .equ    0x06
-JUMP_ADDHL      .equ    0x09
-JUMP_UPCASE     .equ    0x0c
-JUMP_UNSETZ     .equ    0x0f
-JUMP_INTODE	.equ    0x12
-JUMP_INTOHL	.equ    0x15
-JUMP_FINDCHAR	.equ    0x18
-JUMP_PARSEHEXPAIR .equ  0x1b
-JUMP_BLKSEL	.equ    0x1e
-JUMP_FSFINDFN	.equ    0x21
-JUMP_FSOPEN	.equ    0x24
-JUMP_FSGETC	.equ    0x27
-JUMP_FSSEEK	.equ    0x2a
-JUMP_FSTELL	.equ    0x2d
+strncmp		.equ    0x03
+addDE		.equ    0x06
+addHL		.equ    0x09
+upcase		.equ    0x0c
+unsetZ		.equ    0x0f
+intoDE		.equ    0x12
+intoHL		.equ    0x15
+findchar	.equ    0x18
+parseHexPair	.equ  0x1b
+blkSel		.equ    0x1e
+fsFindFN	.equ    0x21
+fsOpen		.equ    0x24
+fsGetC		.equ    0x27
+fsSeek		.equ    0x2a
+fsTell		.equ    0x2d
 
 .equ	FS_HANDLE_SIZE	8
 .equ	USER_CODE	0x4800

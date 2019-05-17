@@ -57,11 +57,11 @@ _symNext:
 	cp	(hl)
 	jr	nz, .do		; (HL) is not zero? we can advance.
 	; (HL) is zero? we're at the end of the chain.
-	call	JUMP_UNSETZ
+	call	unsetZ
 	ret
 .do:
 	; A is already 0
-	call	JUMP_FINDCHAR	; find next null char
+	call	findchar	; find next null char
 	; go to the char after it.
 	inc	hl
 	cp	a		; ensure Z
@@ -126,7 +126,7 @@ symNamesEnd:
 	djnz	.loop
 	; exhausted djnz? out of bounds
 .outOfBounds:
-	call	JUMP_UNSETZ
+	call	unsetZ
 	jr	.end
 .success:
 	; Our index is 0 - B (if B is, for example 0xfd, A is 0x3)
@@ -161,7 +161,7 @@ symRegister:
 	push	de
 		ld	de, (SYM_CTX_NAMESEND)
 		ld	a, c
-		call	JUMP_ADDHL
+		call	addHL
 		call	cpHLDE
 	pop	de
 	pop	hl
@@ -189,8 +189,8 @@ symRegister:
 	pop	de
 	push	de	; push it right back to avoid stack imbalance
 	ld	hl, (SYM_CTX_VALUES)
-	call	JUMP_ADDHL
-	call	JUMP_ADDHL	; twice because our values are words
+	call	addHL
+	call	addHL	; twice because our values are words
 
 	; Everything is set! DE is our value HL points to the proper index in
 	; (SYM_CTX_VALUES). Let's just write it (little endian).
@@ -227,7 +227,7 @@ symFind:
 	ld	hl, (SYM_CTX_NAMES)
 .loop:
 	ld	a, c		; recall strlen
-	call	JUMP_STRNCMP
+	call	strncmp
 	jr	z, .match
 	; ok, next!
 	call	_symNext
@@ -235,8 +235,7 @@ symFind:
 	djnz	.loop
 	; exhausted djnz? no match
 .nomatch:
-	out	(99), a
-	call	JUMP_UNSETZ
+	call	unsetZ
 	jr	.end
 .match:
 	; Our index is 0 - B (if B is, for example 0xfd, A is 0x3)
@@ -254,8 +253,8 @@ symGetVal:
 	; our index is in A. Let's fetch the proper value
 	push	hl
 	ld	hl, (SYM_CTX_VALUES)
-	call	JUMP_ADDHL
-	call	JUMP_ADDHL	; twice because our values are words
+	call	addHL
+	call	addHL	; twice because our values are words
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
