@@ -149,6 +149,39 @@ enterParens:
 	call	unsetZ
 	ret
 
+; Scans (HL) and sets Z according to whether the string is double quoted, that
+; is, starts with a " and ends with a ". If it is double quoted, "enter" them,
+; that is, advance HL by one and transform the ending quote into a null char.
+; If the string isn't double-enquoted, HL isn't changed.
+enterDoubleQuotes:
+	ld	a, (hl)
+	cp	'"'
+	ret	nz
+	push	hl
+	inc	hl
+	ld	a, (hl)
+	or	a		; already end of string?
+	jr	z, .nomatch
+	xor	a
+	call	findchar	; go to end of string
+	dec	hl
+	ld	a, (hl)
+	cp	'"'
+	jr	nz, .nomatch
+	; We have a match, replace ending quote with null char
+	xor	a
+	ld	(hl), a
+	; Good, let's go back
+	pop	hl
+	; ... but one char further
+	inc	hl
+	cp	a	; ensure Z
+	ret
+.nomatch:
+	call	unsetZ
+	pop	hl
+	ret
+
 ; Find string (HL) in string list (DE) of size B, in a case-insensitive manner.
 ; Each string is C bytes wide.
 ; Returns the index of the found string. Sets Z if found, unsets Z if not found.

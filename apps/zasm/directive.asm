@@ -30,13 +30,24 @@ handleDB:
 .loop:
 	call	readWord
 	ld	hl, scratchpad
+	call	enterDoubleQuotes
+	jr	z, .stringLiteral
 	call	parseLiteral
 	ld	a, ixl
 	call	ioPutC
+.stopStrLit:
 	call	readComma
 	jr	z, .loop
 	pop	hl
 	ret
+.stringLiteral:
+	ld	a, (hl)
+	inc	hl
+	or	a		; when we encounter 0, that was what used to
+	jr	z, .stopStrLit	; be our closing quote. Stop.
+	; Normal character, output
+	call	ioPutC
+	jr	.stringLiteral
 
 handleDW:
 	push	hl
@@ -96,23 +107,8 @@ handleINC:
 	call	readWord
 	jr	nz, .end
 	; HL points to scratchpad
-	; First, let's verify that our string is enquoted
-	ld	a, (hl)
-	cp	'"'
+	call	enterDoubleQuotes
 	jr	nz, .end
-	; We have opening quote
-	inc	hl
-	xor	a
-	call	findchar	; go to end of string
-	dec	hl
-	ld	a, (hl)
-	cp	'"'
-	jr	nz, .end
-	; we have ending quote, let's replace with null char
-	xor	a
-	ld	(hl), a
-	; Good, let's go back
-	ld	hl, scratchpad+1	; +1 because of the opening quote
 	call	ioOpenInclude
 .end:
 	xor	a		; zero bytes written
