@@ -32,7 +32,7 @@ handleDB:
 	ld	hl, scratchpad
 	call	enterDoubleQuotes
 	jr	z, .stringLiteral
-	call	parseLiteral
+	call	parseExpr
 	ld	a, ixl
 	call	ioPutC
 .stopStrLit:
