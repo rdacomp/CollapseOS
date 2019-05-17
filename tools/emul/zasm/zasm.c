@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
-#include "libz80/z80.h"
-#include "zasm-kernel.h"
-#include "zasm-user.h"
-#include "zasm-includes.h"
+#include "../libz80/z80.h"
+#include "kernel.h"
+#include "user.h"
+#include "includes.h"
 
 /* zasm reads from a specified blkdev, assemble the file and writes the result
  * in another specified blkdev. In our emulator layer, we use stdin and stdout

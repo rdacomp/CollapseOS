@@ -5,7 +5,7 @@ set -e
 TMPFILE=$(mktemp)
 SCAS=scas
 PARTS=../../../parts/z80
-ZASM=../../emul/zasm
+ZASM=../../emul/zasm/zasm
 ASMFILE=../../../apps/zasm/instr.asm
 
 cmpas() {

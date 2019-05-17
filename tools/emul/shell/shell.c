@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <termios.h>
-#include "libz80/z80.h"
-#include "shell-kernel.h"
+#include "../libz80/z80.h"
+#include "kernel.h"
 
 /* Collapse OS shell with filesystem
  *

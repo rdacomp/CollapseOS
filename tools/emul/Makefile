@@ -1,30 +1,30 @@
-TARGETS = shell zasm
-KERNEL_HEADERS = shell-kernel.h zasm-kernel.h
-USER_HEADERS = zasm-user.h
+TARGETS = shell/shell zasm/zasm
+KERNEL_HEADERS = shell/kernel.h zasm/kernel.h
+USER_HEADERS = zasm/user.h
 CFSPACK = ../cfspack/cfspack
 
 .PHONY: all
 all: $(TARGETS)
 
-shell-kernel.h: shell_.asm
-zasm-kernel.h: zasm_glue.asm
+shell/kernel.h: shell/shell_.asm
+zasm/kernel.h: zasm/glue.asm
 $(KERNEL_HEADERS):
 	scas -o - -I ../../parts/z80 $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
 
-zasm-user.h: zasm_user.asm
+zasm/user.h: zasm/user.asm
 	scas -o - -I ../../apps/zasm $< | ./bin2c.sh USERSPACE | tee $@ > /dev/null
 
-zasm-includes.cfs: ../../parts/z80 $(CFSPACK)
-	cp -rf $< zasm-includes
-	rm zasm-includes/README.md
-	$(CFSPACK) zasm-includes > $@
-	rm -rf zasm-includes
+zasm/includes.cfs: ../../parts/z80 $(CFSPACK)
+	cp -rf $< zasm/includes
+	rm zasm/includes/README.md
+	$(CFSPACK) zasm/includes > $@
+	rm -rf zasm/includes
 
-zasm-includes.h: zasm-includes.cfs
+zasm/includes.h: zasm/includes.cfs
 	./bin2c.sh FSDEV < $< | tee $@ > /dev/null
 	
-shell: shell.c libz80/libz80.o shell-kernel.h $(CFSPACK)
-zasm: zasm.c libz80/libz80.o zasm-kernel.h zasm-user.h zasm-includes.h
+shell/shell: shell/shell.c libz80/libz80.o shell/kernel.h $(CFSPACK)
+zasm/zasm: zasm/zasm.c libz80/libz80.o zasm/kernel.h zasm/user.h zasm/includes.h
 $(TARGETS):
 	cc $< libz80/libz80.o -o $@
 
@@ -37,4 +37,4 @@ $(CFSPACK):
 
 .PHONY: clean
 clean:
-	rm -f $(TARGETS) $(KERNEL_HEADERS) $(USER_HEADERS) zasm-includes.*
+	rm -f $(TARGETS) $(KERNEL_HEADERS) $(USER_HEADERS) zasm/includes.*
