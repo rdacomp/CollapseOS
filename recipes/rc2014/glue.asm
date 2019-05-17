@@ -25,8 +25,6 @@ STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
 #include "stdio.asm"
 
 SHELL_RAMSTART	.equ	STDIO_RAMEND
-.define SHELL_IO_GETC	call aciaGetC
-.define SHELL_IO_PUTC	call aciaPutC
 SHELL_EXTRA_CMD_COUNT .equ 0
 #include "shell.asm"
 

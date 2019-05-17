@@ -30,8 +30,6 @@ STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
 #include "fs_cmds.asm"
 
 SHELL_RAMSTART	.equ	FS_RAMEND
-.define SHELL_IO_GETC	call blkGetC
-.define SHELL_IO_PUTC	call blkPutC
 SHELL_EXTRA_CMD_COUNT .equ 7
 #include "shell.asm"
 .dw	blkBselCmd, blkSeekCmd, fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd

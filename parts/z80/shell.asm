@@ -15,10 +15,9 @@
 
 ; *** REQUIREMENTS ***
 ; stdio
+; blkdev
 
 ; *** DEFINES ***
-; SHELL_IO_GETC: Macro that calls a GetC routine for I/O ("load" cmd)
-; SHELL_IO_PUTC: Macro that calls a PutC routine for I/O ("save" cmd)
 ; SHELL_EXTRA_CMD_COUNT: Number of extra cmds to be expected after the regular
 ;                        ones. See comment in COMMANDS section for details.
 ; SHELL_RAMSTART
@@ -397,8 +396,7 @@ shellPeek:
 
 ; Load the specified number of bytes (max 0xff) from IO and write them in the
 ; current memory pointer (which doesn't change). This gets chars from
-; SHELL_IO_GETC, which can be different from STDIO_GETC. Coupled with the
-; "blockdev" part, this allows you to dynamically select your IO source.
+; blkGetCW.
 ; Control is returned to the shell only after all bytes are read.
 ;
 ; Example: load 42
@@ -411,7 +409,7 @@ shellLoad:
 	ld	a, (hl)
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
-.loop:  SHELL_IO_GETC
+.loop:  call	blkGetCW
 	jr	nz, .ioError
 	ld	(hl), a
 	inc	hl
@@ -428,8 +426,7 @@ shellLoad:
 
 ; Load the specified number of bytes (max 0xff) from the current memory pointer
 ; and write them to I/O. Memory pointer doesn't move. This puts chars to
-; SHELL_IO_PUTC, which can be different from STDIO_PUTC. Coupled with the
-; "blockdev" part, this allows you to dynamically select your IO source.
+; blkPutC.
 ; Control is returned to the shell only after all bytes are written.
 ;
 ; Example: save 42
@@ -445,7 +442,7 @@ shellSave:
 .loop:
 	ld	a, (hl)
 	inc	hl
-	SHELL_IO_PUTC
+	call	blkPutC
 	djnz	.loop
 
 .end:

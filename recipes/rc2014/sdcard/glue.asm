@@ -40,8 +40,6 @@ STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
 #include "stdio.asm"
 
 SHELL_RAMSTART	.equ	STDIO_RAMEND
-.define SHELL_IO_GETC	call blkGetCW
-.define SHELL_IO_PUTC	call blkPutC
 SHELL_EXTRA_CMD_COUNT .equ 3
 #include "shell.asm"
 .dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd
