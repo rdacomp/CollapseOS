@@ -5,7 +5,7 @@ TOK_LABEL	.equ	0x03
 TOK_EOF		.equ	0xfe	; end of file
 TOK_BAD		.equ	0xff
 
-.equ	SCRATCHPAD_SIZE	0x20
+.equ	SCRATCHPAD_SIZE	0x40
 ; *** Variables ***
 scratchpad:
 	.fill	SCRATCHPAD_SIZE
@@ -92,6 +92,10 @@ readWord:
 	ld	hl, scratchpad
 	ld	b, SCRATCHPAD_SIZE-1
 	; A contains the first letter to read
+	; Let's first check if we open with a quote. If we do, let's have the
+	; special quote treatment.
+	cp	'"'
+	jr	z, .insideQuote
 .loop2:
 	ld	(hl), a
 	inc	hl
@@ -117,6 +121,19 @@ readWord:
 .end:
 	pop	bc
 	ret
+.insideQuote:
+	; inside quotes, we accept literal whitespaces, but not line ends.
+	ld	(hl), a
+	inc	hl
+	call	ioGetC
+	cp	'"'
+	jr	z, .loop2	; ending the quote ends the word
+	call	isLineEnd
+	jr	z, .error	; ending the line without closing the quote,
+				; nope.
+	djnz	.insideQuote
+	; out of space. error.
+	jr	.error
 
 ; Reads the next char in I/O. If it's a comma, Set Z and return. If it's not,
 ; Put the read char back in I/O and unset Z.
