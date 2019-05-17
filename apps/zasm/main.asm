@@ -43,13 +43,11 @@
 ; that when we parse instructions and directive that error out because of a
 ; missing symbol, we don't error out and just write down a dummy value.
 .equ	ZASM_FIRST_PASS		RAMSTART
-; The offset where we currently are with regards to outputting opcodes
-.equ	ZASM_PC			ZASM_FIRST_PASS+1
 ; whether we're in "local pass", that is, in local label scanning mode. During
 ; this special pass, ZASM_FIRST_PASS will also be set so that the rest of the
 ; code behaves as is we were in the first pass.
-.equ	ZASM_LOCAL_PASS		ZASM_PC+2
-; What ZASM_PC was when we started our context
+.equ	ZASM_LOCAL_PASS		ZASM_FIRST_PASS+1
+; What IO_PC was when we started our context
 .equ	ZASM_CTX_PC		ZASM_LOCAL_PASS+1
 .equ	ZASM_RAMEND		ZASM_CTX_PC+2
 
@@ -109,21 +107,11 @@ zasmIsLocalPass:
 	cp	1
 	ret
 
-; Increase (ZASM_PC) by A
-incOutputOffset:
-	push	de
-	ld	de, (ZASM_PC)
-	call	addDE
-	ld	(ZASM_PC), de
-	pop	de
-	ret
-
 ; Repeatedly reads lines from IO, assemble them and spit the binary code in
 ; IO. Z is set on success, unset on error. DE contains the last line number to
 ; be read (first line is 1).
 zasmParseFile:
-	ld	de, 0
-	ld	(ZASM_PC), de
+	call	ioResetPC
 .loop:
 	call	parseLine
 	ret	nz		; error
@@ -142,7 +130,7 @@ zasmParseFile:
 	ret
 
 ; Parse next token and accompanying args (when relevant) in I/O, write the
-; resulting opcode(s) through ioPutC and increases (ZASM_PC) by the number of
+; resulting opcode(s) through ioPutC and increases (IO_PC) by the number of
 ; bytes written. BC is set to the result of the call to tokenize.
 ; Sets Z if parse was successful, unset if there was an error. EOF is not an
 ; error.
@@ -166,9 +154,6 @@ _parseInstr:
 	or	a	; is zero?
 	jr	z, .error
 	ld	b, a		; save output byte count
-	call	incOutputOffset
-	call	zasmIsFirstPass
-	jr	z, .success		; first pass, nothing to write
 	ld	hl, instrUpcode
 .loopInstr:
 	ld	a, (hl)
@@ -189,9 +174,6 @@ _parseDirec:
 	or	a		; cp 0
 	jr	z, .success	; if zero, shortcut through
 	ld	b, a		; save output byte count
-	call	incOutputOffset
-	call	zasmIsFirstPass
-	jr	z, .success		; first pass, nothing to write
 	ld	hl, direcData
 .loopDirec:
 	ld	a, (hl)
@@ -233,7 +215,7 @@ _parseLabel:
 	call	_endLocalPass
 	jr	.success
 .registerLabel:
-	ld	de, (ZASM_PC)
+	ld	de, (IO_PC)
 	call	symRegister
 	jr	nz, .error
 	; continue to .success
@@ -248,7 +230,7 @@ _beginLocalPass:
 	; remember were I/O was
 	call	ioSavePos
 	; Remember where PC was
-	ld	hl, (ZASM_PC)
+	ld	hl, (IO_PC)
 	ld	(ZASM_CTX_PC), hl
 	; Fake first pass
 	ld	a, 1
@@ -268,7 +250,7 @@ _endLocalPass:
 	call	ioRecallPos
 	; recall PC
 	ld	hl, (ZASM_CTX_PC)
-	ld	(ZASM_PC), hl
+	ld	(IO_PC), hl
 	; unfake first pass
 	xor	a
 	ld	(ZASM_FIRST_PASS), a

@@ -634,7 +634,7 @@ getUpcode:
 	bit	7, (ix+3)
 	jr	z, .absoluteValue	; bit not set? regular byte value,
 	; Our argument is a relative address ("e" type in djnz and jr). We have
-	; to subtract (ZASM_PC) from it.
+	; to subtract (IO_PC) from it.
 
 	; First, check whether we're on first pass. If we are, skip processing
 	; below because not having real symbol value makes relative address
@@ -645,7 +645,7 @@ getUpcode:
 
 	; We're on second pass
 	push	de		; Don't let go of this, that's our dest
-	ld	de, (ZASM_PC)
+	ld	de, (IO_PC)
 	call	intoHL
 	dec	hl		; what we write is "e-2"
 	dec	hl

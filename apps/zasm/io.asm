@@ -4,6 +4,9 @@
 ; parameter, two blockdevs: One that we can read and seek and one that we can
 ; write to (we never seek into it).
 ;
+; This unit also has the responsibility of counting the number of written bytes,
+; maintaining IO_PC and of properly disabling output on first pass.
+;
 ; zasm doesn't buffers its reads during tokenization, which simplifies its
 ; process. However, it also means that it needs, in certain cases, a "putback"
 ; mechanism, that is, a way to say "you see that character I've just read? that
@@ -47,7 +50,8 @@
 ; see ioPutBack below
 .equ	IO_PUTBACK_BUF	IO_INCLUDE_HDL+FS_HANDLE_SIZE
 .equ	IO_IN_INCLUDE	IO_PUTBACK_BUF+1
-.equ	IO_RAMEND	IO_IN_INCLUDE+1
+.equ	IO_PC	IO_IN_INCLUDE+1
+.equ	IO_RAMEND	IO_PC+2
 
 ; *** Code ***
 
@@ -55,7 +59,7 @@ ioInit:
 	xor	a
 	ld	(IO_PUTBACK_BUF), a
 	ld	(IO_IN_INCLUDE), a
-	ret
+	jp	ioResetPC
 
 ioGetC:
 	ld	a, (IO_PUTBACK_BUF)
@@ -101,8 +105,20 @@ ioPutBack:
 	ret
 
 ioPutC:
+	push	hl
+	ld	hl, (IO_PC)
+	inc	hl
+	ld	(IO_PC), hl
+	pop	hl
+	push	af
+	call	zasmIsFirstPass
+	jr	z, .skip
+	pop	af
 	ld	ix, (IO_OUT_PUTC)
 	jp	(ix)
+.skip:
+	pop	af
+	ret
 
 ioSavePos:
 	call	_ioTell
@@ -116,6 +132,11 @@ ioRecallPos:
 ioRewind:
 	ld	hl, 0
 	jr	_ioSeek
+
+ioResetPC:
+	ld	hl, 0
+	ld	(IO_PC), hl
+	ret
 
 ; always in absolute mode (A = 0)
 _ioSeek:
