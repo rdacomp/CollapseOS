@@ -3,6 +3,7 @@
 .equ	D_DB	0x00
 .equ	D_DW	0x01
 .equ	D_EQU	0x02
+.equ	D_INC	0x03
 .equ	D_BAD	0xff
 
 ; *** Variables ***
@@ -15,12 +16,14 @@ directiveNames:
 	.db	".DB", 0
 	.db	".DW", 0
 	.db	".EQU"
+	.db	"#inc"
 
 ; This is a list of handlers corresponding to indexes in directiveNames
 directiveHandlers:
 	.dw	handleDB
 	.dw	handleDW
 	.dw	handleEQU
+	.dw	handleINC
 
 handleDB:
 	push	hl
@@ -84,12 +87,38 @@ handleEQU:
 	pop	hl
 	ret
 
+handleINC:
+	call	readWord
+	jr	nz, .end
+	; HL points to scratchpad
+	; First, let's verify that our string is enquoted
+	ld	a, (hl)
+	cp	'"'
+	jr	nz, .end
+	; We have opening quote
+	inc	hl
+	xor	a
+	call	JUMP_FINDCHAR	; go to end of string
+	dec	hl
+	ld	a, (hl)
+	cp	'"'
+	jr	nz, .end
+	; we have ending quote, let's replace with null char
+	xor	a
+	ld	(hl), a
+	; Good, let's go back
+	ld	hl, scratchpad+1	; +1 because of the opening quote
+	call	ioOpenInclude
+.end:
+	xor	a		; zero bytes written
+	ret
+
 ; Reads string in (HL) and returns the corresponding ID (D_*) in A. Sets Z if
 ; there's a match.
 getDirectiveID:
 	push	bc
 	push	de
-	ld	b, D_EQU+1		; D_EQU is last
+	ld	b, D_INC+1		; D_INC is last
 	ld	c, 4
 	ld	de, directiveNames
 	call	findStringInList

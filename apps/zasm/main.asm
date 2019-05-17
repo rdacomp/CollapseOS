@@ -28,7 +28,13 @@
 ; JUMP_INTOHL
 ; JUMP_FINDCHAR
 ; JUMP_BLKSEL
+; JUMP_FSFINDFN
+; JUMP_FSOPEN
+; JUMP_FSGETC
+; JUMP_FSSEEK
+; JUMP_FSTELL
 ; RAMSTART	(where we put our variables in RAM)
+; FS_HANDLE_SIZE
 
 ; *** Variables ***
 
@@ -43,11 +49,8 @@
 ; this special pass, ZASM_FIRST_PASS will also be set so that the rest of the
 ; code behaves as is we were in the first pass.
 .equ	ZASM_LOCAL_PASS		ZASM_PC+2
-; I/O position (in terms of ioSeek/ioTell) of the current context. Used to
-; rewind to it after having parsed local labels.
-.equ	ZASM_CTX_POS		ZASM_LOCAL_PASS+1
 ; What ZASM_PC was when we started our context
-.equ	ZASM_CTX_PC		ZASM_CTX_POS+2
+.equ	ZASM_CTX_PC		ZASM_LOCAL_PASS+1
 .equ	ZASM_RAMEND		ZASM_CTX_PC+2
 
 ; *** Code ***
@@ -88,8 +91,7 @@ zasmMain:
 	call	zasmParseFile
 	ret	nz
 	; Second pass
-	ld	hl, 0
-	call	ioSeek
+	call	ioRewind
 	xor	a
 	ld	(ZASM_FIRST_PASS), a
 	call	zasmParseFile
@@ -244,8 +246,7 @@ _parseLabel:
 
 _beginLocalPass:
 	; remember were I/O was
-	call	ioTell
-	ld	(ZASM_CTX_POS), hl
+	call	ioSavePos
 	; Remember where PC was
 	ld	hl, (ZASM_PC)
 	ld	(ZASM_CTX_PC), hl
@@ -264,8 +265,7 @@ _beginLocalPass:
 _endLocalPass:
 	call	symSelectGlobalRegistry
 	; recall I/O pos
-	ld	hl, (ZASM_CTX_POS)
-	call	ioSeek
+	call	ioRecallPos
 	; recall PC
 	ld	hl, (ZASM_CTX_PC)
 	ld	(ZASM_PC), hl

@@ -4,11 +4,12 @@ set -e
 
 TMPFILE=$(mktemp)
 SCAS=scas
+PARTS=../../../parts/z80
 ZASM=../../emul/zasm
 ASMFILE=../../../apps/zasm/instr.asm
 
 cmpas() {
-    EXPECTED=$($SCAS -o - "$1" | xxd)
+    EXPECTED=$($SCAS -I ${PARTS} -o - "$1" | xxd)
     ACTUAL=$(cat $1 | $ZASM | xxd)
     if [ "$ACTUAL" == "$EXPECTED" ]; then
         echo ok
@@ -20,9 +21,6 @@ cmpas() {
         exit 1
     fi
 }
-
-echo "Comparing core.asm"
-cmpas ../../../parts/z80/core.asm
 
 for fn in *.asm; do
     echo "Comparing ${fn}"

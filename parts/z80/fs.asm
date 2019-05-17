@@ -401,8 +401,8 @@ fsOpen:
 fsPlaceH:
 	push	af
 	push	hl
-	ld	ixh, d
-	ld	ixl, e
+	push	de
+	pop	ix
 	push	ix
 	ld	l, (ix)
 	ld	h, (ix+1)
@@ -417,8 +417,7 @@ fsPlaceH:
 fsAdvanceH:
 	push	af
 	inc	(ix)
-	ld	a, (ix)
-	jr	nc, .end
+	jr	nz, .end
 	inc	(ix+1)
 .end:
 	pop	af

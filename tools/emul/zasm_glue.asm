@@ -18,6 +18,11 @@ jp	intoHL
 jp	findchar
 jp	parseHexPair
 jp	blkSel
+jp	fsFindFN
+jp	fsOpen
+jp	fsGetC
+jp	fsSeek
+jp	fsTell
 
 #include "core.asm"
 .equ	BLOCKDEV_RAMSTART	RAMSTART
@@ -89,9 +94,9 @@ fsdevPutC:
 
 fsdevSeek:
 	push	af
-	ld	a, l
-	out	(FS_SEEK_PORT), a
 	ld	a, h
+	out	(FS_SEEK_PORT), a
+	ld	a, l
 	out	(FS_SEEK_PORT), a
 	pop	af
 	ret
@@ -99,9 +104,9 @@ fsdevSeek:
 fsdevTell:
 	push	af
 	in	a, (FS_SEEK_PORT)
-	ld	l, a
-	in	a, (FS_SEEK_PORT)
 	ld	h, a
+	in	a, (FS_SEEK_PORT)
+	ld	l, a
 	pop	af
 	ret
 

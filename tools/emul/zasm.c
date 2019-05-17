@@ -83,7 +83,7 @@ static uint8_t io_read(int unused, uint16_t addr)
             return fsdev_ptr & 0xff;
         } else {
 #ifdef DEBUG
-            fprintf(stderr, "tell %d\n", fsdev_ptr);
+            fprintf(stderr, "FS tell %d\n", fsdev_ptr);
 #endif
             fsdev_middle_of_seek_tell = 1;
             return fsdev_ptr >> 8;
@@ -122,7 +122,7 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
             fsdev_ptr |= val;
             fsdev_middle_of_seek_tell = 0;
 #ifdef DEBUG
-            fprintf(stderr, "seek %d\n", fsdev_ptr);
+            fprintf(stderr, "FS seek %d\n", fsdev_ptr);
 #endif
         } else {
             fsdev_ptr = (val << 8) & 0xff00;
@@ -155,6 +155,7 @@ int main()
     for (int i=0; i<sizeof(FSDEV); i++) {
         fsdev[i] = FSDEV[i];
     }
+    fsdev_size = sizeof(FSDEV);
     // read stdin in buffer
     inpt_size = 0;
     inpt_ptr = 0;

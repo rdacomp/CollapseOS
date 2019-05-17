@@ -14,12 +14,15 @@ $(KERNEL_HEADERS):
 zasm-user.h: zasm_user.asm
 	scas -o - -I ../../apps/zasm $< | ./bin2c.sh USERSPACE | tee $@ > /dev/null
 
-zasm-includes.h: ../../parts/z80 $(CFSPACK)
+zasm-includes.cfs: ../../parts/z80 $(CFSPACK)
 	cp -rf $< zasm-includes
 	rm zasm-includes/README.md
-	$(CFSPACK) zasm-includes | ./bin2c.sh FSDEV | tee $@ > /dev/null
+	$(CFSPACK) zasm-includes > $@
 	rm -rf zasm-includes
 
+zasm-includes.h: zasm-includes.cfs
+	./bin2c.sh FSDEV < $< | tee $@ > /dev/null
+	
 shell: shell.c libz80/libz80.o shell-kernel.h $(CFSPACK)
 zasm: zasm.c libz80/libz80.o zasm-kernel.h zasm-user.h zasm-includes.h
 $(TARGETS):
@@ -34,4 +37,4 @@ $(CFSPACK):
 
 .PHONY: clean
 clean:
-	rm -f $(TARGETS) $(KERNEL_HEADERS) $(USER_HEADERS)
+	rm -f $(TARGETS) $(KERNEL_HEADERS) $(USER_HEADERS) zasm-includes.*
