@@ -25,6 +25,7 @@ jp	fsSeek
 jp	fsTell
 
 #include "core.asm"
+#include "parse.asm"
 .equ	BLOCKDEV_RAMSTART	RAMSTART
 .equ	BLOCKDEV_COUNT		3
 #include "blockdev.asm"

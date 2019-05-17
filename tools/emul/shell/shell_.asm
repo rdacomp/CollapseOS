@@ -9,6 +9,7 @@ FS_SEEKH_PORT	.equ	0x03
 jp	init
 
 #include "core.asm"
+#include "parse.asm"
 
 BLOCKDEV_RAMSTART	.equ	RAMSTART
 BLOCKDEV_COUNT		.equ	4

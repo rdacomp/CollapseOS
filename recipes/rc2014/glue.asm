@@ -12,6 +12,7 @@ jp	init
 jp	aciaInt
 
 #include "core.asm"
+#include "parse.asm"
 ACIA_RAMSTART	.equ	RAMSTART
 #include "acia.asm"
 

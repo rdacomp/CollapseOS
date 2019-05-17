@@ -14,6 +14,7 @@
 ; hexadecimal form, without prefix or suffix.
 
 ; *** REQUIREMENTS ***
+; parse
 ; stdio
 ; blkdev
 

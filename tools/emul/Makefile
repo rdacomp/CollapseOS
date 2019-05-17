@@ -1,4 +1,4 @@
-TARGETS = shell/shell zasm/zasm
+TARGETS = shell/shell zasm/zasm runbin/runbin
 KERNEL_HEADERS = shell/kernel.h zasm/kernel.h
 USER_HEADERS = zasm/user.h
 CFSPACK = ../cfspack/cfspack
@@ -25,6 +25,7 @@ zasm/includes.h: zasm/includes.cfs
 	
 shell/shell: shell/shell.c libz80/libz80.o shell/kernel.h $(CFSPACK)
 zasm/zasm: zasm/zasm.c libz80/libz80.o zasm/kernel.h zasm/user.h zasm/includes.h
+runbin/runbin: runbin/runbin.c libz80/libz80.o
 $(TARGETS):
 	cc $< libz80/libz80.o -o $@
 
