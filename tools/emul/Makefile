@@ -17,6 +17,7 @@ zasm/user.h: zasm/user.asm
 zasm/includes.cfs: ../../parts/z80 $(CFSPACK)
 	cp -rf $< zasm/includes
 	rm zasm/includes/README.md
+	find zasm/includes -type f -exec sed -i -e 's/;.*//g' {} \;
 	$(CFSPACK) zasm/includes > $@
 	rm -rf zasm/includes
 
