@@ -171,18 +171,7 @@ _parseInstr:
 _parseDirec:
 	ld	a, c		; D_*
 	call	parseDirective
-	or	a		; cp 0
-	jr	z, .success	; if zero, shortcut through
-	ld	b, a		; save output byte count
-	ld	hl, direcData
-.loopDirec:
-	ld	a, (hl)
-	call	ioPutC
-	inc	hl
-	djnz	.loopDirec
-	; continue to success
-.success:
-	xor	a		; ensure Z
+	cp	a		; ensure Z
 	ret
 
 _parseLabel:

@@ -31,8 +31,7 @@ handleDB:
 	ld	hl, scratchpad
 	call	parseLiteral
 	ld	a, ixl
-	ld	(direcData), a
-	ld	a, 1
+	call	ioPutC
 	pop	hl
 	ret
 
@@ -41,11 +40,11 @@ handleDW:
 	call	readWord
 	ld	hl, scratchpad
 	call	parseExpr
-	ld	a, ixl
-	ld	(direcData), a
-	ld	a, ixh
-	ld	(direcData+1), a
-	ld	a, 2
+	push	ix \ pop hl
+	ld	a, l
+	call	ioPutC
+	ld	a, h
+	call	ioPutC
 	pop	hl
 	ret
 
@@ -128,8 +127,7 @@ getDirectiveID:
 
 ; Parse directive specified in A (D_* const) with args in I/O and act in
 ; an appropriate manner. If the directive results in writing data at its
-; current location, that data is in (direcData) and A is the number of bytes
-; in it.
+; current location, that data is directly written through ioPutC.
 parseDirective:
 	push	de
 	; double A to have a proper offset in directiveHandlers
@@ -141,7 +139,3 @@ parseDirective:
 	ld	ixl, e
 	pop	de
 	jp	(ix)
-
-; *** Variables ***
-direcData:
-	.fill 2
