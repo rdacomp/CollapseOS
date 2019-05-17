@@ -14,3 +14,5 @@ label2: .dw	0x42
 .equ	foo	0x1234
 .equ	bar	foo
 	ld	hl, bar
+	ld	ix, 1234
+	ld	iy, 2345

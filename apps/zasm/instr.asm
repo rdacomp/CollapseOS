@@ -2,7 +2,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	31
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	142
+INSTR_TBL_CNT		.equ	144
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	6
 ; Instruction IDs They correspond to the index of the table in instrNames
@@ -1037,6 +1037,8 @@ instrTBl:
 	.db I_LD,  0xb, 'n', 3,    0b00000110	, 0	; LD r, n
 	.db I_LD,  0xb, 0xb, 0x20  \ .dw handleLDrr	; LD r, r'
 	.db I_LD,  0x3, 'N', 4,    0b00000001	, 0	; LD dd, n
+	.db I_LD,  'X', 'N', 0,    0xdd, 0x21		; LD IX, NN
+	.db I_LD,  'Y', 'N', 0,    0xfd, 0x21		; LD IY, NN
 	.db I_LD,  'M', 'A', 0,    0x32		, 0	; LD (NN), A
 	.db I_LD,  'A', 'M', 0,    0x3a		, 0	; LD A, (NN)
 	.db I_LD,  'M', 'h', 0,    0x22		, 0	; LD (NN), HL
