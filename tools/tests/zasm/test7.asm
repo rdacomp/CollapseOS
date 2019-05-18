@@ -19,6 +19,7 @@
 #include "zasm/io.asm"
 .equ	SYM_RAMSTART	IO_RAMEND
 #include "zasm/symbol.asm"
+#include "zasm/parse.asm"
 
 zasmIsFirstPass:
 	nop

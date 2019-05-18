@@ -6,7 +6,7 @@ parseDecimalDigit:
 	; First, let's see if we have an easy 0-9 case
 	cp	'0'
 	ret	c	; if < '0', we have a problem
-	sub	a, '0'		; our value now is valid if it's < 10
+	sub	'0'		; our value now is valid if it's < 10
 	cp	10		; on success, C is set, which is the opposite
 				; of what we want
 	ccf			; invert C flag
@@ -22,30 +22,27 @@ parseDecimal:
 	ld	ix, 0
 .loop:
 	ld	a, (hl)
-	cp	0
+	or	a
 	jr	z, .end	; success!
 	call	parseDecimalDigit
 	jr	c, .error
 
 	; Now, let's add A to IX. First, multiply by 10.
-	ld	d, ixh	; we need a copy of the initial copy for later
-	ld	e, ixl
+	push	ix \ pop de
 	add	ix, ix	; x2
+	jr	c, .error
 	add	ix, ix	; x4
+	jr	c, .error
 	add	ix, ix	; x8
+	jr	c, .error
 	add	ix, de	; x9
+	jr	c, .error
 	add	ix, de	; x10
-	add	a, ixl
-	jr	nc, .nocarry
-	inc	ixh
-.nocarry:
-	ld	ixl, a
-
-	; We didn't bother checking for the C flag at each step because we
-	; check for overflow afterwards. If ixh < d, we overflowed
-	ld	a, ixh
-	cp	d
-	jr	c, .error	; carry is set? overflow
+	jr	c, .error
+	ld	d, 0
+	ld	e, a
+	add	ix, de
+	jr	c, .error
 
 	inc	hl
 	jr	.loop
@@ -65,8 +62,8 @@ parseHexadecimal:
 	call	hasHexPrefix
 	ret	nz
 	push	hl
-	xor	a
-	ld	ixh, a
+	push	de
+	ld	d, 0
 	inc	hl	; get rid of "0x"
 	inc	hl
 	call	strlen
@@ -82,23 +79,25 @@ parseHexadecimal:
 	call	parseHexPair
 	jr	c, .error
 	inc	hl			; now HL is on first char of next pair
-	ld	ixh, a
+	ld	d, a
 	jr	.single
 .doubleShort:
 	ld	a, (hl)
 	call	parseHex
 	jr	c, .error
 	inc	hl			; now HL is on first char of next pair
-	ld	ixh, a
+	ld	d, a
 .single:
 	call	parseHexPair
 	jr	c, .error
-	ld	ixl, a
+	ld	e, a
 	cp	a			; ensure Z
 	jr	.end
 .error:
 	call	unsetZ
 .end:
+	push	de \ pop ix
+	pop	de
 	pop	hl
 	ret
 
@@ -114,17 +113,17 @@ hasHexPrefix:
 	pop	hl
 	ret
 
-; Parse string at (HL) as a binary value (0b010101) and return value in IXL.
-; Clears IXH.
+; Parse string at (HL) as a binary value (0b010101) and return value in IX.
+; High IX byte is always clear.
 ; Sets Z on success.
 parseBinaryLiteral:
 	call	hasBinPrefix
 	ret	nz
 	push	bc
 	push	hl
-	xor	a
-	ld	ixh, a
-	inc	hl	; get rid of "0x"
+	push	de
+	ld	d, 0
+	inc	hl	; get rid of "0b"
 	inc	hl
 	call	strlen
 	or	a
@@ -148,12 +147,14 @@ parseBinaryLiteral:
 	inc	c
 .nobit:
 	djnz	.loop
-	ld	ixl, c
+	ld	e, c
 	cp	a		; ensure Z
 	jr	.end
 .error:
 	call	unsetZ
 .end:
+	push	de \ pop ix
+	pop	de
 	pop	hl
 	pop	bc
 	ret
@@ -171,7 +172,7 @@ hasBinPrefix:
 	ret
 
 ; Parse string at (HL) and, if it is a char literal, sets Z and return
-; corresponding value in IXL. Clears IXH.
+; corresponding value in IX. High IX byte is always clear.
 ;
 ; A valid char literal starts with ', ends with ' and has one character in the
 ; middle. No escape sequence are accepted, but ''' will return the apostrophe
@@ -182,6 +183,7 @@ parseCharLiteral:
 	ret	nz
 
 	push	hl
+	push	de
 	inc	hl
 	inc	hl
 	cp	(hl)
@@ -191,13 +193,15 @@ parseCharLiteral:
 	or	a		; cp 0
 	jr	nz, .end	; string has to end there
 	; Valid char, good
-	ld	ixh, a		; A is zero, take advantage of that
+	ld	d, a		; A is zero, take advantage of that
 	dec	hl
 	dec	hl
 	ld	a, (hl)
-	ld	ixl, a
+	ld	e, a
 	cp	a		; ensure Z
 .end:
+	push	de \ pop ix
+	pop	de
 	pop	hl
 	ret
 
@@ -233,8 +237,7 @@ parseNumberOrSymbol:
 	push	de
 	call	symGetVal
 	; value in DE. We need it in IX
-	ld	ixh, d
-	ld	ixl, e
+	push	de \ pop ix
 	pop	de
 	cp	a		; ensure Z
 	ret
