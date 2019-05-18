@@ -23,3 +23,4 @@ label2: .dw	0x42
 	ld	b, baz-3
 	rl	d
 	rr	e
+	rlc	c

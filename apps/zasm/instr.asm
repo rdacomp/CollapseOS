@@ -2,7 +2,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	31
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	148
+INSTR_TBL_CNT		.equ	150
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	6
 ; Instruction IDs They correspond to the index of the table in instrNames
@@ -53,14 +53,16 @@ I_RETI	.equ	0x2b
 I_RETN	.equ	0x2c
 I_RL	.equ	0x2d
 I_RLA	.equ	0x2e
-I_RLCA	.equ	0x2f
-I_RR	.equ	0x30
-I_RRA	.equ	0x31
-I_RRCA	.equ	0x32
-I_SBC	.equ	0x33
-I_SCF	.equ	0x34
-I_SUB	.equ	0x35
-I_XOR	.equ	0x36
+I_RLC	.equ	0x2f
+I_RLCA	.equ	0x30
+I_RR	.equ	0x31
+I_RRA	.equ	0x32
+I_RRC	.equ	0x33
+I_RRCA	.equ	0x34
+I_SBC	.equ	0x35
+I_SCF	.equ	0x36
+I_SUB	.equ	0x37
+I_XOR	.equ	0x38
 
 ; Checks whether A is 'N' or 'M'
 checkNOrM:
@@ -585,12 +587,24 @@ getUpcode:
 	ld	de, instrUpcode	; from this point, DE points to "where we are"
 				; in terms of upcode writing.
 	inc	de		; make DE point to where we should write next.
+
+	ld	c, 1		; C holds our upcode count
+
+	; Now, let's determine if we have one or two upcode. As a general rule,
+	; we simply have to check if (ix+5) == 0, which means one upcode.
+	; However, some two-upcodes instructions have a 0 (ix+5) because they
+	; expect group OR-ing into it and all other bits are zero. See "RLC r".
+	; To handle those cases, we *also* check for Bit 6 in (ix+3).
 	ld	a, (ix+5)	; second upcode
-	cp	0		; do we have a second upcode?
-	jr	z, .onlyOneUpcode
+	or	a		; do we have a second upcode?
+	jr	nz, .twoUpcodes
+	bit	6, (ix+3)
+	jr	z, .onlyOneUpcode	; not set: single upcode
+.twoUpcodes:
 	; we have two upcodes
 	ld	(de), a
 	inc	de
+	inc	c
 .onlyOneUpcode:
 	; now, let's see if we're dealing with a group here
 	ld	a, (ix+1)	; first argspec
@@ -653,8 +667,7 @@ getUpcode:
 	call	checknmxy
 	jr	z, .withByte
 	; nope, no number, alright, we're finished here
-	ld	c, 1
-	jr	.computeBytesWritten
+	jr	.end
 .withByte:
 	inc	hl
 	; HL points to our number (LSB), with (HL+1) being our MSB which should
@@ -669,9 +682,9 @@ getUpcode:
 	; First, check whether we're on first pass. If we are, skip processing
 	; below because not having real symbol value makes relative address
 	; verification falsely fail.
-	ld	c, 2	; this is a two bytes instruction
+	inc	c		; one extra byte is written
 	call	zasmIsFirstPass
-	jr	z, .computeBytesWritten
+	jr	z, .end
 
 	; We're on second pass
 	push	de		; Don't let go of this, that's our dest
@@ -698,7 +711,7 @@ getUpcode:
 	or	a		; cp 0
 	jr	nz, .numberTruncated	; if A is anything but zero, we're out
 					; of bounds.
-	jr	.computeBytesWritten
+	jr	.end
 
 .absoluteValue:
 	; verify that the MSB in argument is zero
@@ -707,26 +720,20 @@ getUpcode:
 	dec	hl	; HL now points to LSB
 	or	a	; cp 0
 	jr	nz, .numberTruncated
+	push	bc
 	ldi
-	ld	c, 2
-	jr	.computeBytesWritten
+	pop	bc
+	inc	c
+	jr	.end
 
 .withWord:
 	inc	hl	; HL now points to LSB
 	; Clear to proceed. HL already points to our number
+	push	bc
 	ldi	; LSB written, we point to MSB now
 	ldi	; MSB written
-	ld	c, 3
-	jr	.computeBytesWritten
-.computeBytesWritten:
-	; At this point, everything that we needed to write in instrUpcode is
-	; written an C is 1 if we have no extra byte, 2 if we have an extra
-	; byte and 3 if we have an extra word. What we need to do here is check
-	; if ix+5 is non-zero and increase C if it is.
-	ld	a, (ix+5)
-	cp	0
-	jr	z, .end		; no second upcode? nothing to do.
-	; We have 2 base upcodes
+	pop	bc
+	inc	c		; two extra bytes are written
 	inc	c
 	jr	.end
 .numberTruncated:
@@ -945,9 +952,11 @@ instrNames:
 	.db "RETN"
 	.db "RL", 0, 0
 	.db "RLA", 0
+	.db "RLC", 0
 	.db "RLCA"
 	.db "RR", 0, 0
 	.db "RRA", 0
+	.db "RRC", 0
 	.db "RRCA"
 	.db "SBC", 0
 	.db "SCF", 0
@@ -1114,9 +1123,11 @@ instrTBl:
 	.db I_RETN,0,   0,   0,    0xed, 0x45		; RETN
 	.db I_RL,  0xb, 0,0x40,    0xcb, 0b00010000	; RL r
 	.db I_RLA, 0,   0,   0,    0x17		, 0	; RLA
+	.db I_RLC, 0xb, 0,0x40,    0xcb, 0b00000000	; RLC r
 	.db I_RLCA,0,   0,   0,    0x07		, 0	; RLCA
 	.db I_RR,  0xb, 0,0x40,    0xcb, 0b00011000	; RR r
 	.db I_RRA, 0,   0,   0,    0x1f		, 0	; RRA
+	.db I_RRC, 0xb, 0,0x40,    0xcb, 0b00001000	; RRC r
 	.db I_RRCA,0,   0,   0,    0x0f		, 0	; RRCA
 	.db I_SBC, 'A', 'l', 0,    0x9e		, 0	; SBC A, (HL)
 	.db I_SBC, 'A', 0xb, 0,    0b10011000	, 0	; SBC A, r
@@ -1138,4 +1149,3 @@ curArg2:
 
 instrUpcode:
 	.db	0, 0, 0, 0
-
