@@ -17,6 +17,7 @@ jp	unsetZ
 jp	intoDE
 jp	intoHL
 jp	findchar
+jp	parseHex
 jp	parseHexPair
 jp	blkSel
 jp	fsFindFN

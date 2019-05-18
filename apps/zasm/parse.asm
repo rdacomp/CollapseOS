@@ -72,12 +72,21 @@ parseHexadecimal:
 	call	strlen
 	cp	3
 	jr	c, .single
+	cp	4
+	jr	c, .doubleShort	; 0x123
 	cp	5
-	jr	c, .double
+	jr	c, .double	; 0x1234
 	; too long, error
 	jr	.error
 .double:
-	call	parseHexPair	; moves HL to last char of pair
+	call	parseHexPair
+	jr	c, .error
+	inc	hl			; now HL is on first char of next pair
+	ld	ixh, a
+	jr	.single
+.doubleShort:
+	ld	a, (hl)
+	call	parseHex
 	jr	c, .error
 	inc	hl			; now HL is on first char of next pair
 	ld	ixh, a

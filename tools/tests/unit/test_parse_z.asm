@@ -16,6 +16,7 @@ testNum:	.db 1
 
 s99:		.db "99", 0
 s0x99:		.db "0x99", 0
+s0x100:		.db "0x100", 0
 s0b0101:	.db "0b0101", 0
 s0b01010101:	.db "0b01010101", 0
 sFoo:		.db "Foo", 0
@@ -32,6 +33,17 @@ test:
 	jp	nz, fail
 	ld	a, ixl
 	cp	99
+	jp	nz, fail
+	call	nexttest
+
+	ld	hl, s0x100
+	call	parseLiteral
+	jp	nz, fail
+	ld	a, ixh
+	cp	1
+	jp	nz, fail
+	ld	a, ixl
+	or	a
 	jp	nz, fail
 	call	nexttest
 

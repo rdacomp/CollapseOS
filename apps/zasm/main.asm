@@ -27,6 +27,8 @@
 ; intoDE
 ; intoHL
 ; findchar
+; parseHex
+; parseHexPair
 ; blkSel
 ; fsFindFN
 ; fsOpen
