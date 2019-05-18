@@ -19,3 +19,5 @@ label2: .dw	0x42
 	ld	(ix+1), l
 	ld	l, (ix+1)
 	ld	hl, 0x100
+.equ	baz	0x20
+	ld	b, baz-3

@@ -128,7 +128,7 @@ parseIXY:
 ; the value of that constant.
 parseArg:
 	call	strlen
-	cp	0
+	or	a
 	ret	z		; empty string? A already has our result: 0
 
 	push	bc
@@ -157,7 +157,7 @@ parseArg:
 	call	enterParens
 	jr	z, .withParens
 	; (HL) has no parens
-	call	parseExpr
+	call	.maybeParseExpr
 	jr	nz, .nomatch
 	; We have a proper number in no parens. Number in IX.
 	ld	a, 'N'
@@ -181,7 +181,7 @@ parseArg:
 .notY:
 	ld	c, 'x'
 .parseNumberInParens:
-	call	parseExpr
+	call	.maybeParseExpr
 	jr	nz, .nomatch
 	; We have a proper number in parens. Number in IX
 	ld	a, c	; M, x, or y
@@ -199,6 +199,16 @@ parseArg:
 	pop	de
 	pop	bc
 	ret
+
+.maybeParseExpr:
+	; Before we try to parse expr in (HL), first check if we're in first
+	; pass if we are, skip parseExpr. Most of the time, that parse is
+	; harmless, but in some cases it causes false failures. For example,
+	; a "-" operator can cause is to falsely overflow and generate
+	; truncation error.
+	call	zasmIsFirstPass
+	ret	z
+	jp	parseExpr
 
 ; Returns, with Z, whether A is a groupId
 isGroupId:
