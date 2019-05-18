@@ -54,17 +54,17 @@
 ; *** Code ***
 jp	zasmMain
 
-#include "util_z.asm"
+#include "zasm/util.asm"
 .equ	IO_RAMSTART	ZASM_RAMEND
-#include "io.asm"
-#include "tok.asm"
-#include "parse_z.asm"
-#include "expr.asm"
-#include "instr.asm"
+#include "zasm/io.asm"
+#include "zasm/tok.asm"
+#include "zasm/parse.asm"
+#include "zasm/expr.asm"
+#include "zasm/instr.asm"
 .equ	DIREC_RAMSTART	IO_RAMEND
-#include "directive.asm"
+#include "zasm/directive.asm"
 .equ	SYM_RAMSTART	DIREC_RAMEND
-#include "symbol.asm"
+#include "zasm/symbol.asm"
 
 ; Read file through blockdev ID in H and outputs its upcodes through blockdev
 ; ID in L.

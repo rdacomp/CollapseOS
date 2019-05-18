@@ -2,9 +2,9 @@
 jp	test
 
 #include "core.asm"
-#include "util_z.asm"
+#include "zasm/util.asm"
 .equ	SYM_RAMSTART	RAMSTART
-#include "symbol.asm"
+#include "zasm/symbol.asm"
 
 testNum:	.db 1
 

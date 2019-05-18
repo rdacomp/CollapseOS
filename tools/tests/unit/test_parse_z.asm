@@ -2,8 +2,8 @@ jp	test
 
 #include "core.asm"
 #include "parse.asm"
-#include "util_z.asm"
-#include "parse_z.asm"
+#include "zasm/util.asm"
+#include "zasm/parse.asm"
 
 ; mocks. aren't used in tests
 zasmIsFirstPass:

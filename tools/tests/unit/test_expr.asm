@@ -3,11 +3,11 @@ jp	test
 
 #include "core.asm"
 #include "parse.asm"
-#include "util_z.asm"
-#include "parse_z.asm"
+#include "zasm/util.asm"
+#include "zasm/parse.asm"
 .equ	SYM_RAMSTART	RAMSTART
-#include "symbol.asm"
-#include "expr.asm"
+#include "zasm/symbol.asm"
+#include "zasm/expr.asm"
 
 ; Pretend that we aren't in first pass
 zasmIsFirstPass:

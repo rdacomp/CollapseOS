@@ -25,7 +25,7 @@ fsTell		.equ    0x2d
 	;call	dumpSymTable
 	ret
 
-#include "main.asm"
+#include "zasm/main.asm"
 
 ; *** Debug ***
 debugPrint:

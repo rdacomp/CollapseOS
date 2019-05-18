@@ -12,11 +12,11 @@ $(KERNEL_HEADERS):
 	scas -o - -I ../../parts/z80 $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
 
 zasm/user.h: zasm/user.asm
-	scas -o - -I ../../apps/zasm $< | ./bin2c.sh USERSPACE | tee $@ > /dev/null
+	scas -o - -I ../../apps $< | ./bin2c.sh USERSPACE | tee $@ > /dev/null
 
 zasm/includes.cfs: ../../parts/z80 $(CFSPACK)
 	cp -rf $< zasm/includes
-	rm zasm/includes/README.md
+	find zasm/includes -name *.md -delete
 	find zasm/includes -type f -exec sed -i -e 's/;.*//g' {} \;
 	$(CFSPACK) zasm/includes > $@
 	rm -rf zasm/includes
