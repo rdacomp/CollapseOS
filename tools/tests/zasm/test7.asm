@@ -14,7 +14,7 @@
 .equ	FS_HANDLE_COUNT		0
 #include "fs.asm"
 
-;#include "zasm/util.asm"
+#include "zasm/util.asm"
 ;.equ	IO_RAMSTART	ZASM_RAMEND
 ;#include "zasm/io.asm"
 

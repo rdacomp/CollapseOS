@@ -223,8 +223,8 @@ multDEBC:
 	jr	nc, .noinc
 	add	hl, bc
 	jr	nc, .noinc
-	inc de
+	inc	de
 .noinc:
 	dec a
-	jr nz, .loop
+	jr	nz, .loop
 	ret

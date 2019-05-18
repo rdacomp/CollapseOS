@@ -21,3 +21,5 @@ label2: .dw	0x42
 	ld	hl, 0x100
 .equ	baz	0x20
 	ld	b, baz-3
+	rl	d
+	rr	e
