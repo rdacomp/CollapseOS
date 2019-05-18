@@ -2,69 +2,85 @@
 ; We expect (HL) to be disposable: we mutate it to avoid having to make a copy.
 ; Sets Z on success, unset on error.
 parseExpr:
-	push	bc
 	push	de
 	push	hl
-	ld	a, '+'
-	call	findchar
-	jr	z, .hasExpr
+	call	_parseExpr
 	pop	hl
-	push	hl
-	ld	a, '-'
-	call	findchar
-	jr	nz, .noExpr
-	ld	c, '-'
-	jr	.hasExpr
-.hasPlus:
-	ld	c, '+'
-	jr	.hasExpr
-.hasExpr:
-	; Alright, we have a +/ and we're pointing at it. Let's advance HL and
-	; recurse. But first, let's change this + into a null char. It will be
-	; handy later.
-	xor	a
-	ld	(hl), a		; + changed to \0
-
-	inc	hl
-	pop	de		; we pop out the HL we pushed earlier into DE
-				; That's our original beginning of string.
-	call	_applyExprToHL
 	pop	de
-	pop	bc
 	ret
 
-.noExpr:
-	pop	hl
-	pop	de
-	pop	bc
+_parseExpr:
+	ld	a, '*'
+	call	_findAndSplit
+	jp	z, _applyMult
+	ld	a, '+'
+	call	_findAndSplit
+	jp	z, _applyPlus
+	ld	a, '-'
+	call	_findAndSplit
+	jp	z, _applyMinus
 	jp	parseNumberOrSymbol
 
-; Parse number or symbol in (DE) and expression in (HL) and apply operator
-; specified in C to them.
-_applyExprToHL:
+; Given a string in (HL) and a separator char in A, return a splitted string,
+; that is, the same (HL) string but with the found A char replaced by a null
+; char. DE points to the second part of the split.
+; Sets Z if found, unset if not found.
+_findAndSplit:
+	push	hl
+	call	findchar
+	jr	nz, .end	; nothing found
+	; Alright, we have our char and we're pointing at it. Let's replace it
+	; with a null char.
+	xor	a
+	ld	(hl), a		; + changed to \0
+	inc	hl
+	ex	de, hl		; DE now points to the second part of the split
+	cp	a		; ensure Z
+.end:
+	pop	hl		; HL is back to the start
+	ret
+
+; parse expression on the left (HL) and the right (DE) and put the results in
+; DE (left) and IX (right)
+_resolveLeftAndRight:
 	call	parseExpr
 	ret	nz		; return immediately if error
-	; Now we have parsed everything to the right and we have its result in
-	; IX. What we need to do now is parseNumberOrSymbol on (DE) and apply
-	; operator. Let's save IX somewhere and parse this.
-	ex	hl, de
+	; Now we have parsed everything to the left and we have its result in
+	; IX. What we need to do now is the same thing on (DE) and then apply
+	; the + operator. Let's save IX somewhere and parse this.
+	ex	hl, de	; right expr now in HL
 	push	ix
-	pop	de
-	call	parseNumberOrSymbol
-	ret	nz		; error
-	; Good! let's do the math! IX has our left part, DE has our right one.
-	ld	a, c		; restore operator
-	cp	'-'
-	jr	z, .sub
-	; addition
+	pop	de	; numeric left expr result in DE
+	jp	parseExpr
+
+; Parse expr in (HL) and expr in (DE) and apply + operator to both sides.
+; Put result in IX.
+_applyPlus:
+	call	_resolveLeftAndRight
+	ret	nz
+	; Good! let's do the math! IX has our right part, DE has our left one.
 	add	ix, de
-	jr	.end
-.sub:
+	cp	a		; ensure Z
+	ret
+
+; Same as _applyPlus but with -
+_applyMinus:
+	call	_resolveLeftAndRight
+	ret	nz
 	push	ix
 	pop	hl
+	ex	de, hl
 	sbc	hl, de
 	push	hl
 	pop	ix
-.end:
+	cp	a		; ensure Z
+	ret
+
+_applyMult:
+	call	_resolveLeftAndRight
+	ret	nz
+	push	ix \ pop bc
+	call	multDEBC
+	push	hl \ pop ix
 	cp	a		; ensure Z
 	ret
