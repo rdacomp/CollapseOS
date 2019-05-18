@@ -33,11 +33,11 @@
 ; A list of symbol names separated by null characters. When we encounter a
 ; symbol name and want to get its value, we search the name here, retrieve the
 ; index of the name, then go get the value at that index in SYM_VALUES.
-.equ	SYM_NAMES		SYM_VALUES+(SYM_MAXCOUNT*2)
+.equ	SYM_NAMES		SYM_VALUES+SYM_MAXCOUNT*2
 
 ; Registry for local labels. Wiped out after each context change.
 .equ	SYM_LOC_VALUES		SYM_NAMES+SYM_BUFSIZE
-.equ	SYM_LOC_NAMES		SYM_LOC_VALUES+(SYM_MAXCOUNT*2)
+.equ	SYM_LOC_NAMES		SYM_LOC_VALUES+SYM_MAXCOUNT*2
 
 ; Pointer to the currently selected registry
 .equ	SYM_CTX_NAMES		SYM_LOC_NAMES+SYM_LOC_BUFSIZE
@@ -151,7 +151,7 @@ symRegister:
 	call	strlen
 	ld	c, a		; save that strlen for later
 
-	ex	hl, de		; symbol to add is now in DE
+	ex	de, hl		; symbol to add is now in DE
 	call	symNamesEnd
 	jr	nz, .error
 	; A is our index. Save it
@@ -168,7 +168,7 @@ symRegister:
 	jr	nc, .error	; HL >= DE
 
 	; HL point to where we want to add the string
-	ex	hl, de		; symbol to add in HL, dest in DE
+	ex	de, hl		; symbol to add in HL, dest in DE
 	; Copy HL into DE until we reach null char
 	; C already have our strlen (minus null char). Let's prepare BC for
 	; a LDIR.
@@ -217,7 +217,7 @@ symFind:
 	push	bc
 	push	de
 
-	ex	hl, de		; it's easier if HL is haystack and DE is
+	ex	de, hl		; it's easier if HL is haystack and DE is
 				; needle.
 	ld	b, 0
 	ld	hl, (SYM_CTX_NAMES)
