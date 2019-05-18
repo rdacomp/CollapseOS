@@ -1087,8 +1087,8 @@ instrTBl:
 	.db I_SBC, 'A', 'l', 0,    0x9e		, 0	; SBC A, (HL)
 	.db I_SBC, 'A', 0xb, 0,    0b10011000	, 0	; SBC A, r
 	.db I_SCF, 0,   0,   0,    0x37		, 0	; SCF
-	.db I_SUB, 'A', 'l', 0,    0x96		, 0	; SUB A, (HL)
-	.db I_SUB, 'A', 0xb, 0,    0b10010000	, 0	; SUB A, r
+	.db I_SUB, 'l', 0,   0,    0x96		, 0	; SUB (HL)
+	.db I_SUB, 0xb, 0,   0,    0b10010000	, 0	; SUB r
 	.db I_SUB, 'n', 0,   0,    0xd6 	, 0	; SUB n
 	.db I_XOR, 'l', 0,   0,    0xae		, 0	; XOR (HL)
 	.db I_XOR, 0xb, 0,   0,    0b10101000	, 0	; XOR r

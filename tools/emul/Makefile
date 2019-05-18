@@ -14,8 +14,10 @@ $(KERNEL_HEADERS):
 zasm/user.h: zasm/user.asm
 	scas -o - -I ../../apps $< | ./bin2c.sh USERSPACE | tee $@ > /dev/null
 
-zasm/includes.cfs: ../../parts/z80 $(CFSPACK)
-	cp -rf $< zasm/includes
+zasm/includes.cfs: $(CFSPACK)
+	rm -rf zasm/includes
+	cp -r ../../parts/z80 zasm/includes
+	cp -r ../../apps/zasm zasm/includes/zasm
 	find zasm/includes -name *.md -delete
 	find zasm/includes -type f -exec sed -i -e 's/;.*//g' {} \;
 	$(CFSPACK) zasm/includes > $@

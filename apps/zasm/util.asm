@@ -29,7 +29,7 @@ subDEFromHL:
 	sub	e
 	ld	l, a
 	ld	a, h
-	sbc	d
+	sbc	a, d
 	ld	h, a
 	pop	af
 	ret

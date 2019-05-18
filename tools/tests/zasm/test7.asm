@@ -1,0 +1,8 @@
+.equ	RAMSTART		0x4000
+.equ	ZASM_FIRST_PASS		RAMSTART
+.equ	ZASM_LOCAL_PASS		ZASM_FIRST_PASS+1
+.equ	ZASM_CTX_PC		ZASM_LOCAL_PASS+1
+.equ	ZASM_RAMEND		ZASM_CTX_PC+2
+
+#include "core.asm"
+#include "zasm/util.asm"

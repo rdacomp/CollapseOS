@@ -128,7 +128,7 @@ findchar:
 .match:
 	; We ran 0xff-B loops. That's the result that goes in A.
 	ld	a, 0xff
-	sub	a, b
+	sub	b
 	cp	a	; ensure Z
 .end:
 	pop	bc
