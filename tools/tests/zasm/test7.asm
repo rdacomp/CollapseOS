@@ -15,8 +15,11 @@
 #include "fs.asm"
 
 #include "zasm/util.asm"
-;.equ	IO_RAMSTART	ZASM_RAMEND
-;#include "zasm/io.asm"
+.equ	IO_RAMSTART	ZASM_RAMEND
+#include "zasm/io.asm"
 
 zasmIsFirstPass:
+	nop
+
+zasmIsLocalPass:
 	nop
