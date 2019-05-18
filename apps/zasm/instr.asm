@@ -2,7 +2,7 @@
 ; Number of rows in the argspec table
 ARGSPEC_TBL_CNT		.equ	31
 ; Number of rows in the primary instructions table
-INSTR_TBL_CNT		.equ	144
+INSTR_TBL_CNT		.equ	146
 ; size in bytes of each row in the primary instructions table
 INSTR_TBL_ROWSIZE	.equ	6
 ; Instruction IDs They correspond to the index of the table in instrNames
@@ -509,6 +509,22 @@ handleLDIXYr:
 	or	0b01110000	; second upcode
 	ld	(instrUpcode+1), a
 	ld	a, (curArg1+1)	; IXY displacement
+	ld	(instrUpcode+2), a
+	ld	c, 3
+	ret
+
+handleLDrIX:
+	ld	a, 0xdd
+	jr	handleLDrIXY
+handleLDrIY:
+	ld	a, 0xfd
+handleLDrIXY:
+	ld	(instrUpcode), a
+	ld	a, (curArg1+1)	; group value
+	rla \ rla \ rla
+	or	0b01000110	; second upcode
+	ld	(instrUpcode+1), a
+	ld	a, (curArg2+1)	; IXY displacement
 	ld	(instrUpcode+2), a
 	ld	c, 3
 	ret
@@ -1038,7 +1054,7 @@ instrTBl:
 	.db I_LD,  'l', 'n', 0,    0x36		, 0	; LD (HL), n
 	.db I_LD,  0xb, 'n', 3,    0b00000110	, 0	; LD r, n
 	.db I_LD,  0xb, 0xb, 0x20  \ .dw handleLDrr	; LD r, r'
-	.db I_LD,  0x3, 'N', 4,    0b00000001	, 0	; LD dd, n
+	.db I_LD,  0x3, 'N', 4,    0b00000001	, 0	; LD dd, nn
 	.db I_LD,  'X', 'N', 0,    0xdd, 0x21		; LD IX, NN
 	.db I_LD,  'Y', 'N', 0,    0xfd, 0x21		; LD IY, NN
 	.db I_LD,  'M', 'A', 0,    0x32		, 0	; LD (NN), A
@@ -1055,6 +1071,8 @@ instrTBl:
 	.db I_LD,  'y', 'n', 0x20 \ .dw handleLDIYn	; LD (IY+d), n
 	.db I_LD,  'x', 0xb, 0x20 \ .dw handleLDIXr	; LD (IX+d), r
 	.db I_LD,  'y', 0xb, 0x20 \ .dw handleLDIYr	; LD (IY+d), r
+	.db I_LD,  0xb, 'x', 0x20 \ .dw handleLDrIX	; LD r, (IX+d)
+	.db I_LD,  0xb, 'y', 0x20 \ .dw handleLDrIY	; LD r, (IY+d)
 	.db I_LDD, 0,   0,   0,    0xed, 0xa8		; LDD
 	.db I_LDDR,0,   0,   0,    0xed, 0xb8		; LDDR
 	.db I_LDI, 0,   0,   0,    0xed, 0xa0		; LDI
