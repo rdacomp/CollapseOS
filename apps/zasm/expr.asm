@@ -10,15 +10,15 @@ parseExpr:
 	ret
 
 _parseExpr:
-	ld	a, '*'
-	call	_findAndSplit
-	jp	z, _applyMult
 	ld	a, '+'
 	call	_findAndSplit
 	jp	z, _applyPlus
 	ld	a, '-'
 	call	_findAndSplit
 	jp	z, _applyMinus
+	ld	a, '*'
+	call	_findAndSplit
+	jp	z, _applyMult
 	jp	parseNumberOrSymbol
 
 ; Given a string in (HL) and a separator char in A, return a splitted string,
@@ -70,6 +70,7 @@ _applyMinus:
 	push	ix
 	pop	hl
 	ex	de, hl
+	scf \ ccf
 	sbc	hl, de
 	push	hl
 	pop	ix

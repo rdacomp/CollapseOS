@@ -18,8 +18,9 @@ testNum:	.db 1
 s1:		.db "2+2", 0
 s2:		.db "0x4001+0x22", 0
 s3:		.db "FOO+BAR", 0
-s4:		.db "3*3", 0
+s4:		.db "BAR*3", 0
 s5:		.db "FOO-3", 0
+s6:		.db "FOO+BAR*4", 0
 
 sFOO:		.db "FOO", 0
 sBAR:		.db "BAR", 0
@@ -79,7 +80,7 @@ test:
 	or	a
 	jp	nz, fail
 	ld	a, ixl
-	cp	9
+	cp	0x60
 	jp	nz, fail
 	call	nexttest
 
@@ -91,6 +92,17 @@ test:
 	jp	nz, fail
 	ld	a, ixl
 	cp	0xfd
+	jp	nz, fail
+	call	nexttest
+
+	ld	hl, s6
+	call	parseExpr
+	jp	nz, fail
+	ld	a, ixh
+	cp	0x40
+	jp	nz, fail
+	ld	a, ixl
+	cp	0x80
 	jp	nz, fail
 	call	nexttest
 
