@@ -77,40 +77,40 @@
 ; Number of handles we want to support
 ; FS_HANDLE_COUNT
 ; *** CONSTS ***
-FS_MAX_NAME_SIZE	.equ	0x1a
-FS_BLOCKSIZE		.equ	0x100
-FS_METASIZE		.equ	0x20
+.equ	FS_MAX_NAME_SIZE	0x1a
+.equ	FS_BLOCKSIZE		0x100
+.equ	FS_METASIZE		0x20
 
-FS_META_ALLOC_OFFSET	.equ	3
-FS_META_FSIZE_OFFSET	.equ	4
-FS_META_FNAME_OFFSET	.equ	6
+.equ	FS_META_ALLOC_OFFSET	3
+.equ	FS_META_FSIZE_OFFSET	4
+.equ	FS_META_FNAME_OFFSET	6
 ; Size in bytes of a FS handle:
 ; * 2 bytes for current position. (absolute)
 ; * 2 bytes for starting offset, after metadata
 ; * 2 bytes for maximum offset
 ; * 2 bytes for file size (we could fetch it from metadata all the time, but it
 ;   could be time consuming depending on the underlying device).
-FS_HANDLE_SIZE		.equ	8
-FS_ERR_NO_FS		.equ	0x5
-FS_ERR_NOT_FOUND	.equ	0x6
+.equ	FS_HANDLE_SIZE		8
+.equ	FS_ERR_NO_FS		0x5
+.equ	FS_ERR_NOT_FOUND	0x6
 
 ; *** VARIABLES ***
 ; A copy of BLOCKDEV routines when the FS was mounted. 0 if no FS is mounted.
-FS_GETC		.equ	FS_RAMSTART
-FS_PUTC		.equ	FS_GETC+2
-FS_SEEK		.equ	FS_PUTC+2
-FS_TELL		.equ	FS_SEEK+2
+.equ	FS_GETC		FS_RAMSTART
+.equ	FS_PUTC		FS_GETC+2
+.equ	FS_SEEK		FS_PUTC+2
+.equ	FS_TELL		FS_SEEK+2
 ; Offset at which our FS start on mounted device
-FS_START	.equ	FS_TELL+2
+.equ	FS_START	FS_TELL+2
 ; Offset at which we are currently pointing to with regards to our routines
 ; below, which all assume this offset as a context. This offset is not relative
 ; to FS_START. It can be used directly with fsblkSeek.
-FS_PTR		.equ	FS_START+2
+.equ	FS_PTR		FS_START+2
 ; This variable below contain the metadata of the last block FS_PTR was moved
 ; to. We read this data in memory to avoid constant seek+read operations.
-FS_META		.equ	FS_PTR+2
-FS_HANDLES	.equ	FS_META+FS_METASIZE
-FS_RAMEND	.equ	FS_HANDLES+(FS_HANDLE_COUNT*FS_HANDLE_SIZE)
+.equ	FS_META		FS_PTR+2
+.equ	FS_HANDLES	FS_META+FS_METASIZE
+.equ	FS_RAMEND	FS_HANDLES+FS_HANDLE_COUNT*FS_HANDLE_SIZE
 
 ; *** DATA ***
 P_FS_MAGIC:
@@ -371,7 +371,7 @@ fsOpen:
 	push	hl
 	push	de
 	push	af
-	ex	hl, de
+	ex	de, hl
 	ld	hl, (FS_PTR)
 	ld	a, FS_METASIZE
 	call	addHL
@@ -454,15 +454,13 @@ fsPutC:
 ; It is an offset that starts at actual data.
 ; Sets Z if offset is within bounds, unsets Z if it isn't.
 fsSeek:
-	ld	ixh, d
-	ld	ixl, e
+	push	de \ pop ix
 	ld	(ix), l
 	ld	(ix+1), h
 	ret
 
 fsTell:
-	ld	ixh, d
-	ld	ixl, e
+	push	de \ pop ix
 	ld	l, (ix)
 	ld	h, (ix+1)
 	ret
