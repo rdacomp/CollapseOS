@@ -83,8 +83,9 @@ in a couple of decades, build a new IC fab (or bring an old one back to life).
 The project is progressing well and I already have a working shell (see `doc`
 to see what it can do) on a classic RC2014. Highlights:
 
-* Extremely flexible: this is not an OS, but a meta OS. You build your own OS
-  through glue code.
+* Extremely flexible: Kernel parts are written as loosely knit modules that
+  are bound through glue code. This makes the kernel adaptable to many unforseen
+  situations.
 * 2K binary (but size vary wildly depending on what parts you include. 2K is
   for a shell using all parts).
 * Built with minimal tooling: only [scas][scas] is needed
@@ -101,7 +102,8 @@ to see what it can do) on a classic RC2014. Highlights:
 
 There's very little done so far, but here's how it's organized:
 
-* `parts`: Pieces of code to be assembled by the user into an OS.
+* `kernel`: Pieces of code to be assembled by the user into a kernel.
+* `apps`: Pieces of code to be assembled into "userspace" application.
 * `recipes`: collection of recipes that assemble parts together on a specific
              machine.
 * `doc`: User guide for when you've successfully installed Collapse OS.

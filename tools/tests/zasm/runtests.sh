@@ -4,13 +4,13 @@ set -e
 
 TMPFILE=$(mktemp)
 SCAS=scas
-PARTS=../../../parts/z80
+KERNEL=../../../kernel
 APPS=../../../apps
 ZASM=../../emul/zasm/zasm
 ASMFILE=${APPS}/zasm/instr.asm
 
 cmpas() {
-    EXPECTED=$($SCAS -I ${PARTS} -I ${APPS} -o - "$1" | xxd)
+    EXPECTED=$($SCAS -I ${KERNEL} -I ${APPS} -o - "$1" | xxd)
     ACTUAL=$(cat $1 | $ZASM | xxd)
     if [ "$ACTUAL" == "$EXPECTED" ]; then
         echo ok

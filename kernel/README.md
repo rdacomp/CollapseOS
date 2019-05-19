@@ -1,8 +1,9 @@
-# Z80 Parts
+# Kernel
 
-Bits and pieces of code that you can assemble to build an OS for your machine.
+Bits and pieces of code that you can assemble to build a kernel for your
+machine.
 
-These parts are made to be glued together in a single `main.asm` file you write
+These parts are made to be glued together in a single `glue.asm` file you write
 yourself.
 
 As of now, the z80 assembler code is written to be assembled with [scas][scas],
@@ -39,15 +40,7 @@ Thus, code that glue parts together coould look like:
 
 The asm code used in these parts is heavily dependent on what scas offers. I
 try to be as "low-tech" as possible because the implementation of the assembler
-to be implemented for the z80 will likely be more limited. For example, I try
-to avoid macros.
-
-One exception, however, is for the routine hooks (`SHELL_GETC` for example). At
-first, I wanted to assign a label to a const (`SHELL_GETC .equ aciaGetC` for
-example), but it turns out that scas doesn't support this (but it could: label
-addresses are known at compile time and thus can be consts (maybe at the cost
-of an extra pass though)). I went for macros instead, but that doesn't mean
-that the z80 assembler will need to support macros. It just need to support
-labels-as-consts.
+to be implemented for the z80 will likely be more limited. For example, we don't
+use macros.
 
 [scas]: https://github.com/KnightOS/scas

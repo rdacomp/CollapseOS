@@ -1,4 +1,4 @@
-EMULDIR = ../../tools/emul
+EMULDIR = ../emul
 
 .PHONY: run
 run:
