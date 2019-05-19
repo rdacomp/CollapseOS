@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "../libz80/z80.h"
 #include "kernel.h"
+#include "user.h"
 #include "includes.h"
 
 /* zasm reads from a specified blkdev, assemble the file and writes the result
@@ -25,6 +26,7 @@
  */
 
 // in sync with zasm_glue.asm
+#define USER_CODE 0x4800
 #define STDIO_PORT 0x00
 #define STDIN_SEEK_PORT 0x01
 #define FS_DATA_PORT 0x02
@@ -149,6 +151,9 @@ int main()
     // initialize memory
     for (int i=0; i<sizeof(KERNEL); i++) {
         mem[i] = KERNEL[i];
+    }
+    for (int i=0; i<sizeof(USERSPACE); i++) {
+        mem[i+USER_CODE] = USERSPACE[i];
     }
     for (int i=0; i<sizeof(FSDEV); i++) {
         fsdev[i] = FSDEV[i];

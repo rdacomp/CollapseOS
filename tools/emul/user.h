@@ -20,23 +20,3 @@
 .equ    fsGetC         0x2d
 .equ    fsSeek         0x30
 .equ    fsTell         0x33
-
-#include "zasm/util.asm"
-.equ	IO_RAMSTART	USER_RAMSTART
-#include "zasm/io.asm"
-.equ	SYM_RAMSTART	IO_RAMEND
-#include "zasm/symbol.asm"
-#include "zasm/parse.asm"
-.equ	TOK_RAMSTART	SYM_RAMEND
-#include "zasm/tok.asm"
-.equ	DIREC_RAMSTART	TOK_RAMEND
-#include "zasm/directive.asm"
-#include "zasm/instr.asm"
-#include "zasm/expr.asm"
-
-zasmIsFirstPass:
-	nop
-
-zasmIsLocalPass:
-	nop
-

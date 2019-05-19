@@ -1,0 +1,7 @@
+; Example include file for userspace program
+; All userspace programs include this file in they main source file so that
+; they know a couple of vital things about the system such as where user memory
+; starts. This is an example file with required constants.
+
+.equ    USER_CODE       0x4800  ; Where in memory user code is loaded
+.equ    USER_RAMSTART   0x8800  ; Where in memory user memory begins

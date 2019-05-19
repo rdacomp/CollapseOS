@@ -6,7 +6,25 @@
 .equ FS_SEEK_PORT	0x03
 .equ STDERR_PORT	0x04
 
-jp	init
+jp     init    ; 3 bytes
+; *** JUMP TABLE ***
+jp     strncmp
+jp     addDE
+jp     addHL
+jp     upcase
+jp     unsetZ
+jp     intoDE
+jp     intoHL
+jp     writeHLinDE
+jp     findchar
+jp     parseHex
+jp     parseHexPair
+jp     blkSel
+jp     fsFindFN
+jp     fsOpen
+jp     fsGetC
+jp     fsSeek
+jp     fsTell
 
 #include "core.asm"
 #include "parse.asm"
@@ -21,8 +39,7 @@ jp	init
 .equ	FS_RAMSTART	BLOCKDEV_RAMEND
 .equ	FS_HANDLE_COUNT	0
 #include "fs.asm"
-.equ	ZASM_RAMSTART	FS_RAMEND
-#include "zasm/main.asm"
+#include "user.h"
 
 init:
 	di
@@ -34,7 +51,7 @@ init:
 	call	fsOn
 	ld	h, 0	; input blkdev
 	ld	l, 1	; output blkdev
-	call	zasmMain
+	call	USER_CODE
 	; signal the emulator we're done
 	halt
 

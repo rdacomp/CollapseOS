@@ -1,44 +1,3 @@
-; zasm
-;
-; Reads input from specified blkdev ID, assemble the binary in two passes and
-; spit the result in another specified blkdev ID.
-;
-; We don't buffer the whole source in memory, so we need our input blkdev to
-; support Seek so we can read the file a second time. So, for input, we need
-; GetC and Seek.
-;
-; For output, we only need PutC. Output doesn't start until the second pass.
-;
-; The goal of the second pass is to assign values to all symbols so that we
-; can have forward references (instructions referencing a label that happens
-; later).
-;
-; Labels and constants are both treated the same way, that is, they can be
-; forward-referenced in instructions. ".equ" directives, however, are evaluated
-; during the first pass so forward references are not allowed.
-;
-; *** Requirements ***
-; blockdev
-; strncmp
-; addDE
-; addHL
-; upcase
-; unsetZ
-; intoDE
-; intoHL
-; writeHLinDE
-; findchar
-; parseHex
-; parseHexPair
-; blkSel
-; fsFindFN
-; fsOpen
-; fsGetC
-; fsSeek
-; fsTell
-; ZASM_RAMSTART	(where we put our variables in RAM)
-; FS_HANDLE_SIZE
-
 ; *** Variables ***
 
 ; A bool flag indicating that we're on first pass. When we are, we don't care
@@ -53,19 +12,6 @@
 ; What IO_PC was when we started our context
 .equ	ZASM_CTX_PC		ZASM_LOCAL_PASS+1
 .equ	ZASM_RAMEND		ZASM_CTX_PC+2
-
-#include "zasm/util.asm"
-.equ	IO_RAMSTART	ZASM_RAMEND
-#include "zasm/io.asm"
-.equ	TOK_RAMSTART	IO_RAMEND
-#include "zasm/tok.asm"
-#include "zasm/parse.asm"
-#include "zasm/expr.asm"
-#include "zasm/instr.asm"
-.equ	DIREC_RAMSTART	TOK_RAMEND
-#include "zasm/directive.asm"
-.equ	SYM_RAMSTART	DIREC_RAMEND
-#include "zasm/symbol.asm"
 
 ; Read file through blockdev ID in H and outputs its upcodes through blockdev
 ; ID in L.
