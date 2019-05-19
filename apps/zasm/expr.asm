@@ -53,7 +53,7 @@ _resolveLeftAndRight:
 	; Now we have parsed everything to the left and we have its result in
 	; IX. What we need to do now is the same thing on (DE) and then apply
 	; the + operator. Let's save IX somewhere and parse this.
-	ex	hl, de	; right expr now in HL
+	ex	de, hl	; right expr now in HL
 	push	ix
 	pop	de	; numeric left expr result in DE
 	jp	parseExpr
