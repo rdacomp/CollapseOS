@@ -24,6 +24,7 @@
 #include "zasm/tok.asm"
 .equ	DIREC_RAMSTART	TOK_RAMEND
 #include "zasm/directive.asm"
+#include "zasm/instr.asm"
 
 zasmIsFirstPass:
 	nop
@@ -31,8 +32,6 @@ zasmIsFirstPass:
 zasmIsLocalPass:
 	nop
 
-getInstID:
-	nop
-
 parseExpr:
 	nop
+

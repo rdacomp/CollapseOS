@@ -234,7 +234,7 @@ findInGroup:
 	push	bc
 	push	hl
 
-	cp	0	; is our arg empty? If yes, we have nothing to do
+	or	a	; is our arg empty? If yes, we have nothing to do
 	jr	z, .notfound
 
 	push	af
@@ -257,7 +257,7 @@ findInGroup:
 	rla
 	call	addDE		; At this point, DE points to our group
 	pop	af
-	ex	hl, de		; And now, HL points to the group
+	ex	de, hl		; And now, HL points to the group
 	pop	de
 
 	ld	bc, 4
@@ -308,11 +308,11 @@ findInGroup:
 ; in (HL+1). This will save us significant processing later in getUpcode.
 ; Set Z according to whether we match or not.
 matchArg:
-	cp	a, (hl)
+	cp	(hl)
 	ret	z
 	; not an exact match. Before we continue: is A zero? Because if it is,
 	; we have to stop right here: no match possible.
-	cp	0
+	or	a
 	jr	nz, .checkIfNumber	; not a zero, we can continue
 	; zero, stop here
 	call	unsetZ
@@ -328,7 +328,7 @@ matchArg:
 	; point in the processing, we don't care about whether N or M is upper,
 	; we do truncation tests later. So, let's just perform the same == test
 	; but in a case-insensitive way instead
-	cp	a, (hl)
+	cp	(hl)
 	ret			; whether we match or not, the result of Z is
 				; the good one.
 .notNumber:
@@ -356,8 +356,7 @@ matchArg:
 matchPrimaryRow:
 	push	hl
 	push	ix
-	ld	ixh, d
-	ld	ixl, e
+	push	de \ pop ix
 	cp	(ix)
 	jr	nz, .end
 	; name matches, let's see the rest
@@ -567,8 +566,7 @@ getUpcode:
 	push	hl
 	push	bc
 	; First, let's go in IX mode. It's easier to deal with offsets here.
-	ld	ixh, d
-	ld	ixl, e
+	push	de \ pop ix
 
 	; Are we a "special instruction"?
 	bit	5, (ix+3)
@@ -629,7 +627,7 @@ getUpcode:
 	; displace it left by the number of steps specified in the table.
 	push	af
 	ld	a, (ix+3)	; displacement bit
-	and	a, 0xf		; we only use the lower nibble.
+	and	0xf		; we only use the lower nibble.
 	ld	b, a
 	pop	af
 	call	rlaX
@@ -758,11 +756,10 @@ processArg:
 	; We don't use the space allocated to store those numbers in any other
 	; occasion, we store IX there unconditonally, LSB first.
 	inc	de
-	ld	a, ixl
-	ld	(de), a
-	inc	de
-	ld	a, ixh
-	ld	(de), a
+	push	hl
+		push	ix \ pop hl
+		call	writeHLinDE
+	pop	hl
 	cp	a		; ensure Z is set
 	ret
 .error:
