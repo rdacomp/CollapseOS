@@ -71,6 +71,14 @@ isLabel:
 	pop	hl
 	ret
 
+; Read I/O as long as it's whitespace. When it's not, stop and return the last
+; read char in A
+_eatWhitespace:
+	call	ioGetC
+	call	isSep
+	ret	nz
+	jr	_eatWhitespace
+
 ; Read ioGetC until a word starts, then read ioGetC as long as there is no
 ; separator and put that contents in (scratchpad), null terminated, for a
 ; maximum of SCRATCHPAD_SIZE-1 characters.
@@ -81,14 +89,9 @@ isLabel:
 readWord:
 	push	bc
 	; Get to word
-.loop1:
-	call	ioGetC
+	call	_eatWhitespace
 	call	isLineEndOrComment
 	jr	z, .error
-	call	isSep
-	jr	nz, .read
-	jr	.loop1
-.read:
 	ld	hl, scratchpad
 	ld	b, SCRATCHPAD_SIZE-1
 	; A contains the first letter to read
@@ -98,7 +101,7 @@ readWord:
 	; Are we opening a single quote?
 	cp	0x27		; '
 	jr	z, .singleQuote
-.loop2:
+.loop:
 	ld	(hl), a
 	inc	hl
 	call	ioGetC
@@ -106,7 +109,7 @@ readWord:
 	jr	z, .success
 	cp	','
 	jr	z, .success
-	djnz	.loop2
+	djnz	.loop
 	; out of space. error.
 .error:
 	; We need to put the last char we've read back so that gotoNextLine
@@ -129,7 +132,7 @@ readWord:
 	inc	hl
 	call	ioGetC
 	cp	'"'
-	jr	z, .loop2	; ending the quote ends the word
+	jr	z, .loop	; ending the quote ends the word
 	call	isLineEnd
 	jr	z, .error	; ending the line without closing the quote,
 				; nope.
@@ -150,12 +153,12 @@ readWord:
 	jr	nz, .error
 	inc	hl
 	ld	(hl), a
-	jr	.loop2
+	jr	.loop
 
 ; Reads the next char in I/O. If it's a comma, Set Z and return. If it's not,
 ; Put the read char back in I/O and unset Z.
 readComma:
-	call	ioGetC
+	call	_eatWhitespace
 	cp	','
 	ret	z
 	call	ioPutBack
