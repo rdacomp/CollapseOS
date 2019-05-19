@@ -233,7 +233,7 @@ parseNumberOrSymbol:
 	call	symSelect
 	call	symFind
 	ret	nz	; not found
-	; Found! index in A, let's fetch value
+	; Found! let's fetch value
 	push	de
 	call	symGetVal
 	; value in DE. We need it in IX

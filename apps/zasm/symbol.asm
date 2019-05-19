@@ -16,12 +16,14 @@
 ; Symbol registry buffer is full
 .equ	SYM_ERR_FULLBUF		0x02
 
-; Maximum number of symbols we can have in the registry
-.equ	SYM_MAXCOUNT		0x100
+; Maximum number of symbols we can have in the global registry
+.equ	SYM_MAXCOUNT		0x200
+; Maximum number of symbols we can have in the local registry
+.equ	SYM_LOC_MAXCOUNT	0x40
 
 ; Size of the symbol name buffer size. This is a pool. There is no maximum name
 ; length for a single symbol, just a maximum size for the whole pool.
-.equ	SYM_BUFSIZE		0x1000
+.equ	SYM_BUFSIZE		0x2000
 
 ; Size of the names buffer for the local context registry
 .equ	SYM_LOC_BUFSIZE		0x200
@@ -37,14 +39,16 @@
 
 ; Registry for local labels. Wiped out after each context change.
 .equ	SYM_LOC_VALUES		SYM_NAMES+SYM_BUFSIZE
-.equ	SYM_LOC_NAMES		SYM_LOC_VALUES+SYM_MAXCOUNT*2
+.equ	SYM_LOC_NAMES		SYM_LOC_VALUES+SYM_LOC_MAXCOUNT*2
 
 ; Pointer to the currently selected registry
 .equ	SYM_CTX_NAMES		SYM_LOC_NAMES+SYM_LOC_BUFSIZE
 .equ	SYM_CTX_NAMESEND	SYM_CTX_NAMES+2
 .equ	SYM_CTX_VALUES		SYM_CTX_NAMESEND+2
+; Pointer, in (SYM_CTX_VALUES), to the result of the last symFind
+.equ	SYM_CTX_PTR		SYM_CTX_VALUES+2
 
-.equ	SYM_RAMEND		SYM_CTX_VALUES+2
+.equ	SYM_RAMEND		SYM_CTX_PTR+2
 
 ; *** Code ***
 
@@ -113,6 +117,7 @@ symIsLabelLocal:
 ; If we're within bounds, Z is set, otherwise unset.
 symNamesEnd:
 	push	ix
+	push	bc
 
 	ld	ix, (SYM_CTX_VALUES)
 	ld	hl, (SYM_CTX_NAMES)
@@ -122,16 +127,26 @@ symNamesEnd:
 	jr	nz, .success	; We've reached the end of the chain.
 	inc	ix
 	inc	ix
-	; Are we out of bounds?
+	; Are we out of bounds name-wise?
 	call	cpHLDE
-	jr	c, .loop	; HL < DE
-	; out of bounds
+	jr	nc, .outOfBounds	; HL >= DE
+	; are we out of bounds value-wise? check if IX == (SYM_CTX_NAMES)
+	; Is is assumed that values are placed right before names
+	push	hl
+	push	ix \ pop bc
+	ld	hl, (SYM_CTX_NAMES)
+	sbc	hl, bc
+	pop	hl
+	jr	z, .outOfBounds		; IX == (SYM_CTX_NAMES)
+	jr	.loop
+.outOfBounds:
 	call	unsetZ
 	jr	.end
 .success:
 	push	ix \ pop de	; our values pos goes in DE
 	cp	a		; ensure Z
 .end:
+	pop	bc
 	pop	ix
 	ret
 
@@ -197,16 +212,17 @@ symSelect:
 	jp	z, symSelectLocalRegistry
 	jp	symSelectGlobalRegistry
 
-; Find name (HL) in (SYM_CTX_NAMES) and returns matching index in A.
+; Find name (HL) in (SYM_CTX_NAMES) and make (SYM_CTX_PTR) point to the
+; corresponding entry in (SYM_CTX_VALUES).
 ; If we find something, Z is set, otherwise unset.
 symFind:
+	push	ix
 	push	hl
-	push	bc
 	push	de
 
 	ex	de, hl		; it's easier if HL is haystack and DE is
 				; needle.
-	ld	b, 0
+	ld	ix, (SYM_CTX_VALUES)
 	ld	hl, (SYM_CTX_NAMES)
 .loop:
 	call	strcmp
@@ -214,31 +230,23 @@ symFind:
 	; ok, next!
 	call	_symNext
 	jr	nz, .nomatch	; end of the chain, nothing found
-	djnz	.loop
+	inc	ix
+	inc	ix
+	jr	.loop
 	; exhausted djnz? no match
 .nomatch:
 	call	unsetZ
 	jr	.end
 .match:
-	; Our index is 0 - B (if B is, for example 0xfd, A is 0x3)
-	xor	a
-	sub	b
+	ld	(SYM_CTX_PTR), ix
 	cp	a		; ensure Z
 .end:
 	pop	de
-	pop	bc
 	pop	hl
+	pop	ix
 	ret
 
-; Return value associated with symbol index A into DE
+; Return value that (SYM_CTX_PTR) is pointing at in DE.
 symGetVal:
-	; our index is in A. Let's fetch the proper value
-	push	hl
-	ld	hl, (SYM_CTX_VALUES)
-	call	addHL
-	call	addHL	; twice because our values are words
-	ld	e, (hl)
-	inc	hl
-	ld	d, (hl)
-	pop	hl
-	ret
+	ld	de, (SYM_CTX_PTR)
+	jp	intoDE

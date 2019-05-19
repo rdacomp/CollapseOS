@@ -28,13 +28,8 @@ test:
 	jp	nz, fail
 
 	ld	hl, sFOO
-	call	symFind
+	call	symFind		; don't match FOOBAR
 	jp	nz, fail
-	cp	1		; don't match FOOBAR
-	jp	nz, fail
-	call	nexttest
-
-	ld	a, 1		; index of FOO
 	call	symGetVal
 	ld	a, d
 	or	a
