@@ -26,6 +26,7 @@
 ; unsetZ
 ; intoDE
 ; intoHL
+; writeHLinDE
 ; findchar
 ; parseHex
 ; parseHexPair

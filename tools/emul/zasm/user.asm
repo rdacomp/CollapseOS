@@ -6,15 +6,16 @@ upcase		.equ    0x0c
 unsetZ		.equ    0x0f
 intoDE		.equ    0x12
 intoHL		.equ    0x15
-findchar	.equ    0x18
-parseHex	.equ	0x1b
-parseHexPair	.equ	0x1e
-blkSel		.equ    0x21
-fsFindFN	.equ    0x24
-fsOpen		.equ    0x27
-fsGetC		.equ    0x2a
-fsSeek		.equ    0x2d
-fsTell		.equ    0x30
+writeHLinDE	.equ    0x18
+findchar	.equ    0x1b
+parseHex	.equ	0x1e
+parseHexPair	.equ	0x21
+blkSel		.equ    0x24
+fsFindFN	.equ    0x27
+fsOpen		.equ    0x2a
+fsGetC		.equ    0x2d
+fsSeek		.equ    0x30
+fsTell		.equ    0x33
 
 .equ	FS_HANDLE_SIZE	8
 .equ	STDERR_PORT	0x04

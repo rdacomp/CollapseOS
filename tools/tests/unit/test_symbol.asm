@@ -34,6 +34,16 @@ test:
 	jp	nz, fail
 	call	nexttest
 
+	ld	a, 1		; index of FOO
+	call	symGetVal
+	ld	a, d
+	or	a
+	jp	nz, fail
+	ld	a, e
+	cp	43
+	jp	nz, fail
+	call	nexttest
+
 	; success
 	xor	a
 	halt

@@ -107,35 +107,32 @@ symIsLabelLocal:
 	cp	(hl)
 	ret
 
-; Place HL at the end of (SYM_CTX_NAMES) end (that is, at the point where we have two
-; consecutive null chars. We return the index of that new name in A.
+; Place HL at the end of (SYM_CTX_NAMES) end (that is, at the point where we
+; have two consecutive null chars and DE at the corresponding position in
+; SYM_CTX_VALUES).
 ; If we're within bounds, Z is set, otherwise unset.
 symNamesEnd:
-	push	bc
-	push	de
+	push	ix
 
-	ld	b, 0
+	ld	ix, (SYM_CTX_VALUES)
 	ld	hl, (SYM_CTX_NAMES)
 	ld	de, (SYM_CTX_NAMESEND)
 .loop:
 	call	_symNext
 	jr	nz, .success	; We've reached the end of the chain.
+	inc	ix
+	inc	ix
 	; Are we out of bounds?
 	call	cpHLDE
-	jr	nc, .outOfBounds	; HL >= DE
-	djnz	.loop
-	; exhausted djnz? out of bounds
-.outOfBounds:
+	jr	c, .loop	; HL < DE
+	; out of bounds
 	call	unsetZ
 	jr	.end
 .success:
-	; Our index is 0 - B (if B is, for example 0xfd, A is 0x3)
-	xor	a
-	sub	b
+	push	ix \ pop de	; our values pos goes in DE
 	cp	a		; ensure Z
 .end:
-	pop	de
-	pop	bc
+	pop	ix
 	ret
 
 ; Register label in (HL) (minus the ending ":") into the symbol registry and
@@ -143,19 +140,16 @@ symNamesEnd:
 ; If successful, Z is set and A is the symbol index. Otherwise, Z is unset and
 ; A is an error code (SYM_ERR_*).
 symRegister:
-	push	hl
-	push	bc
-	push	de
+	push	hl	; will be used during processing. it's the symbol to add
+	push	de	; will be used during processing. it's our value.
 
 	; First, let's get our strlen
 	call	strlen
 	ld	c, a		; save that strlen for later
 
-	ex	de, hl		; symbol to add is now in DE
 	call	symNamesEnd
 	jr	nz, .error
-	; A is our index. Save it
-	ex	af, af'
+
 	; Is our new name going to make us go out of bounds?
 	push	hl
 	push	de
@@ -167,40 +161,33 @@ symRegister:
 	pop	hl
 	jr	nc, .error	; HL >= DE
 
-	; HL point to where we want to add the string
-	ex	de, hl		; symbol to add in HL, dest in DE
+	; Success. At this point, we have:
+	; HL -> where we want to add the string
+	; DE -> where the value goes
+	; SP -> value to register
+	; SP+2 -> string to register
+
+	; Let's start with the value.
+	push	hl \ pop ix	; save HL for later
+	pop	hl		; value to register
+	call	writeHLinDE	; write value where it goes.
+
+	; Good! now, the string.
+	pop	hl		; string to register
+	push	ix \ pop de	; string destination
 	; Copy HL into DE until we reach null char
-	; C already have our strlen (minus null char). Let's prepare BC for
-	; a LDIR.
-	inc	c	; include null char
-	ld	b, 0
-	ldir		; copy C chars from HL to DE
+	call	strcpyM
 
 	; We need to add a second null char to indicate the end of the name
-	; list. DE is already correctly placed.
-	xor	a
+	; list. DE is already correctly placed, A is already zero
 	ld	(de), a
 
-	; I'd say we're pretty good just about now. What we need to do is to
-	; save the value in our original DE that is just on top of the stack
-	; into the proper index in (SYM_CTX_VALUES). Our index, remember, is
-	; currently in A'.
-	ex	af, af'
-	pop	de
-	push	de	; push it right back to avoid stack imbalance
-	ld	hl, (SYM_CTX_VALUES)
-	call	addHL
-	call	addHL	; twice because our values are words
+	; Nothing to pop. We've already popped our stack in the lines above.
+	ret
 
-	; Everything is set! DE is our value HL points to the proper index in
-	; (SYM_CTX_VALUES). Let's just write it (little endian).
-	ld	(hl), e
-	inc	hl
-	ld	(hl), d
 .error:
 	; Z already unset
 	pop	de
-	pop	bc
 	pop	hl
 	ret
 

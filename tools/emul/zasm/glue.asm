@@ -16,6 +16,7 @@ jp	upcase
 jp	unsetZ
 jp	intoDE
 jp	intoHL
+jp	writeHLinDE
 jp	findchar
 jp	parseHex
 jp	parseHexPair
