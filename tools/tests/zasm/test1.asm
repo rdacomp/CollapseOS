@@ -25,3 +25,4 @@ label2: .dw	0x42
 	rr	e
 	rlc	c
 	cp	'-'
+	sbc	hl, bc
