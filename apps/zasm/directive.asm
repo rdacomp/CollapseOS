@@ -33,7 +33,8 @@ handleDB:
 	call	enterDoubleQuotes
 	jr	z, .stringLiteral
 	call	parseExpr
-	ld	a, ixl
+	push	ix \ pop hl
+	ld	a, l
 	call	ioPutC
 .stopStrLit:
 	call	readComma
@@ -91,8 +92,7 @@ handleEQU:
 	call	parseExpr
 	jr	nz, .error
 	ld	hl, DIREC_SCRATCHPAD
-	ld	d, ixh
-	ld	e, ixl
+	push	ix \ pop de
 	call	symRegister
 	jr	.end
 .error:
@@ -137,7 +137,6 @@ parseDirective:
 	ld	de, directiveHandlers
 	call	addDE
 	call	intoDE
-	ld	ixh, d
-	ld	ixl, e
+	push	de \ pop ix
 	pop	de
 	jp	(ix)

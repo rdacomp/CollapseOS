@@ -22,6 +22,8 @@
 #include "zasm/parse.asm"
 .equ	TOK_RAMSTART	SYM_RAMEND
 #include "zasm/tok.asm"
+.equ	DIREC_RAMSTART	TOK_RAMEND
+#include "zasm/directive.asm"
 
 zasmIsFirstPass:
 	nop
@@ -32,5 +34,5 @@ zasmIsLocalPass:
 getInstID:
 	nop
 
-getDirectiveID:
+parseExpr:
 	nop
