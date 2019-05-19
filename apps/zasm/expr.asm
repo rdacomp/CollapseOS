@@ -2,6 +2,11 @@
 ; We expect (HL) to be disposable: we mutate it to avoid having to make a copy.
 ; Sets Z on success, unset on error.
 parseExpr:
+	; Before we evaluate an expression, we first try for a regular number or
+	; symbol. We do this because parsing expressions can mess up some values
+	; with its splitting logic. For example '-' is going to end up '\0'.
+	call	parseNumberOrSymbol
+	ret	z
 	push	de
 	push	hl
 	call	_parseExpr
@@ -19,7 +24,7 @@ _parseExpr:
 	ld	a, '*'
 	call	_findAndSplit
 	jp	z, _applyMult
-	jp	parseNumberOrSymbol
+	ret			; failure
 
 ; Given a string in (HL) and a separator char in A, return a splitted string,
 ; that is, the same (HL) string but with the found A char replaced by a null
