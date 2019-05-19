@@ -155,8 +155,12 @@ symNamesEnd:
 ; If successful, Z is set and A is the symbol index. Otherwise, Z is unset and
 ; A is an error code (SYM_ERR_*).
 symRegister:
+	call	symFind
+	jr	z, .alreadyThere
+
 	push	hl	; will be used during processing. it's the symbol to add
 	push	de	; will be used during processing. it's our value.
+
 
 	; First, let's get our strlen
 	call	strlen
@@ -201,9 +205,18 @@ symRegister:
 	ret
 
 .error:
-	; Z already unset
+	call	unsetZ
 	pop	de
 	pop	hl
+	ret
+
+.alreadyThere:
+	push	hl
+	ld	hl, (SYM_CTX_PTR)
+	ex	de, hl
+	call	writeHLinDE
+	pop	hl
+	cp	a		; ensure Z
 	ret
 
 ; Select global or local registry according to label name in (HL)

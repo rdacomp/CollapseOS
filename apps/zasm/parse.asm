@@ -226,13 +226,10 @@ parseLiteral:
 parseNumberOrSymbol:
 	call	parseLiteral
 	ret	z
-	call	zasmIsFirstPass
-	ret	z		; first pass? we don't care about the value,
-				; return success.
 	; Not a number. Try symbol
 	call	symSelect
 	call	symFind
-	ret	nz	; not found
+	jr	nz, .notfound
 	; Found! let's fetch value
 	push	de
 	call	symGetVal
@@ -241,3 +238,9 @@ parseNumberOrSymbol:
 	pop	de
 	cp	a		; ensure Z
 	ret
+.notfound:
+	; If not found, check if we're in first pass. If we are, it doesn't
+	; matter that we didn't find our symbol. Return success anyhow.
+	; Otherwise return error. Z is already unset, so in fact, this is the
+	; same as jumping to zasmIsFirstPass
+	jp	zasmIsFirstPass

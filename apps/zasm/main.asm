@@ -11,7 +11,9 @@
 .equ	ZASM_LOCAL_PASS		ZASM_FIRST_PASS+1
 ; What IO_PC was when we started our context
 .equ	ZASM_CTX_PC		ZASM_LOCAL_PASS+1
-.equ	ZASM_RAMEND		ZASM_CTX_PC+2
+; current ".org" offset, that is, what we must offset all our label by.
+.equ	ZASM_ORG		ZASM_CTX_PC+2
+.equ	ZASM_RAMEND		ZASM_ORG+2
 
 ; Read file through blockdev ID in H and outputs its upcodes through blockdev
 ; ID in L.
@@ -27,6 +29,8 @@ zasmMain:
 	; Init modules
 	xor	a
 	ld	(ZASM_LOCAL_PASS), a
+	ld	(ZASM_ORG), a
+	ld	(ZASM_ORG+1), a
 	call	ioInit
 	call	symInit
 
@@ -52,6 +56,20 @@ zasmIsFirstPass:
 zasmIsLocalPass:
 	ld	a, (ZASM_LOCAL_PASS)
 	cp	1
+	ret
+
+; Set ZASM_ORG to specified number in HL
+zasmSetOrg:
+	ld	(ZASM_ORG), hl
+	ret
+
+; Return current PC (properly .org offsetted) in HL
+zasmGetPC:
+	push	de
+	ld	hl, (ZASM_ORG)
+	ld	de, (IO_PC)
+	add	hl, de
+	pop	de
 	ret
 
 ; Repeatedly reads lines from IO, assemble them and spit the binary code in
@@ -135,7 +153,10 @@ _parseLabel:
 	call	_endLocalPass
 	jr	.success
 .registerLabel:
-	ld	de, (IO_PC)
+	push	hl
+	call	zasmGetPC
+	ex	de, hl
+	pop	hl
 	call	symRegister
 	jr	nz, .error
 	; continue to .success

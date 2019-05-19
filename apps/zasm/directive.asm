@@ -3,7 +3,8 @@
 .equ	D_DB	0x00
 .equ	D_DW	0x01
 .equ	D_EQU	0x02
-.equ	D_INC	0x03
+.equ	D_ORG	0x03
+.equ	D_INC	0x04
 .equ	D_BAD	0xff
 
 ; *** Variables ***
@@ -16,6 +17,7 @@ directiveNames:
 	.db	".DB", 0
 	.db	".DW", 0
 	.db	".EQU"
+	.db	".ORG"
 	.db	"#inc"
 
 ; This is a list of handlers corresponding to indexes in directiveNames
@@ -23,6 +25,7 @@ directiveHandlers:
 	.dw	handleDB
 	.dw	handleDW
 	.dw	handleEQU
+	.dw	handleORG
 	.dw	handleINC
 
 handleDB:
@@ -67,14 +70,6 @@ handleDW:
 	ret
 
 handleEQU:
-	call	zasmIsFirstPass
-	jr	nz, .begin
-	; first pass? .equ are noops Consume args and return
-	call	readWord
-	call	readWord
-	xor	a
-	ret
-.begin:
 	push	hl
 	push	de
 	push	bc
@@ -90,18 +85,23 @@ handleEQU:
 	call	readWord
 	ld	hl, scratchpad
 	call	parseExpr
-	jr	nz, .error
+	jr	nz, .end
 	ld	hl, DIREC_SCRATCHPAD
 	push	ix \ pop de
 	call	symRegister
-	jr	.end
-.error:
 .end:
 	xor	a		; 0 bytes written
 	pop	bc
 	pop	de
 	pop	hl
 	ret
+
+handleORG:
+	call	readWord
+	call	parseExpr
+	ret	nz
+	push	ix \ pop hl
+	jp	zasmSetOrg
 
 handleINC:
 	call	readWord
