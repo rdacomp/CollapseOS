@@ -1,5 +1,6 @@
 ; Glue code for the emulated environment
 .equ RAMSTART		0x4000
+.equ USER_CODE		0x4800
 .equ STDIO_PORT		0x00
 .equ STDIN_SEEK		0x01
 .equ FS_DATA_PORT	0x02
@@ -39,7 +40,6 @@ jp     fsTell
 .equ	FS_RAMSTART	BLOCKDEV_RAMEND
 .equ	FS_HANDLE_COUNT	0
 #include "fs.asm"
-#include "user.h"
 
 init:
 	di

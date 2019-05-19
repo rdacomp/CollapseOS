@@ -13,6 +13,18 @@ We don't try to emulate real hardware to ease the development of device drivers
 because so far, I don't see the advantage of emulation versus running code on
 the real thing.
 
+## Bootstrapped binary
+
+The file `zasm/zasm.bin` is a compiled binary for `apps/zasm/glue.asm`. It is
+used to bootstrap the assembling process so that no assembler other than zasm
+is required to build Collapse OS.
+
+This binary is fed to libz80 to produce the `zasm/zasm` "modern" binary and
+once you have that, you can recreate `zasm/zasm.bin`.
+
+This is why it's included as a binary in the repo, but yes, it's redundant with
+the source code.
+
 ## Usage
 
 First, make sure that the `libz80` git submodule is checked out. If not, run
