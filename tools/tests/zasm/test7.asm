@@ -20,9 +20,17 @@
 .equ	SYM_RAMSTART	IO_RAMEND
 #include "zasm/symbol.asm"
 #include "zasm/parse.asm"
+.equ	TOK_RAMSTART	SYM_RAMEND
+#include "zasm/tok.asm"
 
 zasmIsFirstPass:
 	nop
 
 zasmIsLocalPass:
+	nop
+
+getInstID:
+	nop
+
+getDirectiveID:
 	nop

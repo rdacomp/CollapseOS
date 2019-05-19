@@ -1,20 +1,20 @@
 ; *** Consts ***
-TOK_INSTR	.equ	0x01
-TOK_DIRECTIVE	.equ	0x02
-TOK_LABEL	.equ	0x03
-TOK_EOF		.equ	0xfe	; end of file
-TOK_BAD		.equ	0xff
+.equ	TOK_INSTR	0x01
+.equ	TOK_DIRECTIVE	0x02
+.equ	TOK_LABEL	0x03
+.equ	TOK_EOF		0xfe	; end of file
+.equ	TOK_BAD		0xff
 
 .equ	SCRATCHPAD_SIZE	0x40
 ; *** Variables ***
-scratchpad:
-	.fill	SCRATCHPAD_SIZE
+.equ	scratchpad	TOK_RAMSTART
+.equ	TOK_RAMEND	scratchpad+SCRATCHPAD_SIZE
 
 ; *** Code ***
 
 ; Sets Z is A is ';' or null.
 isLineEndOrComment:
-	cp	';'
+	cp	0x3b		; ';'
 	ret	z
 	; continue to isLineEnd
 
