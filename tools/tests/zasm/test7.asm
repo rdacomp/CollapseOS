@@ -33,10 +33,5 @@
 #include "zasm/directive.asm"
 #include "zasm/instr.asm"
 #include "zasm/expr.asm"
-
-zasmIsFirstPass:
-	nop
-
-zasmIsLocalPass:
-	nop
-
+.equ	ZASM_RAMSTART	TOK_RAMEND
+#include "zasm/main.asm"
