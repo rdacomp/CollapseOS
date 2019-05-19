@@ -36,7 +36,7 @@
 ; fsGetC
 ; fsSeek
 ; fsTell
-; RAMSTART	(where we put our variables in RAM)
+; ZASM_RAMSTART	(where we put our variables in RAM)
 ; FS_HANDLE_SIZE
 
 ; *** Variables ***
@@ -45,7 +45,7 @@
 ; about actual output, but only about the length of each upcode. This means
 ; that when we parse instructions and directive that error out because of a
 ; missing symbol, we don't error out and just write down a dummy value.
-.equ	ZASM_FIRST_PASS		RAMSTART
+.equ	ZASM_FIRST_PASS		ZASM_RAMSTART
 ; whether we're in "local pass", that is, in local label scanning mode. During
 ; this special pass, ZASM_FIRST_PASS will also be set so that the rest of the
 ; code behaves as is we were in the first pass.
@@ -53,9 +53,6 @@
 ; What IO_PC was when we started our context
 .equ	ZASM_CTX_PC		ZASM_LOCAL_PASS+1
 .equ	ZASM_RAMEND		ZASM_CTX_PC+2
-
-; *** Code ***
-jp	zasmMain
 
 #include "zasm/util.asm"
 .equ	IO_RAMSTART	ZASM_RAMEND

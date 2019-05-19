@@ -1,31 +1,12 @@
 ; Glue code for the emulated environment
 .equ RAMSTART		0x4000
-.equ USER_CODE		0x4800
 .equ STDIO_PORT		0x00
 .equ STDIN_SEEK		0x01
 .equ FS_DATA_PORT	0x02
 .equ FS_SEEK_PORT	0x03
 .equ STDERR_PORT	0x04
 
-jp	init	; 3 bytes
-; *** JUMP TABLE ***
-jp	strncmp
-jp	addDE
-jp	addHL
-jp	upcase
-jp	unsetZ
-jp	intoDE
-jp	intoHL
-jp	writeHLinDE
-jp	findchar
-jp	parseHex
-jp	parseHexPair
-jp	blkSel
-jp	fsFindFN
-jp	fsOpen
-jp	fsGetC
-jp	fsSeek
-jp	fsTell
+jp	init
 
 #include "core.asm"
 #include "parse.asm"
@@ -40,11 +21,12 @@ jp	fsTell
 .equ	FS_RAMSTART	BLOCKDEV_RAMEND
 .equ	FS_HANDLE_COUNT	0
 #include "fs.asm"
+.equ	ZASM_RAMSTART	FS_RAMEND
+#include "zasm/main.asm"
 
 init:
 	di
-	; We put the stack at the end of the kernel memory
-	ld	hl, USER_CODE-1
+	ld	hl, 0xffff
 	ld	sp, hl
 	ld	a, 2	; select fsdev
 	ld	de, BLOCKDEV_GETC
@@ -52,7 +34,7 @@ init:
 	call	fsOn
 	ld	h, 0	; input blkdev
 	ld	l, 1	; output blkdev
-	call	USER_CODE
+	call	zasmMain
 	; signal the emulator we're done
 	halt
 
