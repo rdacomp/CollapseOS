@@ -2,8 +2,8 @@
 
 *Bootstrap post-collapse technology*
 
-Collapse OS is a collection of programs, tools and documentation that allows
-you to assemble an OS that can:
+Collapse OS is a z80 kernel and a collection of programs, tools and
+documentation that allows you to assemble an OS that can:
 
 1. Run on an extremely minimal and improvised architecture.
 2. Communicate through a improvised serial interface linked to some kind of
@@ -20,7 +20,23 @@ manage to build and install Collapse OS without external resources (i.e.
 internet) on a machine of her design, built from scavenged parts with low-tech
 tools.
 
-See the "Goals" section below for details.
+## Status
+
+The project is progressing well! Highlights:
+
+* Has a shell that can poke memory, I/O, call arbitrary code from memory.
+* Can "upload" code from serial link into memory and execute it.
+* Can manage multiple "block devices"
+* Can read SD cards as block devices
+* A z80 assembler, written in z80 that is self-assembling and can assemble the
+  whole project. 4K binary, uses less than 16K of memory to assemble the kernel
+  or itself.
+* Extremely flexible: Kernel parts are written as loosely knit modules that
+  are bound through glue code. This makes the kernel adaptable to many unforseen
+  situations.
+* A typical kernel binary of less than 2K (but size vary wildly depending on
+  parts you include).
+* Built with minimal tooling: only [libz80][libz80] is needed
 
 ## Why?
 
@@ -78,26 +94,6 @@ enough to steadily improve your technological situation, build more
 sophisticated machines from more sophisticated scavenged parts and, who knows,
 in a couple of decades, build a new IC fab (or bring an old one back to life).
 
-## Status
-
-The project is progressing well and I already have a working shell (see `doc`
-to see what it can do) on a classic RC2014. Highlights:
-
-* Extremely flexible: Kernel parts are written as loosely knit modules that
-  are bound through glue code. This makes the kernel adaptable to many unforseen
-  situations.
-* 2K binary (but size vary wildly depending on what parts you include. 2K is
-  for a shell using all parts).
-* Built with minimal tooling: only [scas][scas] is needed
-* Can read and write to memory through shell
-* Can run arbitrary routine from arbitrary address with arbitrary arguments
-  from shell.
-* Can "upload" code from serial link into memory and execute it.
-* Can manage multiple "block devices"
-* Can read SD cards as block devices
-* A z80 assembler written in z80 that is progressing well and should soon be
-  able to replace `scas`.
-
 ## Organisation of this repository
 
 There's very little done so far, but here's how it's organized:
@@ -107,40 +103,49 @@ There's very little done so far, but here's how it's organized:
 * `recipes`: collection of recipes that assemble parts together on a specific
              machine.
 * `doc`: User guide for when you've successfully installed Collapse OS.
+* `tools`: Tools for working with Collapse OS from "modern" environments. Mostly
+           development tools, but also contains emulated zasm, which is
+           necessary to build Collapse OS from a non-Collapse OS machine.
 
 Each folder has a README with more details.
 
 ## Roadmap
 
-Such a vast project involves quite a lot of fiddling and I can't really have a
-precise roadmap, only a general direction:
+The roadmap used to be really hazy, but with the first big goal (that was to
+have a self-assembling system) reached, the feasability of the project is much
+more likely and the horizon is clearing out.
 
-The primary target for Collapse OS is the z80 architecture. There's a good
-amount of great z80-related hacks all around the internet, and the z80 CPU is
-very scavenge-friendly: it's been (and is) included in tons of devices.
+As of now, that self-assembling system is hard to use outside of an emulated
+environment, so the first goal is to solidify what I have.
 
-After a good proof of concept is done in z80, then more architectures can be
-added into the mix. I have the intuition that we can mix AVR and z80 in a very
-elegant minimal and powerful machine and it would be great if a Collapse OS
-spawn could be built for such machine.
+1. Error out gracefully in ZASM. It can compile almost any valid code that scas
+   can, but it has undfined behavior on invalid code and that make it very hard
+   to use.
+2. Make shell, CFS, etc. convenient enough to use so that I can easily assemble
+   code on an SD card and write the binary to that same SD card from within a
+   RC2014.
 
-I'm planning to go forward with this project by doing three things:
+After that, then it's the longer term goals:
 
-1. Gather knowledge and hone skills.
-2. Build useful parts of code to be assembled into an OS by the user.
-3. Write "recipes", examples of assembly on real machines using parts I wrote
-   to serve as a guide for post-collapse assembly.
+1. Get out of the serial link: develop display drivers for a vga output card
+   that I have still to cobble up together, then develop input driver for some
+   kind of PS/2 interface card I'll have to cobble up together.
+2. Add support for writing to flash/eeprom from the RC2014.
+3. Add support for floppy storage.
+4. Add support for all-RAM systems through bootloading from storage.
 
-Recipes should contain both "pre-collapse" instructions (how to build Collapse
-OS from a "modern" system) and "post-collapse" instructions (how to build
-Collapse OS from itself).
+Then comes the even longer term goals, that is, widen support for all kind of
+machines and peripherals. It's worth mentionning, however, that supporting
+*specific* peripherals isn't on the roadmap. There's too many of them out there
+and most peripheral post-collapse will be cobbled-up together anyway.
 
-Initially, we of course only have "pre-collapse" instructions, but as tooling
-improve, the "post-collapse" part will become more and more complete. When we
-have complete "post-collapse" recipes, we can call it a win.
+The goal is to give good starting point for as many *types* of peripherals
+possible.
 
-If you're interested in being part of this project, I have no idea how to
-include you, but please, let me know, we'll manage something.
+It's also important to keep in mind that the goal of this OS is to program
+microcontrollers, so the type of peripherals it needs to support is limited
+to whatever is needed to interact with storage, serial links, display and
+receive text, do bit banging.
 
 ## Open questions
 
@@ -172,13 +177,13 @@ First, because I think there are more scavenge-friendly 8-bit chips around than
 scavenge-friendly 16-bit or 32-bit chips.
 
 Second, because those chips will be easier to replicate in a post-collapse fab.
-If the first chips we're able to create post-collapse are low-powered, we might
-as well design a system that works well on low-powered chips.
+The z80 has 9000 transistors. 9000! Compared to the millions we have in any
+modern CPU, that's nothing!  If the first chips we're able to create
+post-collapse have a low transistor count, we might as well design a system
+that works well on simpler chips.
 
 That being said, nothing stops the project from including the capability of
 programming an ARM or RISC-V chip.
-
-That being said, the MSP430 seems like a really nice and widely used chip...
 
 ### Prior art
 
@@ -212,4 +217,4 @@ sound more or less crazy to you than what you've been reading in this text so
 far?), I will probably need help to pull this off.
 
 [searle]: http://searle.hostei.com/grant/z80/SimpleZ80.html
-[scas]: https://github.com/KnightOS/scas
+[libz80]: https://github.com/ggambetta/libz80

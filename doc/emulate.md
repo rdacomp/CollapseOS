@@ -2,7 +2,7 @@
 
 The quickest way to give Collapse OS a whirl is to use `tools/emul` which is
 built around [libz80][libz80]. Everything is set up, you just have to run
-`make`.
+`make`, then `shell/shell`.
 
 To emulate something at a lower level, I recommend using Alan Cox's [RC2014
 emulator][rc2014-emul]. It runs Collapse OS fine but you have to write the
@@ -13,13 +13,13 @@ A working Makefile for a project with a glue code being called `main.asm` could
 look like:
 
     TARGET = os.bin
-    PARTS = ~/collapseos/parts
+    ZASM = ~/collapseos/tools/emul/zasm/zasm
     ROM = os.rom
 
     .PHONY: all
     all: $(ROM)
     $(TARGET): main.asm
-            scas -o $@ -L map -I $(PARTS) $<
+            $(ZASM) < $< > $@
 
     $(ROM): $(TARGET)
             cp $< $@

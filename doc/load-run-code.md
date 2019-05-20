@@ -16,7 +16,7 @@ machine:
 (we must always return at the end of code that we call with `call`). This will
 increase a number at memory address `0xa100`. First, compile it:
 
-    scas -o tosend.bin tosend.asm
+    zasm < tosend.asm > tosend.bin
 
 Now, we'll send that code to address `0xa000`:
 
@@ -108,8 +108,8 @@ like (important fact: `jp <addr>` uses 3 bytes):
 It then becomes easy to build yourself a predictable and stable jump header,
 something you could call `jumptable.inc`:
 
-    JUMP_PRINTSTR .equ 0x03
-    JUMP_ACIAPUTC .equ 0x06
+    .equ    JUMP_PRINTSTR 0x03
+    .equ    JUMP_ACIAPUTC 0x06
 
 You can then include that file in your "user" code, like this:
 

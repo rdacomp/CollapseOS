@@ -1,15 +1,16 @@
 # Writing the glue code
 
-Collapse OS is not an OS, it's a meta OS. It supplies parts that you're expected
-to glue together in a "glue code" asm file. Here is what a minimal glue code
-for a shell on a Classic [RC2014][rc2014] with an ACIA link would look like:
+Collapse OS's kernel code is loosely knit. It supplies parts that you're
+expected to glue together in a "glue code" asm file. Here is what a minimal
+glue code for a shell on a Classic [RC2014][rc2014] with an ACIA link would
+look like:
 
 
     ; The RAM module is selected on A15, so it has the range 0x8000-0xffff
-    RAMSTART	.equ	0x8000
-    RAMEND		.equ	0xffff
-    ACIA_CTL	.equ	0x80	; Control and status. RS off.
-    ACIA_IO		.equ	0x81	; Transmit. RS on.
+    .equ    RAMSTART	0x8000
+    .equ    RAMEND		0xffff
+    .equ    ACIA_CTL	0x80	; Control and status. RS off.
+    .equ    ACIA_IO		0x81	; Transmit. RS on.
 
         jr init
 
@@ -29,18 +30,28 @@ for a shell on a Classic [RC2014][rc2014] with an ACIA link would look like:
         jp	shellLoop
 
     #include "core.asm"
-    ACIA_RAMSTART	.equ	RAMSTART
+    .equ    ACIA_RAMSTART	RAMSTART
     #include "acia.asm"
-    SHELL_RAMSTART	.equ	ACIA_RAMEND
+    .equ    SHELL_RAMSTART	ACIA_RAMEND
     .define SHELL_GETC	call aciaGetC
     .define SHELL_PUTC	call aciaPutC
     .define SHELL_IO_GETC	call aciaGetC
-    SHELL_EXTRA_CMD_COUNT .equ 0
+    .equ    SHELL_EXTRA_CMD_COUNT 0
     #include "shell.asm"
 
-Once this is written, building it is easy:
+Once this is written, building it is easy: 
 
-    scas -o collapseos.bin -I /path/to/parts glue.asm
+    zasm < glue.asm > collapseos.bin
+
+## Building zasm
+
+Collapse OS has its own assembler written in z80 assembly. We call it
+[zasm][zasm]. Even on a "modern" machine, it is that assembler that is used,
+but because it is written in z80 assembler, it needs to be emulated (with
+[libz80][libz80]).
+
+So, the first step is to build zasm. Open `tools/emul/README.md` and follow
+instructions there.
 
 ## Platform constants
 
@@ -106,7 +117,7 @@ effective, only works for one table per part. But it's often enough.
 For example, to define extra commands in the shell:
 
     [...]
-    SHELL_EXTRA_CMD_COUNT .equ 2
+    .equ    SHELL_EXTRA_CMD_COUNT 2
     #include "shell.asm"
     .dw myCmd1, myCmd2
     [...]
@@ -118,3 +129,5 @@ and this much depends on the part you select. But if you want a shell, you will
 usually end it with `shellLoop`, which never returns.
 
 [rc2014]: https://rc2014.co.uk/
+[zasm]: ../tools/emul/README.md
+[libz80]: https://github.com/ggambetta/libz80
