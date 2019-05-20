@@ -28,10 +28,11 @@ test:
 	ld	hl, s99
 	call	parseLiteral
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	or	a
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	99
 	jp	nz, fail
 	call	nexttest
@@ -39,10 +40,11 @@ test:
 	ld	hl, s0x100
 	call	parseLiteral
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	cp	1
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	or	a
 	jp	nz, fail
 	call	nexttest
@@ -55,10 +57,11 @@ test:
 	ld	hl, s0b0101
 	call	parseLiteral
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	or	a
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	0b0101
 	jp	nz, fail
 	call	nexttest
@@ -66,10 +69,11 @@ test:
 	ld	hl, s0b01010101
 	call	parseLiteral
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	or	a
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	0b01010101
 	jp	nz, fail
 	call	nexttest

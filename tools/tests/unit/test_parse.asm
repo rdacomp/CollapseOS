@@ -39,14 +39,14 @@ test:
 	jp	nz, fail
 	call	nexttest
 
-	ld	hl, sab
+	ld	hl, saB
 	call	parseHexPair
 	jp	c, fail
 	cp	0xab
 	jp	nz, fail
 	call	nexttest
 
-	ld	hl, sfoo
+	ld	hl, sFoo
 	call	parseHexPair
 	jp	nc, fail
 	call	nexttest
@@ -64,4 +64,3 @@ nexttest:
 fail:
 	ld	a, (testNum)
 	halt
-

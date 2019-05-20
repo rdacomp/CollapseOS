@@ -32,10 +32,11 @@ test:
 	ld	hl, s1
 	call	parseExpr
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	or	a
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	4
 	jp	nz, fail
 	call	nexttest
@@ -43,10 +44,11 @@ test:
 	ld	hl, s2
 	call	parseExpr
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	cp	0x40
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	0x23
 	jp	nz, fail
 	call	nexttest
@@ -65,10 +67,11 @@ test:
 	ld	hl, s3
 	call	parseExpr
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	cp	0x40
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	0x20
 	jp	nz, fail
 	call	nexttest
@@ -76,10 +79,11 @@ test:
 	ld	hl, s4
 	call	parseExpr
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	or	a
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	0x60
 	jp	nz, fail
 	call	nexttest
@@ -87,10 +91,11 @@ test:
 	ld	hl, s5
 	call	parseExpr
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	cp	0x3f
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	0xfd
 	jp	nz, fail
 	call	nexttest
@@ -98,10 +103,11 @@ test:
 	ld	hl, s6
 	call	parseExpr
 	jp	nz, fail
-	ld	a, ixh
+	push	ix \ pop hl
+	ld	a, h
 	cp	0x40
 	jp	nz, fail
-	ld	a, ixl
+	ld	a, l
 	cp	0x80
 	jp	nz, fail
 	call	nexttest
@@ -119,6 +125,3 @@ nexttest:
 fail:
 	ld	a, (testNum)
 	halt
-
-
-
