@@ -4,7 +4,8 @@
 .equ	D_DW	0x01
 .equ	D_EQU	0x02
 .equ	D_ORG	0x03
-.equ	D_INC	0x04
+.equ	D_FIL	0x04
+.equ	D_INC	0x05
 .equ	D_BAD	0xff
 
 ; *** Variables ***
@@ -18,6 +19,7 @@ directiveNames:
 	.db	".DW", 0
 	.db	".EQU"
 	.db	".ORG"
+	.db	".FIL"
 	.db	"#inc"
 
 ; This is a list of handlers corresponding to indexes in directiveNames
@@ -26,6 +28,7 @@ directiveHandlers:
 	.dw	handleDW
 	.dw	handleEQU
 	.dw	handleORG
+	.dw	handleFIL
 	.dw	handleINC
 
 handleDB:
@@ -102,6 +105,19 @@ handleORG:
 	ret	nz
 	push	ix \ pop hl
 	jp	zasmSetOrg
+
+handleFIL:
+	call	readWord
+	call	parseExpr
+	ret	nz
+	push	bc
+	push	ix \ pop bc
+	xor	a
+	ld	b, c
+.loop:
+	call	ioPutC
+	djnz	.loop
+	pop	bc
 
 handleINC:
 	call	readWord

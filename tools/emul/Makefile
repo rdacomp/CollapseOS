@@ -33,11 +33,11 @@ shell/shell: shell/shell.c libz80/libz80.o shell/kernel.h $(CFSPACK)
 $(ZASMBIN): zasm/zasm.c libz80/libz80.o zasm/kernel.h zasm/user.h zasm/includes.h
 runbin/runbin: runbin/runbin.c libz80/libz80.o
 $(TARGETS):
-	cc $< libz80/libz80.o -o $@
+	$(CC) $< libz80/libz80.o -o $@
 
 libz80/libz80.o: libz80/z80.c
 	make -C libz80/codegen opcodes
-	gcc -Wall -ansi -g -c -o libz80/libz80.o libz80/z80.c
+	$(CC) -Wall -ansi -g -c -o libz80/libz80.o libz80/z80.c
 
 $(CFSPACK):
 	make -C ../cfspack
