@@ -27,4 +27,4 @@ label2: .dw	0x42
 	rlc	c
 	cp	'-'
 	sbc	hl, de
-.fill	0x10
+.fill	0x50-$

@@ -13,6 +13,9 @@ jp	test
 zasmIsFirstPass:
 	jp	unsetZ
 
+zasmGetPC:
+	ret
+
 testNum:	.db 1
 
 s1:		.db "2+2", 0

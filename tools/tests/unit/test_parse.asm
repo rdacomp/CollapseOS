@@ -3,6 +3,9 @@ jp	test
 #include "core.asm"
 #include "parse.asm"
 
+zasmGetPC:
+	ret
+
 testNum:	.db 1
 
 sFoo:		.db "Foo", 0

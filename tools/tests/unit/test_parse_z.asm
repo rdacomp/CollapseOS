@@ -6,6 +6,7 @@ jp	test
 #include "zasm/parse.asm"
 
 ; mocks. aren't used in tests
+zasmGetPC:
 zasmIsFirstPass:
 symSelect:
 symFind:

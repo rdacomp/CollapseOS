@@ -226,7 +226,13 @@ parseLiteral:
 parseNumberOrSymbol:
 	call	parseLiteral
 	ret	z
-	; Not a number. Try symbol
+	; Not a number. Try PC
+	push	de
+	ld	de, .sDollar
+	call	strcmp
+	pop	de
+	jr	z, .returnPC
+	; Not PC either, try symbol
 	call	symSelect
 	call	symFind
 	jr	nz, .notfound
@@ -244,3 +250,12 @@ parseNumberOrSymbol:
 	; Otherwise return error. Z is already unset, so in fact, this is the
 	; same as jumping to zasmIsFirstPass
 	jp	zasmIsFirstPass
+
+.returnPC:
+	push	hl
+	call	zasmGetPC
+	push	hl \ pop ix
+	pop	hl
+	ret
+.sDollar:
+	.db	'$', 0
