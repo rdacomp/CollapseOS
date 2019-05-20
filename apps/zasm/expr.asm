@@ -2,11 +2,6 @@
 ; We expect (HL) to be disposable: we mutate it to avoid having to make a copy.
 ; Sets Z on success, unset on error.
 parseExpr:
-	; Before we evaluate an expression, we first try for a regular number or
-	; symbol. We do this because parsing expressions can mess up some values
-	; with its splitting logic. For example '-' is going to end up '\0'.
-	call	parseNumberOrSymbol
-	ret	z
 	push	de
 	push	hl
 	call	_parseExpr
@@ -24,7 +19,7 @@ _parseExpr:
 	ld	a, '*'
 	call	_findAndSplit
 	jp	z, _applyMult
-	ret			; failure
+	jp	parseNumberOrSymbol
 
 ; Given a string in (HL) and a separator char in A, return a splitted string,
 ; that is, the same (HL) string but with the found A char replaced by a null
@@ -32,6 +27,7 @@ _parseExpr:
 ; Sets Z if found, unset if not found.
 _findAndSplit:
 	push	hl
+	call	.skipCharLiteral
 	call	findchar
 	jr	nz, .end	; nothing found
 	; Alright, we have our char and we're pointing at it. Let's replace it
@@ -44,6 +40,27 @@ _findAndSplit:
 .end:
 	pop	hl		; HL is back to the start
 	ret
+
+.skipCharLiteral:
+	; special case: if our first char is ', skip the first 3 characters
+	; so that we don't mistake a literal for an iterator
+	push	af
+	ld	a, (hl)
+	cp	0x27		; '
+	jr	nz, .skipCharLiteralEnd	; not a '
+	xor	a	; check for null char during skipping
+	; skip 3
+	inc	hl
+	cp	(hl)
+	jr	z, .skipCharLiteralEnd
+	inc	hl
+	cp	(hl)
+	jr	z, .skipCharLiteralEnd
+	inc	hl
+.skipCharLiteralEnd:
+	pop	af
+	ret
+.find:
 
 ; parse expression on the left (HL) and the right (DE) and put the results in
 ; DE (left) and IX (right)

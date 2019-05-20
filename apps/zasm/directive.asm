@@ -118,6 +118,7 @@ handleFIL:
 	call	ioPutC
 	djnz	.loop
 	pop	bc
+	ret
 
 handleINC:
 	call	readWord
