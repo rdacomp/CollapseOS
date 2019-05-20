@@ -65,6 +65,7 @@
 shellInit:
 	xor	a
 	ld	(SHELL_MEM_PTR), a
+	ld	(SHELL_MEM_PTR+1), a
 	ld	(SHELL_BUF), a
 
 	; print welcome
@@ -178,7 +179,7 @@ shellParse:
 	; let's have DE point to the jump line
 	ld	a, SHELL_CMD_ARGS_MAXSIZE
 	call	addDE
-	push	ix \ pop de
+	push	de \ pop ix
 	; Ready to roll!
 	call	callIX
 	cp	0
