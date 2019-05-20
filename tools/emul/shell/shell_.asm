@@ -1,18 +1,18 @@
 ; named shell_.asm to avoid infinite include loop.
-RAMSTART	.equ	0x4000
-RAMEND		.equ	0x5000
-STDIO_PORT	.equ	0x00
-FS_DATA_PORT	.equ	0x01
-FS_SEEKL_PORT	.equ	0x02
-FS_SEEKH_PORT	.equ	0x03
+.equ	RAMSTART	0x4000
+.equ	RAMEND		0x5000
+.equ	STDIO_PORT	0x00
+.equ	FS_DATA_PORT	0x01
+.equ	FS_SEEKL_PORT	0x02
+.equ	FS_SEEKH_PORT	0x03
 
-jp	init
+	jp	init
 
 #include "core.asm"
 #include "parse.asm"
 
-BLOCKDEV_RAMSTART	.equ	RAMSTART
-BLOCKDEV_COUNT		.equ	4
+.equ	BLOCKDEV_RAMSTART	RAMSTART
+.equ	BLOCKDEV_COUNT		4
 #include "blockdev.asm"
 ; List of devices
 .dw	emulGetC, emulPutC, 0, 0
@@ -22,7 +22,7 @@ BLOCKDEV_COUNT		.equ	4
 
 #include "blockdev_cmds.asm"
 
-STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
+.equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
 #include "stdio.asm"
 
 .equ	FS_RAMSTART	STDIO_RAMEND
@@ -30,8 +30,8 @@ STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
 #include "fs.asm"
 #include "fs_cmds.asm"
 
-SHELL_RAMSTART	.equ	FS_RAMEND
-SHELL_EXTRA_CMD_COUNT .equ 7
+.equ	SHELL_RAMSTART		FS_RAMEND
+.equ	SHELL_EXTRA_CMD_COUNT	7
 #include "shell.asm"
 .dw	blkBselCmd, blkSeekCmd, fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 

@@ -76,7 +76,7 @@ fopnCmd:
 	jr	nz, .notfound
 	; Found!
 	; FS_PTR points to the file we want to open
-	ex	hl, de		; HL now points to the file handle.
+	ex	de, hl		; HL now points to the file handle.
 	call	fsOpen
 	jr	.end
 .notfound:

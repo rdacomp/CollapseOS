@@ -7,8 +7,8 @@ ZASMBIN = zasm/zasm
 .PHONY: all
 all: $(TARGETS)
 
-shell/kernel.h: shell/shell_.asm
-	scas -o - -I $(KERNEL) $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
+shell/kernel.h: shell/shell_.asm $(ZASMBIN)
+	$(ZASMBIN) < $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
 
 zasm/kernel.h: zasm/kernel.bin
 	./bin2c.sh KERNEL < $< | tee $@ > /dev/null
