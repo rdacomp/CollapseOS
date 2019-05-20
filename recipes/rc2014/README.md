@@ -38,8 +38,7 @@ device I use in this recipe.
 
 ### Gathering parts
 
-* Collapse OS parts in `/path/to/parts`
-* [scas][scas]
+* [zasm][zasm]
 * [romwrite][romwrite] and its specified dependencies
 * [GNU screen][screen]
 * A FTDI-to-TTL cable to connect to the Serial I/O module of the RC2014
@@ -75,7 +74,7 @@ is decoupled from the ACIA and can get its IO from anything. See
 
 We only have the shell to build, so it's rather straightforward:
 
-    scas -I /path/to/parts -o rom.bin glue.asm
+    zasm < glue.asm > rom.bin
 
 ### Write to the ROM
 
@@ -104,5 +103,5 @@ TODO
 
 [rc2014]: https://rc2014.co.uk
 [romwrite]: https://github.com/hsoft/romwrite
-[scas]: https://github.com/KnightOS/scas
+[zasm]: ../../tools/emul
 [screen]: https://www.gnu.org/software/screen/

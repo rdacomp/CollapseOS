@@ -1,9 +1,9 @@
 TARGETS = os.bin sdinit.bin
-PARTS = ../../../parts/z80
+ZASM = ../../../tools/emul/zasm/zasm
 
 .PHONY: all
 all: $(TARGETS)
 os.bin: glue.asm 
 sdinit.bin: sdinit.asm
 $(TARGETS):
-	scas -o $@ -L map -I $(PARTS) $<
+	$(ZASM) < $< > $@

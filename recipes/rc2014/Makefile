@@ -1,7 +1,7 @@
 TARGET = os.bin
-PARTS = ../../parts/z80
+ZASM = ../../tools/emul/zasm/zasm
 
 .PHONY: all
 all: $(TARGET)
 $(TARGET): glue.asm
-	scas -o $@ -L map -I $(PARTS) $<
+	$(ZASM) < $< > $@

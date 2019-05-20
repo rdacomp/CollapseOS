@@ -1,9 +1,9 @@
 ; classic RC2014 setup (8K ROM + 32K RAM) and a stock Serial I/O module
 ; The RAM module is selected on A15, so it has the range 0x8000-0xffff
-RAMSTART	.equ	0x8000
-RAMEND		.equ	0xffff
-ACIA_CTL	.equ	0x80	; Control and status. RS off.
-ACIA_IO		.equ	0x81	; Transmit. RS on.
+.equ	RAMSTART	0x8000
+.equ	RAMEND		0xffff
+.equ	ACIA_CTL	0x80	; Control and status. RS off.
+.equ	ACIA_IO		0x81	; Transmit. RS on.
 
 jp	init
 
@@ -26,10 +26,10 @@ jp	aciaInt
 
 #include "core.asm"
 #include "parse.asm"
-ACIA_RAMSTART	.equ	RAMSTART
+.equ	ACIA_RAMSTART	RAMSTART
 #include "acia.asm"
-BLOCKDEV_RAMSTART	.equ	ACIA_RAMEND
-BLOCKDEV_COUNT		.equ	2
+.equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
+.equ	BLOCKDEV_COUNT		2
 #include "blockdev.asm"
 ; List of devices
 .dw	aciaGetC, aciaPutC, 0, 0
@@ -37,11 +37,11 @@ BLOCKDEV_COUNT		.equ	2
 
 #include "blockdev_cmds.asm"
 
-STDIO_RAMSTART	.equ	BLOCKDEV_RAMEND
+.equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
 #include "stdio.asm"
 
-SHELL_RAMSTART	.equ	STDIO_RAMEND
-SHELL_EXTRA_CMD_COUNT .equ 3
+.equ	SHELL_RAMSTART		STDIO_RAMEND
+.equ	SHELL_EXTRA_CMD_COUNT	3
 #include "shell.asm"
 .dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd
 
