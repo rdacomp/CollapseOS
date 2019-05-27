@@ -11,3 +11,5 @@
 
 ; Value specified doesn't fit in its destination byte or word
 .equ	ERR_OVFL		0x04
+
+.equ	ERR_FILENOTFOUND	0x05

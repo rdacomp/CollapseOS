@@ -32,5 +32,8 @@ chkerr ".equ" 3
 chkerr ".equ foo" 3
 chkerr ".org" 3
 chkerr ".fill" 3
+chkerr "#inc" 3
+chkerr "#inc foo" 3
 chkerr "ld a, 0x100" 4
 chkerr ".db 0x100" 4
+chkerr "#inc \"doesnotexist\"" 5

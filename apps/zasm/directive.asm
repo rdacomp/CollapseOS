@@ -184,13 +184,21 @@ handleFIL:
 
 handleINC:
 	call	readWord
-	jr	nz, .end
+	jr	nz, .badfmt
 	; HL points to scratchpad
 	call	enterDoubleQuotes
-	jr	nz, .end
+	jr	nz, .badfmt
 	call	ioOpenInclude
-.end:
-	xor	a		; zero bytes written
+	jr	nz, .badfn
+	cp	a		; ensure Z
+	ret
+.badfmt:
+	ld	a, ERR_BAD_FMT
+	jr	.error
+.badfn:
+	ld	a, ERR_FILENOTFOUND
+.error:
+	call	unsetZ
 	ret
 
 ; Reads string in (HL) and returns the corresponding ID (D_*) in A. Sets Z if
