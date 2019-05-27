@@ -121,7 +121,6 @@ _parseInstr:
 _parseDirec:
 	ld	a, c		; D_*
 	call	parseDirective
-	cp	a		; ensure Z
 	ret
 
 _parseLabel:

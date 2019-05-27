@@ -35,18 +35,37 @@ handleDB:
 	push	hl
 .loop:
 	call	readWord
+	jr	nz, .badfmt
 	ld	hl, scratchpad
 	call	enterDoubleQuotes
 	jr	z, .stringLiteral
 	call	parseExpr
+	jr	nz, .badarg
 	push	ix \ pop hl
+	ld	a, h
+	or	a		; cp 0
+	jr	nz, .overflow	; not zero? overflow
 	ld	a, l
 	call	ioPutC
 .stopStrLit:
 	call	readComma
 	jr	z, .loop
+	cp	a		; ensure Z
 	pop	hl
 	ret
+.badfmt:
+	ld	a, ERR_BAD_FMT
+	jr	.error
+.badarg:
+	ld	a, ERR_BAD_ARG
+	jr	.error
+.overflow:
+	ld	a, ERR_OVFL
+.error:
+	call	unsetZ
+	pop	hl
+	ret
+
 .stringLiteral:
 	ld	a, (hl)
 	inc	hl
@@ -69,6 +88,7 @@ handleDW:
 	call	ioPutC
 	call	readComma
 	jr	z, .loop
+	cp	a		; ensure Z
 	pop	hl
 	ret
 
@@ -104,7 +124,9 @@ handleORG:
 	call	parseExpr
 	ret	nz
 	push	ix \ pop hl
-	jp	zasmSetOrg
+	call	zasmSetOrg
+	cp	a		; ensure Z
+	ret
 
 handleFIL:
 	call	readWord
@@ -117,6 +139,7 @@ handleFIL:
 .loop:
 	call	ioPutC
 	djnz	.loop
+	cp	a		; ensure Z
 	pop	bc
 	ret
 
@@ -147,6 +170,8 @@ getDirectiveID:
 ; Parse directive specified in A (D_* const) with args in I/O and act in
 ; an appropriate manner. If the directive results in writing data at its
 ; current location, that data is directly written through ioPutC.
+; Each directive has the same return value pattern: Z on success, not-Z on
+; error, A contains the error number (ERR_*).
 parseDirective:
 	push	de
 	; double A to have a proper offset in directiveHandlers
