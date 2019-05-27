@@ -791,7 +791,7 @@ parseInstruction:
 	call	readComma
 	jr	nz, .nomorearg
 	call	readWord
-	jr	nz, .error
+	jr	nz, .badfmt
 	ld	de, curArg2
 	call	processArg
 	jr	nz, .error	; A is set to error
@@ -824,6 +824,8 @@ parseInstruction:
 	djnz	.loopWrite
 	cp	a	; ensure Z
 	jr	.end
+.badfmt:
+	ld	a, ERR_BAD_FMT
 .error:
 	; A is set to error already
 	call	unsetZ
