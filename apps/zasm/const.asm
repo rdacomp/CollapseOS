@@ -8,3 +8,6 @@
 
 ; Code is badly formatted (comma without a following arg, unclosed quote, etc.)
 .equ	ERR_BAD_FMT		0x03
+
+; Value specified doesn't fit in its destination byte or word
+.equ	ERR_OVFL		0x04

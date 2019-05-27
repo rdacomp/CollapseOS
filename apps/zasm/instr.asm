@@ -559,7 +559,9 @@ handleLDrr:
 
 ; Compute the upcode for argspec row at (DE) and arguments in curArg{1,2} and
 ; writes the resulting upcode in instrUpcode. A is the number if bytes written
-; to instrUpcode (can be zero if something went wrong).
+; to instrUpcode.
+; A is zero on error. The only thing that can go wrong in this routine is
+; overflow.
 getUpcode:
 	push	ix
 	push	de
@@ -814,7 +816,7 @@ parseInstruction:
 	; goal here!
 	call	getUpcode
 	or	a	; is zero?
-	jr	z, .error
+	jr	z, .overflow
 	ld	b, a		; save output byte count
 	ld	hl, instrUpcode
 .loopWrite:
@@ -824,6 +826,9 @@ parseInstruction:
 	djnz	.loopWrite
 	cp	a	; ensure Z
 	jr	.end
+.overflow:
+	ld	a, ERR_OVFL
+	jr	.error
 .badfmt:
 	ld	a, ERR_BAD_FMT
 .error:
