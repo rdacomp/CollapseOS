@@ -806,9 +806,9 @@ parseInstruction:
 	ld	a, INSTR_TBL_ROWSIZE
 	call	addDE
 	djnz	.loop
-	; no match
-	xor	a
-	jr	.end
+	; No signature match
+	ld	a, ERR_BAD_ARG
+	jr	.error
 .match:
 	; We have our matching instruction row. We're getting pretty near our
 	; goal here!

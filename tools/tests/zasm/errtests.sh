@@ -18,5 +18,6 @@ chkerr() {
 
 chkerr "foo" 1
 chkerr "ld a, foo" 2
+chkerr "ld a, hl" 2
 chkerr "ld a," 3
 chkerr "ld a, 'A" 3
