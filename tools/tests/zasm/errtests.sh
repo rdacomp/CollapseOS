@@ -17,4 +17,4 @@ chkerr() {
 }
 
 chkerr "foo" 1
-
+chkerr "ld a, foo" 2

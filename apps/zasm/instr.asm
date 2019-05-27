@@ -766,12 +766,13 @@ processArg:
 	cp	a		; ensure Z is set
 	ret
 .error:
+	ld	a, ERR_BAD_ARG
 	call	unsetZ
 	ret
 
 ; Parse instruction specified in A (I_* const) with args in I/O and write
 ; resulting opcode(s) in I/O.
-; Sets Z on success.
+; Sets Z on success. On error, A contains an error code (ERR_*)
 parseInstruction:
 	push	bc
 	push	hl
@@ -786,14 +787,14 @@ parseInstruction:
 	jr	nz, .nomorearg
 	ld	de, curArg1
 	call	processArg
-	jr	nz, .error
+	jr	nz, .error	; A is set to error
 	call	readComma
 	jr	nz, .nomorearg
 	call	readWord
 	jr	nz, .error
 	ld	de, curArg2
 	call	processArg
-	jr	nz, .error
+	jr	nz, .error	; A is set to error
 .nomorearg:
 	; Parsing done, no error, let's move forward to instr row matching!
 	ld	de, instrTBl
@@ -824,6 +825,7 @@ parseInstruction:
 	cp	a	; ensure Z
 	jr	.end
 .error:
+	; A is set to error already
 	call	unsetZ
 .end:
 	pop	de

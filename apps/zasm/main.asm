@@ -15,10 +15,6 @@
 .equ	ZASM_ORG		ZASM_CTX_PC+2
 .equ	ZASM_RAMEND		ZASM_ORG+2
 
-; *** Errors ***
-; Unknown instruction or directive
-.equ	ERR_UNKWN		0x01
-
 ; Read file through blockdev ID in H and outputs its upcodes through blockdev
 ; ID in L.
 zasmMain:
@@ -115,7 +111,7 @@ parseLine:
 	cp	TOK_EOF
 	ret	z		; We're finished, no error.
 	; Bad token
-	ld	a, ERR_UNKWN
+	ld	a, ERR_UNKNOWN
 	jp	unsetZ		; return with Z unset
 
 _parseInstr:

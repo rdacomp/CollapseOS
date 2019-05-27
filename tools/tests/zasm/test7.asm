@@ -21,6 +21,7 @@
 .equ    fsSeek         0x30
 .equ    fsTell         0x33
 
+#include "zasm/const.asm"
 #include "zasm/util.asm"
 .equ	IO_RAMSTART	USER_RAMSTART
 #include "zasm/io.asm"
