@@ -79,8 +79,10 @@ handleDW:
 	push	hl
 .loop:
 	call	readWord
+	jr	nz, .badfmt
 	ld	hl, scratchpad
 	call	parseExpr
+	jr	nz, .badarg
 	push	ix \ pop hl
 	ld	a, l
 	call	ioPutC
@@ -89,6 +91,15 @@ handleDW:
 	call	readComma
 	jr	z, .loop
 	cp	a		; ensure Z
+	pop	hl
+	ret
+.badfmt:
+	ld	a, ERR_BAD_FMT
+	jr	.error
+.badarg:
+	ld	a, ERR_BAD_ARG
+.error:
+	call	unsetZ
 	pop	hl
 	ret
 
