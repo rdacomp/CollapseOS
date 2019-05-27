@@ -142,17 +142,27 @@ handleEQU:
 
 handleORG:
 	call	readWord
+	jr	nz, .badfmt
 	call	parseExpr
-	ret	nz
+	jr	nz, .badarg
 	push	ix \ pop hl
 	call	zasmSetOrg
 	cp	a		; ensure Z
 	ret
+.badfmt:
+	ld	a, ERR_BAD_FMT
+	jr	.error
+.badarg:
+	ld	a, ERR_BAD_ARG
+.error:
+	call	unsetZ
+	ret
 
 handleFIL:
 	call	readWord
+	jr	nz, .badfmt
 	call	parseExpr
-	ret	nz
+	jr	nz, .badarg
 	push	bc
 	push	ix \ pop bc
 	xor	a
@@ -162,6 +172,14 @@ handleFIL:
 	djnz	.loop
 	cp	a		; ensure Z
 	pop	bc
+	ret
+.badfmt:
+	ld	a, ERR_BAD_FMT
+	jr	.error
+.badarg:
+	ld	a, ERR_BAD_ARG
+.error:
+	call	unsetZ
 	ret
 
 handleINC:
