@@ -120,8 +120,7 @@ _parseInstr:
 
 _parseDirec:
 	ld	a, c		; D_*
-	call	parseDirective
-	ret
+	jp	parseDirective
 
 _parseLabel:
 	; The string in (scratchpad) is a label with its trailing ':' removed.

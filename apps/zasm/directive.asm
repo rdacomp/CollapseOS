@@ -104,6 +104,8 @@ handleDW:
 	ret
 
 handleEQU:
+	call	zasmIsLocalPass	; Are we in local pass? Then ignore all .equ.
+	jr	z, .skip		; they mess up duplicate symbol detection.
 	push	hl
 	push	de
 	push	bc
@@ -124,8 +126,7 @@ handleEQU:
 	jr	nz, .badarg
 	ld	hl, DIREC_SCRATCHPAD
 	push	ix \ pop de
-	call	symRegister	; TODO: handle duplicate symbol error, OOM, etc.
-	cp	a		; ensure Z
+	call	symRegister	; A and Z set
 	jr	.end
 .badfmt:
 	ld	a, ERR_BAD_FMT
@@ -139,6 +140,10 @@ handleEQU:
 	pop	de
 	pop	hl
 	ret
+.skip:
+	; consume args and return
+	call	readWord
+	jp	readWord
 
 handleORG:
 	call	readWord

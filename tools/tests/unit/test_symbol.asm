@@ -3,8 +3,13 @@ jp	test
 
 #include "core.asm"
 #include "zasm/util.asm"
+#include "zasm/const.asm"
 .equ	SYM_RAMSTART	RAMSTART
 #include "zasm/symbol.asm"
+
+; Pretend that we aren't in first pass
+zasmIsFirstPass:
+	jp	unsetZ
 
 testNum:	.db 1
 

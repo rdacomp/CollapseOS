@@ -11,11 +11,6 @@
 ; and continue second pass as usual.
 
 ; *** Constants ***
-; Duplicate symbol in registry
-.equ	SYM_ERR_DUPLICATE	0x01
-; Symbol registry buffer is full
-.equ	SYM_ERR_FULLBUF		0x02
-
 ; Maximum number of symbols we can have in the global registry
 .equ	SYM_MAXCOUNT		0x200
 ; Maximum number of symbols we can have in the local registry
@@ -153,7 +148,7 @@ symNamesEnd:
 ; Register label in (HL) (minus the ending ":") into the symbol registry and
 ; set its value in that registry to DE.
 ; If successful, Z is set and A is the symbol index. Otherwise, Z is unset and
-; A is an error code (SYM_ERR_*).
+; A is an error code (ERR_*).
 symRegister:
 	call	symFind
 	jr	z, .alreadyThere
@@ -167,7 +162,7 @@ symRegister:
 	ld	c, a		; save that strlen for later
 
 	call	symNamesEnd
-	jr	nz, .error
+	jr	nz, .outOfMemory
 
 	; Is our new name going to make us go out of bounds?
 	push	hl
@@ -178,7 +173,7 @@ symRegister:
 		call	cpHLDE
 	pop	de
 	pop	hl
-	jr	nc, .error	; HL >= DE
+	jr	nc, .outOfMemory	; HL >= DE
 
 	; Success. At this point, we have:
 	; HL -> where we want to add the string
@@ -201,16 +196,37 @@ symRegister:
 	; list. DE is already correctly placed, A is already zero
 	ld	(de), a
 
+	cp	a		; ensure Z
 	; Nothing to pop. We've already popped our stack in the lines above.
 	ret
 
-.error:
+.outOfMemory:
+	ld	a, ERR_OOM
 	call	unsetZ
 	pop	de
 	pop	hl
 	ret
 
 .alreadyThere:
+	; We are in a tricky situation with regards to our handling of the
+	; duplicate symbol error. Normally, it should be straightforward: We
+	; only register labels during first pass and evaluate constants during
+	; the second. Easy.
+	; We can *almost* do that... but we have ".org". .org affects label
+	; values and supports expressions, which means that we have to evaluate
+	; constants during first pass. But because we can possibly have forward
+	; references in ".equ", some constants are going to have a bad value.
+	; Therefore, we really can't evaluate all constants during the first
+	; pass.
+	; With this situation, how do you manage detection of duplicate symbols?
+	; By limiting the "duplicate error" condition to the first pass. During,
+	; first pass, sure, we don't have our proper values, but we have all our
+	; symbol names. So, if we end up in .alreadyThere during first pass,
+	; then it's an error condition. If it's not first pass, then we need
+	; to update our value.
+	call	zasmIsFirstPass
+	jr	z, .duplicateError
+	; Second pass. Don't error out, just update value
 	push	hl
 	ld	hl, (SYM_CTX_PTR)
 	ex	de, hl
@@ -218,6 +234,9 @@ symRegister:
 	pop	hl
 	cp	a		; ensure Z
 	ret
+.duplicateError:
+	ld	a, ERR_DUPSYM
+	jp	unsetZ		; return
 
 ; Select global or local registry according to label name in (HL)
 symSelect:
@@ -246,7 +265,6 @@ symFind:
 	inc	ix
 	inc	ix
 	jr	.loop
-	; exhausted djnz? no match
 .nomatch:
 	call	unsetZ
 	jr	.end

@@ -16,6 +16,24 @@ chkerr() {
     fi
 }
 
+chkoom() {
+    echo "Trying OOM error..."
+    local s=""
+    # 300 x 27-29 bytes > 8192 bytes. Large enough to smash the pool.
+    for i in {1..300}; do
+        s+=".equ abcdefghijklmnopqrstuvwxyz$i 42"
+        s+=$'\n'
+    done
+    ${ZASM} <<< "$s" > /dev/null
+    local res=$?
+    if [[ $res == 7 ]]; then
+        echo "Good!"
+    else
+        echo "$res != 7"
+        exit 1
+    fi
+}
+
 chkerr "foo" 1
 chkerr "ld a, foo" 2
 chkerr "ld a, hl" 2
@@ -37,3 +55,5 @@ chkerr "#inc foo" 3
 chkerr "ld a, 0x100" 4
 chkerr ".db 0x100" 4
 chkerr "#inc \"doesnotexist\"" 5
+chkerr ".equ foo 42 \\ .equ foo 42" 6
+chkoom

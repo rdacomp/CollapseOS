@@ -13,3 +13,9 @@
 .equ	ERR_OVFL		0x04
 
 .equ	ERR_FILENOTFOUND	0x05
+
+; Duplicate symbol
+.equ	ERR_DUPSYM		0x06
+
+; Out of memory
+.equ	ERR_OOM			0x07
