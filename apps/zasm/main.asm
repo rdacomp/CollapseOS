@@ -15,6 +15,10 @@
 .equ	ZASM_ORG		ZASM_CTX_PC+2
 .equ	ZASM_RAMEND		ZASM_ORG+2
 
+; *** Errors ***
+; Unknown instruction or directive
+.equ	ERR_UNKWN		0x01
+
 ; Read file through blockdev ID in H and outputs its upcodes through blockdev
 ; ID in L.
 zasmMain:
@@ -98,7 +102,7 @@ zasmParseFile:
 ; resulting opcode(s) through ioPutC and increases (IO_PC) by the number of
 ; bytes written. BC is set to the result of the call to tokenize.
 ; Sets Z if parse was successful, unset if there was an error. EOF is not an
-; error.
+; error. If there is an error, A is set to the corresponding error code (ERR_*).
 parseLine:
 	call	tokenize
 	ld	a, b		; TOK_*
@@ -109,9 +113,10 @@ parseLine:
 	cp	TOK_LABEL
 	jr	z, _parseLabel
 	cp	TOK_EOF
-	ret			; Z is correct. If EOF, Z is set and not an
-				; error, otherwise, it means bad token and
-				; errors out.
+	ret	z		; We're finished, no error.
+	; Bad token
+	ld	a, ERR_UNKWN
+	jp	unsetZ		; return with Z unset
 
 _parseInstr:
 	ld	a, c		; I_*

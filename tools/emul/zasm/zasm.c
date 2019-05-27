@@ -188,9 +188,10 @@ int main()
     }
 #endif
     fflush(stdout);
-#ifdef DEBUG
-    fprintf(stderr, "Ended with A=%d DE=%d\n", cpu.R1.br.A, cpu.R1.wr.DE);
-#endif
-    return 0;
+    int res = cpu.R1.br.A;
+    if (res != 0) {
+        fprintf(stderr, "Error %d\n", res);
+    }
+    return res;
 }
 

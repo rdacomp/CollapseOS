@@ -23,7 +23,7 @@ cmpas() {
     fi
 }
 
-for fn in *.asm; do
+for fn in test*.asm; do
     echo "Comparing ${fn}"
     cmpas $fn
 done
@@ -34,3 +34,4 @@ while read line; do
     cmpas ${TMPFILE}
 done
 
+./errtests.sh
