@@ -109,6 +109,7 @@ handleEQU:
 	push	bc
 	; Read our constant name
 	call	readWord
+	jr	nz, .badfmt
 	; We can't register our symbol yet: we don't have our value!
 	; Let's copy it over.
 	ld	de, DIREC_SCRATCHPAD
@@ -117,14 +118,23 @@ handleEQU:
 
 	; Now, read the value associated to it
 	call	readWord
+	jr	nz, .badfmt
 	ld	hl, scratchpad
 	call	parseExpr
-	jr	nz, .end
+	jr	nz, .badarg
 	ld	hl, DIREC_SCRATCHPAD
 	push	ix \ pop de
-	call	symRegister
+	call	symRegister	; TODO: handle duplicate symbol error, OOM, etc.
+	cp	a		; ensure Z
+	jr	.end
+.badfmt:
+	ld	a, ERR_BAD_FMT
+	jr	.error
+.badarg:
+	ld	a, ERR_BAD_ARG
+.error:
+	call	unsetZ
 .end:
-	xor	a		; 0 bytes written
 	pop	bc
 	pop	de
 	pop	hl
