@@ -16,7 +16,8 @@
 .equ	ZASM_RAMEND		ZASM_ORG+2
 
 ; Read file through blockdev ID in H and outputs its upcodes through blockdev
-; ID in L.
+; ID in L. HL is set to the last lineno to be read.
+; Sets Z on success, unset on error. On error, A contains an error code (ERR_*)
 zasmMain:
 	; Init I/O
 	ld	a, h
@@ -38,13 +39,13 @@ zasmMain:
 	ld	a, 1
 	ld	(ZASM_FIRST_PASS), a
 	call	zasmParseFile
-	ret	nz
+	jr	nz, .end
 	; Second pass
-	call	ioRewind
 	xor	a
 	ld	(ZASM_FIRST_PASS), a
 	call	zasmParseFile
-	ret
+.end:
+	jp	ioLineNo		; --> HL, returns
 
 ; Sets Z according to whether we're in first pass.
 zasmIsFirstPass:
@@ -76,7 +77,7 @@ zasmGetPC:
 ; IO. Z is set on success, unset on error. DE contains the last line number to
 ; be read (first line is 1).
 zasmParseFile:
-	call	ioResetPC
+	call	ioRewind
 .loop:
 	call	parseLine
 	ret	nz		; error

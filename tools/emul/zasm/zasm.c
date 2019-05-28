@@ -190,7 +190,8 @@ int main()
     fflush(stdout);
     int res = cpu.R1.br.A;
     if (res != 0) {
-        fprintf(stderr, "Error %d\n", res);
+        int lineno = cpu.R1.wr.HL;
+        fprintf(stderr, "Error %d on line %d\n", res, lineno);
     }
     return res;
 }

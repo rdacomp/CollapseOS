@@ -7,6 +7,11 @@
 ; This unit also has the responsibility of counting the number of written bytes,
 ; maintaining IO_PC and of properly disabling output on first pass.
 ;
+; On top of that, this unit has the responsibility of keeping track of the
+; current lineno. Whenever GetC is called, we check if the fetched char is a
+; newline. If it is, we increase our lineno. This unit is the best place to
+; keep track of this because we have to handle ioRecallPos.
+;
 ; zasm doesn't buffers its reads during tokenization, which simplifies its
 ; process. However, it also means that it needs, in certain cases, a "putback"
 ; mechanism, that is, a way to say "you see that character I've just read? that
@@ -50,8 +55,12 @@
 ; see ioPutBack below
 .equ	IO_PUTBACK_BUF	IO_INCLUDE_HDL+FS_HANDLE_SIZE
 .equ	IO_IN_INCLUDE	IO_PUTBACK_BUF+1
-.equ	IO_PC	IO_IN_INCLUDE+1
-.equ	IO_RAMEND	IO_PC+2
+.equ	IO_PC		IO_IN_INCLUDE+1
+; Current lineno in top-level file
+.equ	IO_LINENO	IO_PC+2
+; Line number (can be top-level or include) when ioSavePos was last called.
+.equ	IO_SAVED_LINENO	IO_LINENO+2
+.equ	IO_RAMEND	IO_SAVED_LINENO+2
 
 ; *** Code ***
 
@@ -59,7 +68,7 @@ ioInit:
 	xor	a
 	ld	(IO_PUTBACK_BUF), a
 	ld	(IO_IN_INCLUDE), a
-	jp	ioResetPC
+	jp	ioResetCounters
 
 ioGetC:
 	ld	a, (IO_PUTBACK_BUF)
@@ -89,12 +98,26 @@ ioGetC:
 .normalmode:
 	; normal mode, read from IN stream
 	ld	ix, (IO_IN_GETC)
-	jp	(ix)
+	call	_callIX
+	cp	0x0a		; newline
+	ret	nz		; not newline? return
+	; inc current lineno
+	push	hl
+	ld	hl, IO_LINENO
+	inc	(hl)
+	pop	hl
+	cp	a		; ensure Z
+	ret
+
 .getback:
 	push	af
 	xor	a
 	ld	(IO_PUTBACK_BUF), a
 	pop	af
+	ret
+
+_callIX:
+	jp	(ix)
 	ret
 
 ; Put back non-zero character A into the "ioGetC stack". The next ioGetC call,
@@ -121,21 +144,27 @@ ioPutC:
 	ret
 
 ioSavePos:
+	ld	hl, (IO_LINENO)
+	ld	(IO_SAVED_LINENO), hl
 	call	_ioTell
 	ld	(IO_SAVED_POS), hl
 	ret
 
 ioRecallPos:
+	ld	hl, (IO_SAVED_LINENO)
+	ld	(IO_LINENO), hl
 	ld	hl, (IO_SAVED_POS)
 	jr	_ioSeek
 
 ioRewind:
-	ld	hl, 0
+	call	ioResetCounters		; sets HL to 0
 	jr	_ioSeek
 
-ioResetPC:
+ioResetCounters:
 	ld	hl, 0
 	ld	(IO_PC), hl
+	ld	(IO_LINENO), hl
+	ld	(IO_SAVED_LINENO), hl
 	ret
 
 ; always in absolute mode (A = 0)
@@ -186,3 +215,7 @@ ioOpenInclude:
 	cp	a		; ensure Z
 	ret
 
+; Return current lineno in HL
+ioLineNo:
+	ld	hl, (IO_LINENO)
+	ret
