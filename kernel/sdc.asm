@@ -109,8 +109,7 @@ sdcCmd:
 	call	sdcSendRecv
 
 	; And now we just have to wait for a valid response...
-	call	sdcWaitResp
-	ret
+	jp	sdcWaitResp		; return
 
 ; Send a command that expects a R1 response, handling CS.
 sdcCmdR1:
@@ -319,28 +318,23 @@ sdcGetC:
 
 	xor	a
 	ld	hl, (SDC_PTR)
+	bit	0, h
+	jr	nz, .highbuf	; first bit set? no need to read a sector. Also,
+				; we already know that we're in the "highbuf"
+				; zone.
 	cp	l		; is L zero?
-	jr	nz, .mem	; non-zero? no need to read a sector
-	ld	a, h
-	and	0x1
-	jr	nz, .mem	; if H has first bit set, no need to read a
-				; sector
+	jr	nz, .lowbuf	; non-zero? no need to read a sector
 	; Oh, first 9 bits unset. Se need to read a sector
-	; H is already in A. We just need a right shift.
-	rra			; now that's our sector
+	ld	a, h
+	rrca			; now that's our sector
 	call	sdcReadBlk
 	jr	nz, .error
-.mem:
-	; Read byte from memory at proper offset
-	; Higher 256 bytes or lower ones?
-	ld	a, h
-	and	0x1
-	jr	nz, .highbuf
-	; We're on the lower part
+.lowbuf:
+	; Read byte from memory at proper offset in lowbuf (first 0x100 bytes)
 	ld	hl, SDC_BUF
 	jr	.read
 .highbuf:
-	; We're on the higher part
+	; Read byte from memory at proper offset in highbuf (0x100-0x1ff)
 	ld	hl, SDC_BUF+0x100
 .read:
 	; HL is now placed either on the lower or higher half of SDC_BUF and
@@ -364,3 +358,12 @@ sdcGetC:
 .end:
 	pop	hl
 	ret
+
+sdcSeek:
+	ld	(SDC_PTR), hl
+	ret
+
+sdcTell:
+	ld	hl, (SDC_PTR)
+	ret
+
