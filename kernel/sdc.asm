@@ -5,7 +5,8 @@
 ;
 ; Note that SPI can't really be used directly from the z80, so this part
 ; assumes that you have a device that handles SPI communication on behalf of
-; the z80. This device is assumed to work in a particular way.
+; the z80. This device is assumed to work in a particular way. See the
+; "rc2014/sdcard" recipe for details.
 ;
 ; That device has 3 ports. One write-only port to make CS high, one to make CS
 ; low (data sent is irrelevant), and one read/write port to send and receive
@@ -305,8 +306,7 @@ sdcReadBlk:
 sdcInitializeCmd:
 	.db	"sdci", 0, 0, 0
 	call	sdcInitialize
-	call	sdcSetBlkSize
-	ret
+	jp	sdcSetBlkSize		; return
 
 ; *** blkdev routines ***
 

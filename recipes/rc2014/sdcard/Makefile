@@ -1,9 +1,16 @@
-TARGETS = os.bin sdinit.bin
-ZASM = ../../../tools/emul/zasm/zasm
+TARGETS = os.bin
+TOOLS = ../../../tools
+ZASM = $(TOOLS)/emul/zasm/zasm
+CFSPACK = $(TOOLS)/cfspack/cfspack
 
 .PHONY: all
-all: $(TARGETS)
+all: $(TARGETS) sdcard.cfs
 os.bin: glue.asm 
-sdinit.bin: sdinit.asm
 $(TARGETS):
 	$(ZASM) < $< > $@
+
+$(CFSPACK):
+	make -C $(TOOLS)/cfspack
+
+sdcard.cfs: cfsin $(CFSPACK)
+	$(CFSPACK) $< > $@

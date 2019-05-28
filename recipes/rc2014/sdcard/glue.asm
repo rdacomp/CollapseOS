@@ -41,14 +41,14 @@ jp	aciaInt
 #include "stdio.asm"
 
 .equ	SHELL_RAMSTART		STDIO_RAMEND
-.equ	SHELL_EXTRA_CMD_COUNT	3
+.equ	SHELL_EXTRA_CMD_COUNT	4
 #include "shell.asm"
-.dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd
+.dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd, sdcInitializeCmd
 
-.equ SDC_RAMSTART SHELL_RAMEND
-.equ SDC_PORT_CSHIGH 6
-.equ SDC_PORT_CSLOW 5
-.equ SDC_PORT_SPI 4
+.equ SDC_RAMSTART	SHELL_RAMEND
+.equ SDC_PORT_CSHIGH	6
+.equ SDC_PORT_CSLOW	5
+.equ SDC_PORT_SPI	4
 #include "sdc.asm"
 
 init:

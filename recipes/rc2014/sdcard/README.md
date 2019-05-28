@@ -81,26 +81,22 @@ should have [glue code that looks like this](glue.asm).
 Initially, when you don't know if things work well yet, you should comment out
 the block creation part.
 
-## Testing CD card initialization
-
-This receipes contains a little [user program](sdinit.asm) that initializes a
-SD card, reads the first 12 bytes from its first sector and prints it.
+## Reading from the SD card
 
 The first thing we'll do is fill the SD card's first 12 bytes with "Hello
 World!":
 
     echo "Hello World!" > /dev/sdX
 
-Then, you can run `make` from within this folder to compile `sdinit.bin` and
-then [upload and run][run-from-mem] that code from memory. You might need to
-call the routine more than once (On my local tests, I need to call it twice).
+Then, insert your SD card in your SPI relay and boot the RC2014.
 
-If all goes well, you should see your "Hello World!" printed to the console!
+Run the `sdci` command which will initialize the card. Then, run `bsel 1` to
+select the second blockdev, which is configured to be the sd card.
 
-## Create a block device from the SD card reader
-
-TODO
+Set your memory pointer to somewhere you can write to with `mptr 9000` and then
+you're ready to load your contents with `load d` (load the 13 bytes that you
+wrote to your sd card earlier. You can then `peek d` and see that your
+"Hello World!\n" got loaded in memory!
 
 [schematic]: spirelay/spirelay.pdf
 [inspiration]: https://www.ecstaticlyrics.com/electronics/SPI/fast_z80_interface.html
-[run-from-mem]: ../../../doc/load-run-code.md
