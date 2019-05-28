@@ -98,5 +98,35 @@ you're ready to load your contents with `load d` (load the 13 bytes that you
 wrote to your sd card earlier. You can then `peek d` and see that your
 "Hello World!\n" got loaded in memory!
 
+## Mounting a filesystem from the SD card
+
+The Makefile compiles `helo.asm` in `cfsin` and then packs `cfsin` into a CFS
+filesystem into the `sdcard.cfs` file. That can be mounted by Collapse OS!
+
+    $ cat sdcard.cfs > /dev/sdX
+
+Then, you insert your SD card in your SPI relay and go:
+
+	Collapse OS
+	> mptr 9000
+	9000
+	> sdci
+	> bsel 1
+	> fson
+	> fls
+	helo
+	hello.txt
+	> fopn 0 helo
+	> load 10
+	> peek 10
+	210690C3030048656C6C6F210D0A0000
+	> call 00 0000
+	Hello!
+	>
+
+Now let that sink in for a minute. You've just mounted a filesystem on a SD
+card, loaded a file from it in memory and executed that file, all that on a
+kernel that weights less than 3 kilobytes!
+
 [schematic]: spirelay/spirelay.pdf
 [inspiration]: https://www.ecstaticlyrics.com/electronics/SPI/fast_z80_interface.html

@@ -1,4 +1,4 @@
-TARGETS = os.bin
+TARGETS = os.bin cfsin/helo
 TOOLS = ../../../tools
 ZASM = $(TOOLS)/emul/zasm/zasm
 CFSPACK = $(TOOLS)/cfspack/cfspack
@@ -6,6 +6,7 @@ CFSPACK = $(TOOLS)/cfspack/cfspack
 .PHONY: all
 all: $(TARGETS) sdcard.cfs
 os.bin: glue.asm 
+cfsin/helo: helo.asm
 $(TARGETS):
 	$(ZASM) < $< > $@
 

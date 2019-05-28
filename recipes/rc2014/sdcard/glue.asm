@@ -5,20 +5,14 @@
 .equ	ACIA_CTL	0x80	; Control and status. RS off.
 .equ	ACIA_IO		0x81	; Transmit. RS on.
 
-jp	init
+jp	init	; 3 bytes
 
-; *** JUMP TABLE ***
-; Why not use this unused space between 0x03 and 0x38 for a jump table?
-	jp	printstr
-	jp	printHex
-	jp	sdcInitialize
-	jp	sdcSendRecv
-	jp	sdcWaitResp
-	jp	sdcCmd
-	jp	sdcCmdR1
-	jp	sdcCmdR7
-	jp	sdcReadBlk
-	jp	sdcSetBlkSize
+; *** Jump Table ***
+jp	printstr
+jp	fsOpen
+jp	fsSeek
+jp	fsTell
+jp	fsGetC
 
 ; interrupt hook
 .fill	0x38-$
@@ -29,21 +23,28 @@ jp	aciaInt
 .equ	ACIA_RAMSTART	RAMSTART
 #include "acia.asm"
 .equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
-.equ	BLOCKDEV_COUNT		2
+.equ	BLOCKDEV_COUNT		3
 #include "blockdev.asm"
 ; List of devices
 .dw	aciaGetC, aciaPutC, 0, 0
-.dw	sdcGetC, 0, 0, 0
+.dw	sdcGetC, 0, sdcSeek, sdcTell
+.dw	blk2GetC, blk2PutC, blk2Seek, blk2Tell
 
 #include "blockdev_cmds.asm"
 
 .equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
 #include "stdio.asm"
 
-.equ	SHELL_RAMSTART		STDIO_RAMEND
-.equ	SHELL_EXTRA_CMD_COUNT	4
+.equ	FS_RAMSTART	STDIO_RAMEND
+.equ	FS_HANDLE_COUNT	1
+#include "fs.asm"
+#include "fs_cmds.asm"
+
+.equ	SHELL_RAMSTART		FS_RAMEND
+.equ	SHELL_EXTRA_CMD_COUNT	8
 #include "shell.asm"
-.dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd, sdcInitializeCmd
+.dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd
+.dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
 .equ SDC_RAMSTART	SHELL_RAMEND
 .equ SDC_PORT_CSHIGH	6
@@ -67,3 +68,20 @@ init:
 	ei
 	jp	shellLoop
 
+; *** blkdev 2: file handle 0 ***
+
+blk2GetC:
+	ld	de, FS_HANDLES
+	jp	fsGetC
+
+blk2PutC:
+	ld	de, FS_HANDLES
+	jp	fsPutC
+
+blk2Seek:
+	ld	de, FS_HANDLES
+	jp	fsSeek
+
+blk2Tell:
+	ld	de, FS_HANDLES
+	jp	fsTell
