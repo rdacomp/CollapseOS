@@ -57,6 +57,19 @@ addHL:
 	pop	af
 	ret
 
+; subtract the value of A from HL
+subHL:
+	push	af
+	; To avoid having to swap L and A, we sub "backwards", that is, we add
+	; a NEGated value. This means that the carry flag is inverted
+	neg
+	add	a, l
+	jr	c, .end		; if carry, no carry. :)
+	dec	h
+.end:
+	ld	l, a
+	pop	af
+	ret
 
 ; Write the contents of HL in (DE)
 writeHLinDE:

@@ -98,6 +98,8 @@ fsdevPutC:
 
 fsdevSeek:
 	push	af
+	ld	a, e
+	out	(FS_SEEK_PORT), a
 	ld	a, h
 	out	(FS_SEEK_PORT), a
 	ld	a, l
@@ -107,6 +109,8 @@ fsdevSeek:
 
 fsdevTell:
 	push	af
+	in	a, (FS_SEEK_PORT)
+	ld	e, a
 	in	a, (FS_SEEK_PORT)
 	ld	h, a
 	in	a, (FS_SEEK_PORT)

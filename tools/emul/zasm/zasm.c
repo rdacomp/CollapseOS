@@ -47,10 +47,10 @@ static int inpt_size;
 static int inpt_ptr;
 static uint8_t middle_of_seek_tell = 0;
 
-static uint8_t fsdev[0xffff] = {0};
-static uint16_t fsdev_size = 0;
-static uint16_t fsdev_ptr = 0;
-static uint8_t fsdev_middle_of_seek_tell = 0;
+static uint8_t fsdev[0x20000] = {0};
+static uint32_t fsdev_size = 0;
+static uint32_t fsdev_ptr = 0;
+static uint8_t fsdev_seek_tell_cnt = 0;
 
 static uint8_t io_read(int unused, uint16_t addr)
 {
@@ -79,15 +79,18 @@ static uint8_t io_read(int unused, uint16_t addr)
             return 0;
         }
     } else if (addr == FS_SEEK_PORT) {
-        if (fsdev_middle_of_seek_tell) {
-            fsdev_middle_of_seek_tell = 0;
-            return fsdev_ptr & 0xff;
-        } else {
+        if (fsdev_seek_tell_cnt == 0) {
 #ifdef DEBUG
             fprintf(stderr, "FS tell %d\n", fsdev_ptr);
 #endif
-            fsdev_middle_of_seek_tell = 1;
-            return fsdev_ptr >> 8;
+            fsdev_seek_tell_cnt = 1;
+            return fsdev_ptr >> 16;
+        } else if (fsdev_seek_tell_cnt == 1) {
+            fsdev_seek_tell_cnt = 2;
+            return (fsdev_ptr >> 8) & 0xff;
+        } else {
+            fsdev_seek_tell_cnt = 0;
+            return fsdev_ptr & 0xff;
         }
     } else {
         fprintf(stderr, "Out of bounds I/O read: %d\n", addr);
@@ -119,15 +122,18 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
             fsdev[fsdev_ptr++] = val;
         }
     } else if (addr == FS_SEEK_PORT) {
-        if (fsdev_middle_of_seek_tell) {
+        if (fsdev_seek_tell_cnt == 0) {
+            fsdev_ptr = val << 16;
+            fsdev_seek_tell_cnt = 1;
+        } else if (fsdev_seek_tell_cnt == 1) {
+            fsdev_ptr |= val << 8;
+            fsdev_seek_tell_cnt = 2;
+        } else {
             fsdev_ptr |= val;
-            fsdev_middle_of_seek_tell = 0;
+            fsdev_seek_tell_cnt = 0;
 #ifdef DEBUG
             fprintf(stderr, "FS seek %d\n", fsdev_ptr);
 #endif
-        } else {
-            fsdev_ptr = (val << 8) & 0xff00;
-            fsdev_middle_of_seek_tell = 1;
         }
     } else if (addr == STDERR_PORT) {
         fputc(val, stderr);

@@ -5,6 +5,7 @@
 .equ	FS_DATA_PORT	0x01
 .equ	FS_SEEKL_PORT	0x02
 .equ	FS_SEEKH_PORT	0x03
+.equ	FS_SEEKE_PORT	0x04
 
 	jp	init
 
@@ -80,6 +81,8 @@ fsdevSeek:
 	out	(FS_SEEKL_PORT), a
 	ld	a, h
 	out	(FS_SEEKH_PORT), a
+	ld	a, e
+	out	(FS_SEEKE_PORT), a
 	pop	af
 	ret
 
@@ -89,6 +92,8 @@ fsdevTell:
 	ld	l, a
 	in	a, (FS_SEEKH_PORT)
 	ld	h, a
+	in	a, (FS_SEEKE_PORT)
+	ld	e, a
 	pop	af
 	ret
 

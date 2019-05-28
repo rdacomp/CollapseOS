@@ -33,10 +33,12 @@
 ; Unsuccessful writes generally mean that we reached EOF.
 ;
 ; Seek:
-; Place device "pointer" at position dictated by HL.
+; Place device "pointer" at position dictated by HL (low 16 bits) and DE (high
+; 16 bits).
 ;
 ; Tell:
-; Return the position of the "pointer" in HL
+; Return the position of the "pointer" in HL (low 16 bits) and DE (high 16
+; bits).
 ;
 ; All routines are expected to preserve unused registers.
 
@@ -197,12 +199,14 @@ _blkWrite:
 	ret
 
 ; Seeks the block device in one of 5 modes, which is the A argument:
-; 0 : Move exactly to X, X being the HL argument.
-; 1 : Move forward by X bytes, X being the HL argument
-; 2 : Move backwards by X bytes, X being the HL argument
+; 0 : Move exactly to X, X being the HL/DE argument.
+; 1 : Move forward by X bytes, X being the HL argument (no DE)
+; 2 : Move backwards by X bytes, X being the HL argument (no DE)
 ; 3 : Move to the end
 ; 4 : Move to the beginning
-; Set position of selected device to the value specified in HL
+
+; Set position of selected device to the value specified in HL (low) and DE
+; (high). DE is only used for mode 0.
 ;
 ; When seeking to an out-of-bounds position, the resulting position will be
 ; one position ahead of the last valid position. Therefore, GetC after a seek
@@ -214,6 +218,8 @@ blkSeek:
 	ld	ix, (BLOCKDEV_SEEK)
 	ld	iy, (BLOCKDEV_TELL)
 _blkSeek:
+	; we preserve DE so that it's possible to call blkSeek in mode != 0
+	; while not discarding our current DE value.
 	push	de
 	cp	BLOCKDEV_SEEK_FORWARD
 	jr	z, .forward
@@ -224,30 +230,41 @@ _blkSeek:
 	cp	BLOCKDEV_SEEK_END
 	jr	z, .end
 	; all other modes are considered absolute
-	jr	.seek		; for absolute mode, HL is already correct
+	jr	.seek		; for absolute mode, HL and DE are already
+				; correct
 .forward:
-	ex	de, hl		; DE has our offset
+	push	bc
+	push	hl
 	; We want to be able to plug our own TELL function, which is why we
 	; don't call blkTell directly here.
 	; Calling TELL
-	call	callIY	; HL has our curpos
-	add	hl, de
-	jr	nc, .seek	; no carry? alright!
-	; we have carry? out of bounds, set to maximum
+	ld	de, 0	; in case out Tell routine doesn't return DE
+	call	callIY	; HL/DE now have our curpos
+	pop	bc	; pop HL into BC
+	add	hl, bc
+	pop	bc	; pop orig BC back
+	jr	nc, .seek	; no carry? let's seek.
+	; carry, adjust DE
+	inc	de
+	jr	.seek
 .backward:
 	; TODO - subtraction are more complicated...
 	jr	.seek
 .beginning:
 	ld	hl, 0
+	ld	de, 0
 	jr	.seek
 .end:
 	ld	hl, 0xffff
+	ld	de, 0xffff
 .seek:
+	call	_blkCall
 	pop	de
-	jp	_blkCall
+	ret
 
-; Returns the current position of the selected device in HL.
+; Returns the current position of the selected device in HL (low) and DE (high).
 blkTell:
+	ld	de, 0			; in case device ignores DE.
 	ld	ix, (BLOCKDEV_TELL)
 	jp	_blkCall
 

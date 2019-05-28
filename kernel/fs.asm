@@ -85,12 +85,9 @@
 .equ	FS_META_FSIZE_OFFSET	4
 .equ	FS_META_FNAME_OFFSET	6
 ; Size in bytes of a FS handle:
-; * 2 bytes for current position. (absolute)
-; * 2 bytes for starting offset, after metadata
-; * 2 bytes for maximum offset
-; * 2 bytes for file size (we could fetch it from metadata all the time, but it
-;   could be time consuming depending on the underlying device).
-.equ	FS_HANDLE_SIZE		8
+; * 4 bytes for starting offset of the FS block
+; * 2 bytes for current position relative to block's position
+.equ	FS_HANDLE_SIZE		6
 .equ	FS_ERR_NO_FS		0x5
 .equ	FS_ERR_NOT_FOUND	0x6
 
@@ -101,14 +98,17 @@
 .equ	FS_SEEK		FS_PUTC+2
 .equ	FS_TELL		FS_SEEK+2
 ; Offset at which our FS start on mounted device
+; This pointer is 32 bits. 32 bits pointers are a bit awkward: first two bytes
+; are high bytes *low byte first*, and then the low two bytes, same order.
+; When loaded in HL/DE, the four bytes are loaded in this order: E, D, L, H
 .equ	FS_START	FS_TELL+2
 ; Offset at which we are currently pointing to with regards to our routines
 ; below, which all assume this offset as a context. This offset is not relative
-; to FS_START. It can be used directly with fsblkSeek.
-.equ	FS_PTR		FS_START+2
+; to FS_START. It can be used directly with fsblkSeek. 32 bits.
+.equ	FS_PTR		FS_START+4
 ; This variable below contain the metadata of the last block FS_PTR was moved
 ; to. We read this data in memory to avoid constant seek+read operations.
-.equ	FS_META		FS_PTR+2
+.equ	FS_META		FS_PTR+4
 .equ	FS_HANDLES	FS_META+FS_METASIZE
 .equ	FS_RAMEND	FS_HANDLES+FS_HANDLE_COUNT*FS_HANDLE_SIZE
 
@@ -133,10 +133,11 @@ fsBegin:
 	push	hl
 	ld	hl, (FS_START)
 	ld	(FS_PTR), hl
+	ld	hl, (FS_START+2)
+	ld	(FS_PTR+2), hl
 	pop	hl
 	call	fsReadMeta
-	call	fsIsValid	; sets Z
-	ret
+	jp	fsIsValid	; sets Z, returns
 
 ; Change current position to the next block with metadata. If it can't (if this
 ; is the last valid block), doesn't move.
@@ -156,8 +157,9 @@ fsNext:
 	call	fsblkSeek
 	djnz	.loop
 	; Good, were here. We're going to read meta from our current position.
-	call	fsblkTell	; --> HL
-	ld	(FS_PTR), hl
+	call	fsblkTell	; --> HL, --> DE
+	ld	(FS_PTR), de
+	ld	(FS_PTR+2), hl
 	call	fsReadMeta
 	jr	nz, .createChainEnd
 	call	fsIsValid
@@ -226,13 +228,16 @@ fsInitMeta:
 	pop	af
 	ret
 
-; Make sure that our underlying blockdev is correcly placed.
+; Make sure that our underlying blockdev is correctly placed.
 fsPlace:
 	push	af
 	push	hl
+	push	de
 	xor	a
-	ld	hl, (FS_PTR)
+	ld	de, (FS_PTR)
+	ld	hl, (FS_PTR+2)
 	call	fsblkSeek
+	pop	de
 	pop	hl
 	pop	af
 	ret
@@ -284,7 +289,8 @@ fsAlloc:
 	; Good, FS_META ready. Now, let's update FS_PTR because it hasn't been
 	; changed yet.
 	call	fsblkTell
-	ld	(FS_PTR), hl
+	ld	(FS_PTR), de
+	ld	(FS_PTR+2), hl
 	; Ok, now we can write our metadata
 	call	fsWriteMeta
 .end:
@@ -361,6 +367,7 @@ fsblkSeek:
 	jp	_blkSeek
 
 fsblkTell:
+	ld	de, 0
 	ld	ix, (FS_TELL)
 	jp	_blkCall
 
@@ -368,57 +375,56 @@ fsblkTell:
 
 ; Open file at current position into handle at (HL)
 fsOpen:
+	push	bc
 	push	hl
 	push	de
 	push	af
 	ex	de, hl
-	ld	hl, (FS_PTR)
-	ld	a, FS_METASIZE
-	call	addHL
-	call	writeHLinDE
-	inc	de
-	inc	de
-	call	writeHLinDE
-	inc	de
-	inc	de
-	; Maximum offset is starting offset + (numblocks * 0x100) - 1
-	ld	a, (FS_META+FS_META_ALLOC_OFFSET)
-	; Because our blocks are exactly 0x100 in size, we simple have to
-	; increase the H in HL to have our result.
-	add	a, h
-	ld	h, a
-	call	writeHLinDE
-	inc	de
-	inc	de
-	ld	hl, (FS_META+FS_META_FSIZE_OFFSET)
+	; Starting pos
+	ld	hl, FS_PTR
+	ld	bc, 4
+	ldir
+	; Current pos
+	ld	hl, FS_METASIZE
 	call	writeHLinDE
 	pop	af
 	pop	de
 	pop	hl
+	pop	bc
 	ret
 
 ; Place FS blockdev at proper position for file handle in (DE).
 fsPlaceH:
 	push	af
+	push	bc
 	push	hl
 	push	de
 	pop	ix
 	push	ix
-	ld	l, (ix)
-	ld	h, (ix+1)
+	ld	e, (ix)
+	ld	d, (ix+1)
+	ld	l, (ix+2)
+	ld	h, (ix+3)
+	ld	c, (ix+4)
+	ld	b, (ix+5)
+	add	hl, bc
+	jr	nc, .nocarry
+	inc	de
+.nocarry:
 	ld	a, BLOCKDEV_SEEK_ABSOLUTE
 	call	fsblkSeek
 	pop	ix
 	pop	hl
+	pop	bc
 	pop	af
 	ret
 
 ; Advance file handle in (IX) by one byte
 fsAdvanceH:
 	push	af
-	inc	(ix)
+	inc	(ix+4)
 	jr	nz, .end
-	inc	(ix+1)
+	inc	(ix+5)
 .end:
 	pop	af
 	ret
@@ -426,6 +432,7 @@ fsAdvanceH:
 ; Read a byte in handle at (DE), put it into A and advance the handle's
 ; position.
 ; Z is set on success, unset if handle is at the end of the file.
+; TODO: detect end of file
 fsGetC:
 	push	ix
 	call	fsPlaceH
@@ -441,6 +448,7 @@ fsGetC:
 
 ; Write byte A in handle (DE) and advance the handle's position.
 ; Z is set on success, unset if handle is at the end of the file.
+; TODO: detect end of block alloc
 fsPutC:
 	call	fsPlaceH
 	push	ix
@@ -455,15 +463,18 @@ fsPutC:
 ; Sets Z if offset is within bounds, unsets Z if it isn't.
 fsSeek:
 	push	de \ pop ix
-	ld	(ix), l
-	ld	(ix+1), h
+	ld	a, FS_METASIZE
+	call	addHL
+	ld	(ix+4), l
+	ld	(ix+5), h
 	ret
 
 fsTell:
 	push	de \ pop ix
-	ld	l, (ix)
-	ld	h, (ix+1)
-	ret
+	ld	l, (ix+4)
+	ld	h, (ix+5)
+	ld	a, FS_METASIZE
+	jp	subHL		; returns
 
 ; Mount the fs subsystem upon the currently selected blockdev at current offset.
 ; Verify is block is valid and error out if its not, mounting nothing.
@@ -479,8 +490,10 @@ fsOn:
 	ld	bc, 8		; we have 8 bytes to copy
 	ldir			; copy!
 	call	fsblkTell
-	ld	(FS_START), hl
-	ld	(FS_PTR), hl
+	ld	(FS_START), de
+	ld	(FS_START+2), hl
+	ld	(FS_PTR), de
+	ld	(FS_PTR+2), hl
 	call	fsReadMeta
 	jr	nz, .error
 	call	fsIsValid
@@ -491,8 +504,7 @@ fsOn:
 .error:
 	; couldn't mount. Let's reset our variables.
 	xor	a
-	ld	b, 10		; blkdev routines + FS_START which is just
-				; after.
+	ld	b, FS_META-FS_GETC	; reset routine pointers and FS ptrs
 	ld	hl, FS_GETC
 	call	fill
 

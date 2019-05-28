@@ -31,12 +31,13 @@
 #define FS_DATA_PORT 0x01
 #define FS_SEEKL_PORT 0x02
 #define FS_SEEKH_PORT 0x03
+#define FS_SEEKE_PORT 0x04
 
 static Z80Context cpu;
 static uint8_t mem[0xffff] = {0};
-static uint8_t fsdev[0xffff] = {0};
-static uint16_t fsdev_size = 0;
-static uint16_t fsdev_ptr = 0;
+static uint8_t fsdev[0x20000] = {0};
+static uint32_t fsdev_size = 0;
+static uint32_t fsdev_ptr = 0;
 static int running;
 
 static uint8_t io_read(int unused, uint16_t addr)
@@ -57,7 +58,9 @@ static uint8_t io_read(int unused, uint16_t addr)
     } else if (addr == FS_SEEKL_PORT) {
         return fsdev_ptr & 0xff;
     } else if (addr == FS_SEEKH_PORT) {
-        return fsdev_ptr >> 8;
+        return (fsdev_ptr >> 8) & 0xff;
+    } else if (addr == FS_SEEKE_PORT) {
+        return (fsdev_ptr >> 16) & 0xff;
     } else {
         fprintf(stderr, "Out of bounds I/O read: %d\n", addr);
         return 0;
@@ -78,9 +81,11 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
             fsdev[fsdev_ptr++] = val;
         }
     } else if (addr == FS_SEEKL_PORT) {
-        fsdev_ptr = (fsdev_ptr & 0xff00) | val;
+        fsdev_ptr = (fsdev_ptr & 0xffff00) | val;
     } else if (addr == FS_SEEKH_PORT) {
-        fsdev_ptr = (fsdev_ptr & 0x00ff) | (val << 8);
+        fsdev_ptr = (fsdev_ptr & 0xff00ff) | (val << 8);
+    } else if (addr == FS_SEEKE_PORT) {
+        fsdev_ptr = (fsdev_ptr & 0x00ffff) | (val << 16);
     } else {
         fprintf(stderr, "Out of bounds I/O write: %d / %d\n", addr, val);
     }
