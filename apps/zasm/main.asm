@@ -45,7 +45,7 @@ zasmMain:
 	ld	(ZASM_FIRST_PASS), a
 	call	zasmParseFile
 .end:
-	jp	ioLineNo		; --> HL, returns
+	jp	ioLineNo		; --> HL, --> DE, returns
 
 ; Sets Z according to whether we're in first pass.
 zasmIsFirstPass:

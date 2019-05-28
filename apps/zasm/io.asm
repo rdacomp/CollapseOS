@@ -58,8 +58,10 @@
 .equ	IO_PC		IO_IN_INCLUDE+1
 ; Current lineno in top-level file
 .equ	IO_LINENO	IO_PC+2
+; Current lineno in include file
+.equ	IO_INC_LINENO	IO_LINENO+2
 ; Line number (can be top-level or include) when ioSavePos was last called.
-.equ	IO_SAVED_LINENO	IO_LINENO+2
+.equ	IO_SAVED_LINENO	IO_INC_LINENO+2
 .equ	IO_RAMEND	IO_SAVED_LINENO+2
 
 ; *** Code ***
@@ -81,6 +83,17 @@ ioGetC:
 	ld	de, IO_INCLUDE_HDL
 	call	fsGetC
 	pop	de
+	cp	0x0a		; newline
+	jr	nz, .notNewline
+	; We have newline. Increase lineno and return (the rest of the
+	; processing below isn't needed.
+	push	hl
+	ld	hl, IO_INC_LINENO
+	inc	(hl)
+	pop	hl
+	ret
+
+.notNewline:
 	or	a		; cp 0
 	ret	nz		; not zero, all good
 	; We reached EOF. What we do depends on whether we're in Local Pass
@@ -212,10 +225,21 @@ ioOpenInclude:
 	call	fsOpen
 	ld	a, 1
 	ld	(IO_IN_INCLUDE), a
+	ld	hl, 0
+	ld	(IO_INC_LINENO), hl
 	cp	a		; ensure Z
 	ret
 
-; Return current lineno in HL
+; Return current lineno in HL and, if in an include, its lineno in DE.
+; If not in an include, DE is set to 0
 ioLineNo:
+	push	af
 	ld	hl, (IO_LINENO)
+	ld	de, 0
+	call	ioInInclude
+	jr	z, .end
+	ld	de, (IO_INC_LINENO)
+.end:
+	pop	af
 	ret
+

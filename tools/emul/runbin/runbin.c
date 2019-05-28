@@ -42,6 +42,10 @@ int main()
         i++;
         c = getchar();
     }
+    if (!i) {
+        fprintf(stderr, "No input, aborting\n");
+        return 1;
+    }
     Z80RESET(&cpu);
     cpu.ioRead = io_read;
     cpu.ioWrite = io_write;

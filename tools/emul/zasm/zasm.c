@@ -191,7 +191,17 @@ int main()
     int res = cpu.R1.br.A;
     if (res != 0) {
         int lineno = cpu.R1.wr.HL;
-        fprintf(stderr, "Error %d on line %d\n", res, lineno);
+        int inclineno = cpu.R1.wr.DE;
+        if (inclineno) {
+            fprintf(
+                stderr,
+                "Error %d on line %d, include line %d\n",
+                res,
+                lineno,
+                inclineno);
+        } else {
+            fprintf(stderr, "Error %d on line %d\n", res, lineno);
+        }
     }
     return res;
 }
