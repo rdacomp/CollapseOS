@@ -31,7 +31,13 @@
 ; Whenever we read a sector, we read a whole block at once and we store it
 ; in memory. That's where it goes.
 .equ	SDC_BUF		SDC_PTR+2
-.equ	SDC_RAMEND	SDC_BUF+SDC_BLKSIZE
+; Sector number currently in SDC_BUF. 0xff, it's initial value, means "no
+; sector.
+.equ	SDC_BUFSEC	SDC_BUF+SDC_BLKSIZE
+; Whether the buffer has been written to. 0 means clean. 1 means dirty.
+; (not used yet)
+.equ	SDC_BUFDIRTY	SDC_BUFSEC+1
+.equ	SDC_RAMEND	SDC_BUFDIRTY+1
 
 ; *** Code ***
 ; Wake the SD card up. After power up, a SD card has to receive at least 74
@@ -212,17 +218,17 @@ sdcInitialize:
 	or	a		; cp 0
 	jr	nz, .error
 	; Success! out of idle mode!
-	; We initialize out current PTR to 0
+	; initialize variables
 	ld	hl, 0
 	ld	(SDC_PTR), hl
-	jr	.success
+	ld	a, 0xff
+	ld	(SDC_BUFSEC), a
+	xor	a
+	ld	(SDC_BUFDIRTY), a
+	jr	.end
 
 .error:
 	ld	a, 0x01
-	jr	.end
-
-.success:
-	xor	a
 .end:
 	pop	bc
 	pop	de
@@ -246,7 +252,8 @@ sdcSetBlkSize:
 	ret
 
 ; Read block index specified in A and place the contents in (SDC_BUF).
-; Doesn't check CRC.
+; Doesn't check CRC. If the operation is a success, updates (SDC_BUFSEC) to the
+; value of A.
 ; Returns 0 in A if success, non-zero if error.
 sdcReadBlk:
 	push	bc
@@ -255,7 +262,8 @@ sdcReadBlk:
 	out	(SDC_PORT_CSLOW), a
 	ld	hl, 0		; read single block at addr A
 	ld	d, 0
-	ld	e, a
+	ld	e, a		; E isn't touched in the rest of the routine
+				; and holds onto our original A
 	ld	a, 0b01010001	; CMD17
 	call	sdcCmd
 	or	a		; cp 0
@@ -286,8 +294,11 @@ sdcReadBlk:
 	; Read our 2 CRC bytes
 	call	sdcWaitResp
 	call	sdcWaitResp
-	; success!
+	; success! Let's recall our orginal A arg and put it in SDC_BUFSEC
+	ld	a, e
+	ld	(SDC_BUFSEC), a
 	xor	a
+	ld	(SDC_BUFDIRTY), a
 	jr	.end
 .error:
 	; try to preserve error code
@@ -312,24 +323,24 @@ sdcInitializeCmd:
 sdcGetC:
 	; SDC_PTR points to the character we're supposed to read right now, but
 	; we first have to check whether we need to load a new sector in memory.
-	; This is rather easy: if the first 9 bits are zero, then we need to
-	; read the sector in the high 7 bits.
+	; To do this, we compare the high 7 bits of (SDC_PTR) with (SDC_BUFSEC).
+	; If they're different, we need to load a new block.
 	push	hl
-
-	xor	a
-	ld	hl, (SDC_PTR)
-	bit	0, h
-	jr	nz, .highbuf	; first bit set? no need to read a sector. Also,
-				; we already know that we're in the "highbuf"
-				; zone.
-	cp	l		; is L zero?
-	jr	nz, .lowbuf	; non-zero? no need to read a sector
-	; Oh, first 9 bits unset. Se need to read a sector
-	ld	a, h
-	rrca			; now that's our sector
+	ld	a, (SDC_BUFSEC)
+	ld	h, a
+	ld	a, (SDC_PTR+1)	; high byte has bufsec in its high 7 bits
+	srl	a
+	cp	h
+	jr	z, .noload
+	; not equal, we need to load a new sector. A already contains the
+	; sector to load.
 	call	sdcReadBlk
 	jr	nz, .error
-.lowbuf:
+.noload:
+	ld	a, (SDC_PTR+1)	; high byte
+	and	0x01		; is first bit set?
+	jr	nz, .highbuf	; first bit set? we're in the "highbuf" zone.
+	; lowbuf zone
 	; Read byte from memory at proper offset in lowbuf (first 0x100 bytes)
 	ld	hl, SDC_BUF
 	jr	.read
@@ -347,8 +358,9 @@ sdcGetC:
 	ld	a, (hl)
 
 	; before we return A, we need to increase (SDC_PTR)
-	ld	hl, SDC_PTR
-	inc	(hl)
+	ld	hl, (SDC_PTR)
+	inc	hl
+	ld	(SDC_PTR), hl
 
 	cp	a		; ensure Z
 	jr	.end
