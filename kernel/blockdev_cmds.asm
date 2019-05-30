@@ -33,6 +33,7 @@ blkSeekCmd:
 	ex	af, af'
 	ld	h, a
 	pop	af	; bring mode back
+	ld	de, 0	; DE is used for seek > 64K which we don't support
 	call	blkSeek
 	call	blkTell
 	ld	a, h
