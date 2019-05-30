@@ -25,6 +25,8 @@
  * 3 - Filesystem blockdev seek / tell. High byte
  */
 
+//#define DEBUG
+
 // in sync with shell.asm
 #define RAMSTART 0x4000
 #define STDIO_PORT 0x00
@@ -51,8 +53,12 @@ static uint8_t io_read(int unused, uint16_t addr)
         return c;
     } else if (addr == FS_DATA_PORT) {
         if (fsdev_ptr < fsdev_size) {
+#ifdef DEBUG
+            fprintf(stderr, "Reading FSDEV at offset %d\n", fsdev_ptr);
+#endif
             return fsdev[fsdev_ptr++];
         } else {
+            fprintf(stderr, "Out of bounds FSDEV read at %d\n", fsdev_ptr);
             return 0;
         }
     } else if (addr == FS_SEEKL_PORT) {
@@ -79,6 +85,8 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
     } else if (addr == FS_DATA_PORT) {
         if (fsdev_ptr < fsdev_size) {
             fsdev[fsdev_ptr++] = val;
+        } else {
+            fprintf(stderr, "Out of bounds FSDEV write at %d\n", fsdev_ptr);
         }
     } else if (addr == FS_SEEKL_PORT) {
         fsdev_ptr = (fsdev_ptr & 0xffff00) | val;
