@@ -36,6 +36,7 @@
 ; fsGetC
 ; fsSeek
 ; fsTell
+; cpHLDE
 ; FS_HANDLE_SIZE
 
 ; *** Variables ***

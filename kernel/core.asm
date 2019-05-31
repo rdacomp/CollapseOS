@@ -22,6 +22,7 @@ addDE:
 .end:
 	ld	e, a
 	pop	af
+noop:				; piggy backing on the first "ret" we have
 	ret
 
 ; copy (DE) into DE, little endian style (addresses in z80 are always have
@@ -71,6 +72,16 @@ subHL:
 	pop	af
 	ret
 
+; Compare HL with DE and sets Z and C in the same way as a regular cp X where
+; HL is A and DE is X.
+cpHLDE:
+	ld	a, h
+	cp	d
+	ret	nz	; if not equal, flags are correct
+	ld	a, l
+	cp	e
+	ret		; flags are correct
+
 ; Write the contents of HL in (DE)
 writeHLinDE:
 	push	af
@@ -84,14 +95,12 @@ writeHLinDE:
 	ret
 
 ; jump to the location pointed to by IX. This allows us to call IX instead of
-; just jumping it. We use IX because we never use this for arguments.
+; just jumping it. We use IX because we seldom use this for arguments.
 callIX:
 	jp	(ix)
-	ret
 
 callIY:
 	jp	(iy)
-	ret
 
 ; Ensures that Z is unset (more complicated than it sounds...)
 unsetZ:

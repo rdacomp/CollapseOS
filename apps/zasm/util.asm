@@ -12,16 +12,6 @@ callHL:
 	jp	(hl)
 	ret
 
-; Compare HL with DE and sets Z and C in the same way as a regular cp X where
-; HL is A and DE is X.
-cpHLDE:
-	ld	a, h
-	cp	d
-	ret	nz	; if not equal, flags are correct
-	ld	a, l
-	cp	e
-	ret		; flags are correct
-
 ; HL - DE -> HL
 subDEFromHL:
 	push	af

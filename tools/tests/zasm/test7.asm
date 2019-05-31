@@ -20,6 +20,7 @@
 .equ    fsGetC         0x2d
 .equ    fsSeek         0x30
 .equ    fsTell         0x33
+.equ    cpHLDE         0x36
 
 #include "zasm/const.asm"
 #include "zasm/util.asm"

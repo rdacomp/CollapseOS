@@ -87,7 +87,8 @@
 ; Size in bytes of a FS handle:
 ; * 4 bytes for starting offset of the FS block
 ; * 2 bytes for current position relative to block's position
-.equ	FS_HANDLE_SIZE		6
+; * 2 bytes for file size
+.equ	FS_HANDLE_SIZE		8
 .equ	FS_ERR_NO_FS		0x5
 .equ	FS_ERR_NOT_FOUND	0x6
 
@@ -387,6 +388,11 @@ fsOpen:
 	; Current pos
 	ld	hl, FS_METASIZE
 	call	writeHLinDE
+	inc	de
+	inc	de
+	; file size
+	ld      hl, (FS_META+FS_META_FSIZE_OFFSET)
+	call	writeHLinDE
 	pop	af
 	pop	de
 	pop	hl
@@ -429,11 +435,37 @@ fsAdvanceH:
 	pop	af
 	ret
 
+; Sets Z according to whether file handle at (DE) is within bounds, that is, if
+; current position is smaller than file size.
+fsHandleWithinBounds:
+	push	hl
+	; current pos in HL, adjusted to remove FS_METASIZE
+	call	fsTell
+	push	de
+	push	de \ pop ix
+	; file size
+	ld	e, (ix+6)
+	ld	d, (ix+7)
+	call	cpHLDE
+	pop	de
+	pop	hl
+	jr	nc, .outOfBounds	; HL >= DE
+	cp	a			; ensure Z
+	ret
+.outOfBounds:
+	jp	unsetZ			; returns
+
 ; Read a byte in handle at (DE), put it into A and advance the handle's
 ; position.
 ; Z is set on success, unset if handle is at the end of the file.
-; TODO: detect end of file
 fsGetC:
+	call	fsHandleWithinBounds
+	jr	z, .proceed
+	; We want to unset Z, but also return 0 to ensure that a GetC that
+	; doesn't check Z doesn't end up with false data.
+	xor	a
+	jp	unsetZ		; returns
+.proceed:
 	push	ix
 	call	fsPlaceH
 	push	ix		; Save handle in IX for fsAdvanceH
@@ -511,6 +543,25 @@ fsOn:
 	ld	a, FS_ERR_NO_FS
 .end:
 	pop	bc
+	pop	de
+	pop	hl
+	ret
+
+; Sets Z according to whether we have a filesystem mounted.
+fsIsOn:
+	; check whether (FS_GETC) is zero
+	push	hl
+	push	de
+	ld	hl, (FS_GETC)
+	ld	de, 0
+	call	cpHLDE
+	jr	nz, .mounted
+	; if equal, it means our FS is not mounted
+	call	unsetZ
+	jr	.end
+.mounted:
+	cp	a	; ensure Z
+.end:
 	pop	de
 	pop	hl
 	ret
