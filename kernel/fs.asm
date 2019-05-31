@@ -347,66 +347,84 @@ fsIsDeleted:
 ; below mimic blkdev's methods, but for our private mount.
 
 fsblkGetC:
+	push	ix
 	ld	ix, (FS_GETC)
-	jp	_blkCall
+	call	_blkCall
+	pop	ix
+	ret
 
 fsblkRead:
+	push	ix
 	ld	ix, (FS_GETC)
-	jp	_blkRead
+	call	_blkRead
+	pop	ix
+	ret
 
 fsblkPutC:
+	push	ix
 	ld	ix, (FS_PUTC)
-	jp	_blkCall
+	call	_blkCall
+	pop	ix
+	ret
 
 fsblkWrite:
+	push	ix
 	ld	ix, (FS_PUTC)
-	jp	_blkWrite
+	call	_blkWrite
+	pop	ix
+	ret
 
 fsblkSeek:
+	push	ix
+	push	iy
 	ld	ix, (FS_SEEK)
 	ld	iy, (FS_TELL)
-	jp	_blkSeek
+	call	_blkSeek
+	pop	iy
+	pop	ix
+	ret
 
 fsblkTell:
+	push	ix
 	ld	de, 0
 	ld	ix, (FS_TELL)
-	jp	_blkCall
+	call	_blkCall
+	pop	ix
+	ret
 
 ; *** Handling ***
 
-; Open file at current position into handle at (HL)
+; Open file at current position into handle at (IX)
 fsOpen:
-	push	bc
 	push	hl
-	push	de
 	push	af
-	ex	de, hl
 	; Starting pos
-	ld	hl, FS_PTR
-	ld	bc, 4
-	ldir
+	ld	a, (FS_PTR)
+	ld	(ix), a
+	ld	a, (FS_PTR+1)
+	ld	(ix+1), a
+	ld	a, (FS_PTR+2)
+	ld	(ix+2), a
+	ld	a, (FS_PTR+3)
+	ld	(ix+3), a
 	; Current pos
 	ld	hl, FS_METASIZE
-	call	writeHLinDE
-	inc	de
-	inc	de
+	ld	(ix+4), l
+	ld	(ix+5), h
 	; file size
 	ld      hl, (FS_META+FS_META_FSIZE_OFFSET)
-	call	writeHLinDE
+	ld	(ix+6), l
+	ld	(ix+7), h
 	pop	af
-	pop	de
 	pop	hl
-	pop	bc
 	ret
 
-; Place FS blockdev at proper position for file handle in (DE).
+; Place FS blockdev at proper position for file handle in (IX).
 fsPlaceH:
 	push	af
 	push	bc
 	push	hl
 	push	de
-	pop	ix
-	push	ix
 	ld	e, (ix)
 	ld	d, (ix+1)
 	ld	l, (ix+2)
@@ -419,7 +437,7 @@ fsPlaceH:
 .nocarry:
 	ld	a, BLOCKDEV_SEEK_ABSOLUTE
 	call	fsblkSeek
-	pop	ix
+	pop	de
 	pop	hl
 	pop	bc
 	pop	af
@@ -435,14 +453,13 @@ fsAdvanceH:
 	pop	af
 	ret
 
-; Sets Z according to whether file handle at (DE) is within bounds, that is, if
+; Sets Z according to whether file handle at (IX) is within bounds, that is, if
 ; current position is smaller than file size.
 fsHandleWithinBounds:
 	push	hl
+	push	de
 	; current pos in HL, adjusted to remove FS_METASIZE
 	call	fsTell
-	push	de
-	push	de \ pop ix
 	; file size
 	ld	e, (ix+6)
 	ld	d, (ix+7)
@@ -455,7 +472,7 @@ fsHandleWithinBounds:
 .outOfBounds:
 	jp	unsetZ			; returns
 
-; Read a byte in handle at (DE), put it into A and advance the handle's
+; Read a byte in handle at (IX), put it into A and advance the handle's
 ; position.
 ; Z is set on success, unset if handle is at the end of the file.
 fsGetC:
@@ -466,43 +483,32 @@ fsGetC:
 	xor	a
 	jp	unsetZ		; returns
 .proceed:
-	push	ix
 	call	fsPlaceH
-	push	ix		; Save handle in IX for fsAdvanceH
 	call	fsblkGetC
+	ret	nz		; error, don't advance
 	; increase current pos
-	pop	ix		; recall handle in IX
-	jr	nz, .end	; error, don't advance
-	call	fsAdvanceH
-.end:
-	pop	ix
-	ret
+	jp	fsAdvanceH	; returns
 
-; Write byte A in handle (DE) and advance the handle's position.
+; Write byte A in handle (IX) and advance the handle's position.
 ; Z is set on success, unset if handle is at the end of the file.
 ; TODO: detect end of block alloc
 fsPutC:
 	call	fsPlaceH
-	push	ix
 	call	fsblkPutC
-	; increase current pos
-	pop	ix	; recall
-	call	fsAdvanceH
-	ret
+	jp	fsAdvanceH	; returns
 
-; Sets position of handle (DE) to HL. This position does *not* include metadata.
+; Sets position of handle (IX) to HL. This position does *not* include metadata.
 ; It is an offset that starts at actual data.
 ; Sets Z if offset is within bounds, unsets Z if it isn't.
 fsSeek:
-	push	de \ pop ix
 	ld	a, FS_METASIZE
 	call	addHL
 	ld	(ix+4), l
 	ld	(ix+5), h
 	ret
 
+; Returns current position of file handle at (IX) in HL.
 fsTell:
-	push	de \ pop ix
 	ld	l, (ix+4)
 	ld	h, (ix+5)
 	ld	a, FS_METASIZE

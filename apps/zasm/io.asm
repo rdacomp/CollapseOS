@@ -79,10 +79,8 @@ ioGetC:
 	call	ioInInclude
 	jr	z, .normalmode
 	; We're in "include mode", read from FS
-	push	de
-	ld	de, IO_INCLUDE_HDL
+	ld	ix, IO_INCLUDE_HDL
 	call	fsGetC
-	pop	de
 	cp	0x0a		; newline
 	jr	nz, .notNewline
 	; We have newline. Increase lineno and return (the rest of the
@@ -190,11 +188,8 @@ _ioSeek:
 	jp	(ix)
 .include:
 	; We're in "include mode", seek in FS
-	push	de
-	ld	de, IO_INCLUDE_HDL
-	call	fsSeek
-	pop	de
-	ret
+	ld	ix, IO_INCLUDE_HDL
+	jp	fsSeek		; returns
 
 _ioTell:
 	call	ioInInclude
@@ -204,11 +199,8 @@ _ioTell:
 	jp	(ix)
 .include:
 	; We're in "include mode", tell from FS
-	push	de
-	ld	de, IO_INCLUDE_HDL
-	call	fsTell
-	pop	de
-	ret
+	ld	ix, IO_INCLUDE_HDL
+	jp	fsTell		; returns
 
 ; Sets Z according to whether we're inside an include
 ioInInclude:
@@ -221,7 +213,7 @@ ioInInclude:
 ioOpenInclude:
 	call	fsFindFN
 	ret	nz
-	ld	hl, IO_INCLUDE_HDL
+	ld	ix, IO_INCLUDE_HDL
 	call	fsOpen
 	ld	a, 1
 	ld	(IO_IN_INCLUDE), a
