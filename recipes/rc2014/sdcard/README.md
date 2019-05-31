@@ -107,22 +107,21 @@ filesystem into the `sdcard.cfs` file. That can be mounted by Collapse OS!
 
 Then, you insert your SD card in your SPI relay and go:
 
-	Collapse OS
-	> mptr 9000
-	9000
-	> sdci
-	> bsel 1
-	> fson
-	> fls
-	helo
-	hello.txt
-	> fopn 0 helo
-	> load 10
-	> peek 10
-	210690C3030048656C6C6F210D0A0000
-	> call 00 0000
-	Hello!
-	>
+    Collapse OS
+    > sdci
+    > bsel 1
+    > fson
+    > fls
+    helo
+    hello.txt
+    > helo
+    Hello!
+    >
+
+The `helo` command is a bit magical and is due to the hook implemented in
+`pgm.asm`: when an unknown command is typed, it looks in the currently mounted
+filesystem for a file with the same name. If it finds it, it loads it in memory
+at a predefined place (in our case, `0x9000`) and executes it.
 
 Now let that sink in for a minute. You've just mounted a filesystem on a SD
 card, loaded a file from it in memory and executed that file, all that on a

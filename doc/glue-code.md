@@ -25,17 +25,27 @@ look like:
         ld sp, hl
         im 1
         call aciaInit
-        call shellInit
+        xor	a
+        ld	de, BLOCKDEV_GETC
+        call	blkSel
+        call	stdioInit
+        call    shellInit
         ei
-        jp	shellLoop
+        jp      shellLoop
 
     #include "core.asm"
     .equ    ACIA_RAMSTART	RAMSTART
     #include "acia.asm"
-    .equ    SHELL_RAMSTART	ACIA_RAMEND
-    .define SHELL_GETC	call aciaGetC
-    .define SHELL_PUTC	call aciaPutC
-    .define SHELL_IO_GETC	call aciaGetC
+    .equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
+    .equ	BLOCKDEV_COUNT		1
+    #include "blockdev.asm"
+    ; List of devices
+    .dw	aciaGetC, aciaPutC, 0, 0
+
+    .equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
+    #include "stdio.asm"
+
+    .equ    SHELL_RAMSTART	STDIO_RAMEND
     .equ    SHELL_EXTRA_CMD_COUNT 0
     #include "shell.asm"
 

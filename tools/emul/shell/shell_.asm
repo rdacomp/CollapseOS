@@ -1,6 +1,7 @@
 ; named shell_.asm to avoid infinite include loop.
 .equ	RAMSTART	0x4000
-.equ	RAMEND		0x5000
+.equ	KERNEL_RAMEND	0x5000
+.equ	USERCODE	0x9000
 .equ	STDIO_PORT	0x00
 .equ	FS_DATA_PORT	0x01
 .equ	FS_SEEKL_PORT	0x02
@@ -8,6 +9,9 @@
 .equ	FS_SEEKE_PORT	0x04
 
 	jp	init
+
+; *** JUMP TABLE ***
+	jp	printstr
 
 #include "core.asm"
 #include "parse.asm"
@@ -36,10 +40,13 @@
 #include "shell.asm"
 .dw	blkBselCmd, blkSeekCmd, fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
+.equ	PGM_CODEADDR		USERCODE
+#include "pgm.asm"
+
 init:
 	di
 	; setup stack
-	ld	hl, RAMEND
+	ld	hl, KERNEL_RAMEND
 	ld	sp, hl
 	xor	a
 	ld	de, BLOCKDEV_GETC
@@ -54,6 +61,8 @@ init:
 	ld	de, BLOCKDEV_GETC
 	call	blkSel
 	call	shellInit
+	ld	hl, pgmShellHook
+	ld	(SHELL_CMDHOOK), hl
 	jp	shellLoop
 
 emulGetC:

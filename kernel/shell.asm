@@ -2,11 +2,17 @@
 ;
 ; Runs a shell over a block device interface.
 
-; Status: incomplete. As it is now, it spits a welcome prompt, wait for input
-; and compare the first 4 chars of the input with a command table and call the
-; appropriate routine if it's found, an error if it's not.
+; The shell spits a welcome prompt, wait for input and compare the first 4 chars
+; of the input with a command table and call the appropriate routine if it's
+; found, an error if it's not.
 ;
-; Commands, for now, are partially implemented.
+; To determine the correct routine to call we first go through cmds in
+; shellCmdTbl. This means that we first go through internal cmds, then cmds
+; "grafted" by glue code.
+;
+; If the command isn't found, SHELL_CMDHOOK is called, which should set A to
+; zero if it executes something. Otherwise, SHELL_ERR_UNKNOWN_CMD will be
+; returned.
 ;
 ; See constants below for error codes.
 ;
@@ -59,7 +65,10 @@
 ; for the null-termination every time we write to it. Simpler that way.
 .equ	SHELL_BUF	SHELL_CMD_ARGS+SHELL_CMD_ARGS_MAXSIZE
 
-.equ	SHELL_RAMEND	SHELL_BUF+SHELL_BUFSIZE
+; Pointer to a hook to call when a cmd name isn't found
+.equ	SHELL_CMDHOOK	SHELL_BUF+SHELL_BUFSIZE
+
+.equ	SHELL_RAMEND	SHELL_CMDHOOK+2
 
 ; *** CODE ***
 shellInit:
@@ -67,11 +76,12 @@ shellInit:
 	ld	(SHELL_MEM_PTR), a
 	ld	(SHELL_MEM_PTR+1), a
 	ld	(SHELL_BUF), a
+	ld	hl, noop
+	ld	(SHELL_CMDHOOK), hl
 
 	; print welcome
 	ld	hl, .welcome
-	call	printstr
-	ret
+	jp	printstr		; returns
 
 .welcome:
 	.db	"Collapse OS", ASCII_CR, ASCII_LF, "> ", 0
@@ -154,6 +164,12 @@ shellParse:
 
 	; exhausted loop? not found
 	ld	a, SHELL_ERR_UNKNOWN_CMD
+	; Before erroring out, let's try SHELL_HOOK.
+	ld	ix, (SHELL_CMDHOOK)
+	call	callIX
+	jr	z, .end		; oh, not an error!
+	; still an error. Might be different than SHELL_ERR_UNKNOWN_CMD though.
+	; maybe a routine was called, but errored out.
 	jr	.error
 
 .found:
@@ -171,7 +187,7 @@ shellParse:
 
 	; We're ready to parse args
 	call	shellParseArgs
-	cp	0
+	or	a		; cp 0
 	jr	nz, .parseerror
 
 	ld	hl, SHELL_CMD_ARGS
@@ -182,7 +198,7 @@ shellParse:
 	push	de \ pop ix
 	; Ready to roll!
 	call	callIX
-	cp	0
+	or	a		; cp 0
 	jr	nz, .error	; if A is non-zero, we have an error
 	jr	.end
 

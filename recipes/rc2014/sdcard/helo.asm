@@ -4,7 +4,9 @@
 .org	0x9000
 
 	ld	hl, sHello
-	jp	printstr	; return
+	call	printstr
+	xor	a		; success
+	ret
 
 sHello:
 	.db	"Hello!", 0x0d, 0x0a, 0

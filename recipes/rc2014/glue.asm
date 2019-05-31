@@ -26,7 +26,7 @@ jp	aciaInt
 #include "stdio.asm"
 
 .equ	SHELL_RAMSTART	STDIO_RAMEND
-.equ SHELL_EXTRA_CMD_COUNT 0
+.equ	SHELL_EXTRA_CMD_COUNT 0
 #include "shell.asm"
 
 init:

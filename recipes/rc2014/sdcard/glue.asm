@@ -2,6 +2,7 @@
 ; The RAM module is selected on A15, so it has the range 0x8000-0xffff
 .equ	RAMSTART	0x8000
 .equ	RAMEND		0xffff
+.equ	PGM_CODEADDR	0x9000
 .equ	ACIA_CTL	0x80	; Control and status. RS off.
 .equ	ACIA_IO		0x81	; Transmit. RS on.
 
@@ -46,10 +47,12 @@ jp	aciaInt
 .dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
-.equ SDC_RAMSTART	SHELL_RAMEND
-.equ SDC_PORT_CSHIGH	6
-.equ SDC_PORT_CSLOW	5
-.equ SDC_PORT_SPI	4
+#include "pgm.asm"
+
+.equ	SDC_RAMSTART	SHELL_RAMEND
+.equ	SDC_PORT_CSHIGH	6
+.equ	SDC_PORT_CSLOW	5
+.equ	SDC_PORT_SPI	4
 #include "sdc.asm"
 
 init:
@@ -64,6 +67,8 @@ init:
 	call	blkSel
 	call	stdioInit
 	call	shellInit
+	ld	hl, pgmShellHook
+	ld	(SHELL_CMDHOOK), hl
 
 	ei
 	jp	shellLoop
