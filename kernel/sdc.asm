@@ -35,7 +35,6 @@
 ; sector.
 .equ	SDC_BUFSEC	SDC_BUF+SDC_BLKSIZE
 ; Whether the buffer has been written to. 0 means clean. 1 means dirty.
-; (not used yet)
 .equ	SDC_BUFDIRTY	SDC_BUFSEC+1
 .equ	SDC_RAMEND	SDC_BUFDIRTY+1
 
@@ -314,32 +313,119 @@ sdcReadBlk:
 	pop	bc
 	ret
 
-; *** shell cmds ***
+; Write the contents of (SDC_BUF) in sector number (SDC_BUFSEC). Unsets the
+; (SDC_BUFDIRTY) flag on success.
+; A returns 0 in A on success (with Z set), non-zero (with Z unset) on error.
+sdcWriteBlk:
+	ld	a, (SDC_BUFDIRTY)
+	or	a		; cp 0
+	ret	z		; return success, but do nothing.
 
-sdcInitializeCmd:
-	.db	"sdci", 0, 0, 0
-	call	sdcInitialize
-	jp	sdcSetBlkSize		; return
+	push	bc
+	push	hl
 
-; *** blkdev routines ***
+	out	(SDC_PORT_CSLOW), a
+	ld	a, (SDC_BUFSEC)
+	ld	hl, 0		; write single block at addr A
+	ld	d, 0
+	ld	e, a
+	ld	a, 0b01011000	; CMD24
+	call	sdcCmd
+	or	a		; cp 0
+	jr	nz, .error
 
-sdcGetC:
-	; SDC_PTR points to the character we're supposed to read right now, but
-	; we first have to check whether we need to load a new sector in memory.
-	; To do this, we compare the high 7 bits of (SDC_PTR) with (SDC_BUFSEC).
-	; If they're different, we need to load a new block.
+	; Before sending the data packet, we need to send at least one empty
+	; byte.
+	ld	a, 0xff
+	call	sdcSendRecv
+
+	; data packet token for CMD24
+	ld	a, 0xfe
+	call	sdcSendRecv
+
+	; Sending our data token!
+	ld	bc, SDC_BLKSIZE
+	ld	hl, SDC_BUF
+.loop:
+	ld	a, (hl)
+	call	sdcSendRecv
+	cpi			; a trick to inc HL and dec BC at the same time.
+				; P/V indicates whether BC reached 0
+	jp	pe, .loop	; BC is not zero, loop
+	; Send our 2 CRC bytes. They can be anything
+	call	sdcIdle
+	call	sdcIdle
+	; Let's see what response we have
+	call	sdcWaitResp
+	and	0b00011111	; We ignore the first 3 bits of the response.
+	cp	0b00000101	; A valid response is "010" in bits 3:1 flanked
+				; by 0 on its left and 1 on its right.
+	jr	nz, .error
+	; good! Now, we need to let the card process this data. It will return
+	; 0xff when it's not busy any more.
+	call	sdcWaitResp
+	xor	a
+	ld	(SDC_BUFDIRTY), a
+	jr	.end
+.error:
+	; try to preserve error code
+	or	a		; cp 0
+	jr	nz, .end	; already non-zero
+	inc	a		; zero, adjust
+.end:
+	out	(SDC_PORT_CSHIGH), a
+	pop	hl
+	pop	bc
+	ret
+
+; Ensures that (SDC_BUFSEC) is in sync with (SDC_PTR), that is, that the current
+; buffer in memory corresponds to where SDC_PTR points to. If it doesn't, loads
+; the sector that (SDC_PTR) points to in (SDC_BUF) and update (SDC_BUFSEC).
+; If the (SDC_BUFDIRTY) flag is set, we write the content of the in-memory
+; buffer to the SD card before we read a new sector.
+; Returns Z on success, not-Z on error (with the error code from either
+; sdcReadBlk or sdcWriteBlk)
+sdcSync:
+	; SDC_PTR points to the character we're supposed to read or right now,
+	; but we first have to check whether we need to load a new sector in
+	; memory. To do this, we compare the high 7 bits of (SDC_PTR) with
+	; (SDC_BUFSEC). If they're different, we need to load a new block.
 	push	hl
 	ld	a, (SDC_BUFSEC)
 	ld	h, a
 	ld	a, (SDC_PTR+1)	; high byte has bufsec in its high 7 bits
 	srl	a
 	cp	h
-	jr	z, .noload
-	; not equal, we need to load a new sector. A already contains the
-	; sector to load.
-	call	sdcReadBlk
-	jr	nz, .error
-.noload:
+	pop	hl
+	ret	z		; equal? nothing to do
+	; We have to read a new sector, but first, let's write the current one
+	; if needed.
+	call	sdcWriteBlk
+	ret	nz		; error
+	; Let's read our new sector
+	ld	a, (SDC_PTR+1)
+	srl	a
+	jp	sdcReadBlk	; returns
+
+
+; *** shell cmds ***
+
+sdcInitializeCmd:
+	.db	"sdci", 0, 0, 0
+	call	sdcInitialize
+	jp	sdcSetBlkSize		; returns
+
+; Flush the current SDC buffer if dirty
+sdcFlushCmd:
+	.db	"sdcf", 0, 0, 0
+	jp	sdcWriteBlk		; returns
+
+; *** blkdev routines ***
+
+; Make HL point to (SDC_PTR) in current buffer
+_sdcPlaceBuf:
+	call	sdcSync
+	ret	nz		; error
 	ld	a, (SDC_PTR+1)	; high byte
 	and	0x01		; is first bit set?
 	jr	nz, .highbuf	; first bit set? we're in the "highbuf" zone.
@@ -355,7 +441,14 @@ sdcGetC:
 	; all we need is to increase HL by the number in SDC_PTR's LSB (little
 	; endian, remember).
 	ld	a, (SDC_PTR)	; LSB
-	call	addHL
+	call	addHL		; returns
+	xor	a		; ensure Z
+	ret
+
+sdcGetC:
+	push	hl
+	call	_sdcPlaceBuf
+	jr	nz, .error
 
 	; This is it!
 	ld	a, (hl)
@@ -367,8 +460,35 @@ sdcGetC:
 
 	cp	a		; ensure Z
 	jr	.end
-
 .error:
+	call	unsetZ
+.end:
+	pop	hl
+	ret
+
+sdcPutC:
+	push	hl
+	push	af		; let's remember the char we put, _sdcPlaceBuf
+				; destroys A.
+	call	_sdcPlaceBuf
+	jr	nz, .error
+
+	; HL points to our dest. Recall A and write
+	pop	af
+	ld	(hl), a
+
+
+	; we need to increase (SDC_PTR)
+	ld	hl, (SDC_PTR)
+	inc	hl
+	ld	(SDC_PTR), hl
+
+	ld	a, 1
+	ld	(SDC_BUFDIRTY), a
+	xor	a		; ensure Z
+	jr	.end
+.error:
+	pop	af
 	call	unsetZ
 .end:
 	pop	hl

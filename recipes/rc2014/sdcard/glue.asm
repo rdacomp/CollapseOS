@@ -10,10 +10,11 @@ jp	init	; 3 bytes
 
 ; *** Jump Table ***
 jp	printstr
-jp	fsOpen
-jp	fsSeek
-jp	fsTell
-jp	fsGetC
+jp	sdcWaitResp
+jp	sdcCmd
+jp	sdcCmdR1
+jp	sdcCmdR7
+jp	sdcSendRecv
 
 ; interrupt hook
 .fill	0x38-$
@@ -28,7 +29,7 @@ jp	aciaInt
 #include "blockdev.asm"
 ; List of devices
 .dw	aciaGetC, aciaPutC, 0, 0
-.dw	sdcGetC, 0, sdcSeek, sdcTell
+.dw	sdcGetC, sdcPutC, sdcSeek, sdcTell
 .dw	blk2GetC, blk2PutC, blk2Seek, blk2Tell
 
 #include "blockdev_cmds.asm"
@@ -42,9 +43,9 @@ jp	aciaInt
 #include "fs_cmds.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
-.equ	SHELL_EXTRA_CMD_COUNT	8
+.equ	SHELL_EXTRA_CMD_COUNT	9
 #include "shell.asm"
-.dw	sdcInitializeCmd, blkBselCmd, blkSeekCmd
+.dw	sdcInitializeCmd, sdcFlushCmd, blkBselCmd, blkSeekCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
 #include "pgm.asm"
