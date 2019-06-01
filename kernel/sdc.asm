@@ -63,14 +63,17 @@ sdcSendRecv:
 	nop
 	ret
 
+sdcIdle:
+	ld	a, 0xff
+	jp	sdcSendRecv
+
 ; sdcSendRecv 0xff until the response is something else than 0xff for a maximum
 ; of 20 times. Returns 0xff if no response.
 sdcWaitResp:
 	push	bc
 	ld	b, 20
 .loop:
-	ld	a, 0xff
-	call	sdcSendRecv
+	call	sdcIdle
 	inc	a		; if 0xff, it's going to become zero
 	jr	nz, .end	; not zero? good, that's our command
 	djnz	.loop
@@ -286,14 +289,14 @@ sdcReadBlk:
 	ld	bc, SDC_BLKSIZE
 	ld	hl, SDC_BUF
 .loop2:
-	call	sdcWaitResp
+	call	sdcIdle
 	ld	(hl), a
 	cpi			; a trick to inc HL and dec BC at the same time.
 				; P/V indicates whether BC reached 0
 	jp	pe, .loop2	; BC is not zero, loop
 	; Read our 2 CRC bytes
-	call	sdcWaitResp
-	call	sdcWaitResp
+	call	sdcIdle
+	call	sdcIdle
 	; success! Let's recall our orginal A arg and put it in SDC_BUFSEC
 	ld	a, e
 	ld	(SDC_BUFSEC), a
