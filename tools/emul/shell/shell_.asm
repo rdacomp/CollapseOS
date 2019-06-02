@@ -14,6 +14,7 @@
 	jp	printstr
 
 #include "core.asm"
+#include "err.h"
 #include "parse.asm"
 
 .equ	BLOCKDEV_RAMSTART	RAMSTART

@@ -37,11 +37,13 @@
 ; fsSeek
 ; fsTell
 ; cpHLDE
+; parseArgs
 ; FS_HANDLE_SIZE
 
 ; *** Variables ***
 
 #include "user.h"
+#include "err.h"
 .org	USER_CODE
 
 jp	zasmMain

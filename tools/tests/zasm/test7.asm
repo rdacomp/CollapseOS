@@ -21,7 +21,9 @@
 .equ    fsSeek         0x30
 .equ    fsTell         0x33
 .equ    cpHLDE         0x36
+.equ    parseArgs      0x39
 
+#include "err.h"
 #include "zasm/const.asm"
 #include "zasm/util.asm"
 .equ	IO_RAMSTART	USER_RAMSTART

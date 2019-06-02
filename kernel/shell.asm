@@ -20,6 +20,8 @@
 ; hexadecimal form, without prefix or suffix.
 
 ; *** REQUIREMENTS ***
+; err
+; core
 ; parse
 ; stdio
 
@@ -32,19 +34,6 @@
 
 ; number of entries in shellCmdTbl
 .equ	SHELL_CMD_COUNT		6+SHELL_EXTRA_CMD_COUNT
-
-; maximum number of bytes to receive as args in all commands. Determines the
-; size of the args variable.
-.equ	SHELL_CMD_ARGS_MAXSIZE	3
-
-; The command that was type isn't known to the shell
-.equ	SHELL_ERR_UNKNOWN_CMD	0x01
-
-; Arguments for the command weren't properly formatted
-.equ	SHELL_ERR_BAD_ARGS	0x02
-
-; IO routines (GetC, PutC) returned an error in a load/save command
-.equ	SHELL_ERR_IO_ERROR	0x05
 
 ; Size of the shell command buffer. If a typed command reaches this size, the
 ; command is flushed immediately (same as pressing return).
@@ -62,7 +51,7 @@
 ; Command buffer. We read types chars into this buffer until return is pressed
 ; This buffer is null-terminated and we don't keep an index around: we look
 ; for the null-termination every time we write to it. Simpler that way.
-.equ	SHELL_BUF	SHELL_CMD_ARGS+SHELL_CMD_ARGS_MAXSIZE
+.equ	SHELL_BUF	SHELL_CMD_ARGS+PARSE_ARG_MAXCOUNT
 
 ; Pointer to a hook to call when a cmd name isn't found
 .equ	SHELL_CMDHOOK	SHELL_BUF+SHELL_BUFSIZE
@@ -185,14 +174,15 @@ shellParse:
 	call	addDE
 
 	; We're ready to parse args
-	call	shellParseArgs
+	ld	ix, SHELL_CMD_ARGS
+	call	parseArgs
 	or	a		; cp 0
 	jr	nz, .parseerror
 
-	ld	hl, SHELL_CMD_ARGS
 	; Args parsed, now we can load the routine address and call it.
 	; let's have DE point to the jump line
-	ld	a, SHELL_CMD_ARGS_MAXSIZE
+	ld	hl, SHELL_CMD_ARGS
+	ld	a, PARSE_ARG_MAXCOUNT
 	call	addDE
 	push	de \ pop ix
 	; Ready to roll!
@@ -230,115 +220,13 @@ shellPrintErr:
 .str:
 	.db	"ERR ", 0
 
-; Parse arguments at (HL) with specifiers at (DE) into (SHELL_CMD_ARGS).
-; (HL) should point to the character *just* after the name of the command
-; because we verify, in the case that we have args, that we have a space there.
-;
-; Args specifiers are a series of flag for each arg:
-; Bit 0 - arg present: if unset, we stop parsing there
-; Bit 1 - is word: this arg is a word rather than a byte. Because our
-;                  destination are bytes anyway, this doesn't change much except
-;                  for whether we expect a space between the hex pairs. If set,
-;                  you still need to have a specifier for the second part of
-;                  the multibyte.
-; Bit 2 - optional: If set and not present during parsing, we don't error out
-;		    and write zero
-;
-; Bit 3 - String argument: If set, this argument is a string. A pointer to the
-;                          read string, null terminated (max 0x20 chars) will
-;                          be placed in the next two bytes. This has to be the
-;                          last argument of the list and it stops parsing.
-; Sets A to nonzero if there was an error during parsing, zero otherwise.
-; If there was an error during parsing, carry is set.
-shellParseArgs:
-	push	bc
-	push	de
-	push	hl
-	push	ix
-
-	ld	ix, SHELL_CMD_ARGS
-	ld	a, SHELL_CMD_ARGS_MAXSIZE
-	ld	b, a
-	xor	c
-.loop:
-	; init the arg value to a default 0
-	xor	a
-	ld	(ix), a
-
-	ld	a, (hl)
-	; is this the end of the line?
-	cp	0
-	jr	z, .endofargs
-
-	; do we have a proper space char?
-	cp	' '
-	jr	z, .hasspace	; We're fine
-
-	; is our previous arg a multibyte? (argspec still in C)
-	bit	1, c
-	jr	z, .error	; bit not set? error
-	dec	hl		; offset the "inc hl" below
-
-.hasspace:
-	; Get the specs
-	ld	a, (de)
-	bit	0, a		; do we have an arg?
-	jr	z, .error	; not set? then we have too many args
-	ld	c, a		; save the specs for the next loop
-	inc	hl		; (hl) points to a space, go next
-	bit	3, a		; is our arg a string?
-	jr	z, .notAString
-	; our arg is a string. Let's place HL in our next two bytes and call
-	; it a day. Little endian, remember
-	ld	(ix), l
-	ld	(ix+1), h
-	jr	.success	; directly to success: skip endofargs checks
-.notAString:
-	call	parseHexPair
-	jr	c, .error
-	; we have a good arg and we need to write A in (IX).
-	ld	(ix), a
-
-	; Good! increase counters
-	inc	de
-	inc	ix
-	inc	hl		; get to following char (generally a space)
-	djnz	.loop
-	; If we get here, it means that our next char *has* to be a null char
-	ld	a, (hl)
-	cp	0
-	jr	z, .success	; zero? great!
-	jr	.error
-
-.endofargs:
-	; We encountered our null char. Let's verify that we either have no
-	; more args or that they are optional
-	ld	a, (de)
-	cp	0
-	jr	z, .success	; no arg? success
-	bit	2, a
-	jr	nz, .success	; if set, arg is optional. success
-	jr	.error
-
-.success:
-	xor	a
-	jr	.end
-.error:
-	inc	a
-.end:
-	pop	ix
-	pop	hl
-	pop	de
-	pop	bc
-	ret
-
 ; *** COMMANDS ***
-; A command is a 4 char names, followed by a SHELL_CMD_ARGS_MAXSIZE bytes of
+; A command is a 4 char names, followed by a PARSE_ARG_MAXCOUNT bytes of
 ; argument specs, followed by the routine. Then, a simple table of addresses
 ; is compiled in a block and this is what is iterated upon when we want all
 ; available commands.
 ;
-; Format: 4 bytes name followed by SHELL_CMD_ARGS_MAXSIZE bytes specifiers,
+; Format: 4 bytes name followed by PARSE_ARG_MAXCOUNT bytes specifiers,
 ;         followed by 3 bytes jump. fill names with zeroes
 ;
 ; When these commands are called, HL points to the first byte of the

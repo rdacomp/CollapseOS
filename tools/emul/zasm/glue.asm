@@ -27,8 +27,10 @@ jp	fsGetC
 jp	fsSeek
 jp	fsTell
 jp	cpHLDE
+jp	parseArgs
 
 #include "core.asm"
+#include "err.h"
 #include "parse.asm"
 .equ	BLOCKDEV_RAMSTART	RAMSTART
 .equ	BLOCKDEV_COUNT		3
@@ -50,11 +52,13 @@ init:
 	ld	de, BLOCKDEV_GETC
 	call	blkSel
 	call	fsOn
-	ld	h, 0	; input blkdev
-	ld	l, 1	; output blkdev
+	ld	hl, .zasmArgs
 	call	USER_CODE
 	; signal the emulator we're done
 	halt
+
+.zasmArgs:
+	.db	" 0 1", 0
 
 ; *** I/O ***
 emulGetC:

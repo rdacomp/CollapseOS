@@ -15,15 +15,28 @@
 .equ	ZASM_ORG		ZASM_CTX_PC+2
 .equ	ZASM_RAMEND		ZASM_ORG+2
 
-; Read file through blockdev ID in H and outputs its upcodes through blockdev
-; ID in L. HL is set to the last lineno to be read.
+; Takes 2 byte arguments, blkdev in and blkdev out, expressed as IDs.
+; Read file through blkdev in and outputs its upcodes through blkdev out.
+; HL is set to the last lineno to be read.
 ; Sets Z on success, unset on error. On error, A contains an error code (ERR_*)
 zasmMain:
+	; Parse args. HL points to string already
+	; We don't allocate memory just to hold this. Because this happens
+	; before initialization, we don't really care where those args are
+	; parsed.
+	ld	de, .argspecs
+	ld	ix, ZASM_RAMSTART
+	call	parseArgs
+	ld	a, SHELL_ERR_BAD_ARGS
+	ret	nz
+
+	; HL now points to parsed args
 	; Init I/O
-	ld	a, h
+	ld	a, (ZASM_RAMSTART)	; blkdev in ID
 	ld	de, IO_IN_GETC
 	call	blkSel
-	ld	a, l
+	inc	hl
+	ld	a, (ZASM_RAMSTART+1)	; blkdev out ID
 	ld	de, IO_OUT_GETC
 	call	blkSel
 
@@ -46,6 +59,9 @@ zasmMain:
 	call	zasmParseFile
 .end:
 	jp	ioLineNo		; --> HL, --> DE, returns
+
+.argspecs:
+	.db	0b001, 0b001, 0
 
 ; Sets Z according to whether we're in first pass.
 zasmIsFirstPass:

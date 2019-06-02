@@ -54,7 +54,7 @@ updatebootstrap: $(ZASMBIN)
 .PHONY: rescue
 rescue:
 	scas -o zasm/kernel.bin -I $(KERNEL) zasm/glue.asm
-	scas -o zasm/zasm.bin -I $(APPS) $(APPS)/zasm/glue.asm
+	scas -o zasm/zasm.bin -I $(APPS) -I $(KERNEL) $(APPS)/zasm/glue.asm
 
 .PHONY: clean
 clean:
