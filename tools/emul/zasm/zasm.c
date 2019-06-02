@@ -49,7 +49,7 @@ static int inpt_size;
 static int inpt_ptr;
 static uint8_t middle_of_seek_tell = 0;
 
-static uint8_t fsdev[0x20000] = {0};
+static uint8_t fsdev[0x40000] = {0};
 static uint32_t fsdev_size = 0;
 static uint32_t fsdev_ptr = 0;
 static uint8_t fsdev_seek_tell_cnt = 0;
