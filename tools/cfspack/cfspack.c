@@ -3,11 +3,19 @@
 #include <dirent.h>
 #include <string.h>
 #include <fnmatch.h>
+#include <sys/stat.h>
 
 #define BLKSIZE 0x100
 #define HEADERSIZE 0x20
 #define MAX_FN_LEN 25   // 26 - null char
 #define MAX_FILE_SIZE (BLKSIZE * 0x100) - HEADERSIZE
+
+int is_regular_file(char *path)
+{
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISREG(path_stat.st_mode);
+}
 
 int spitblock(char *fullpath, char *fn)
 {
@@ -124,6 +132,11 @@ int main(int argc, char *argv[])
     if (argc == 3) {
         pattern = argv[2];
     }
-    return spitdir(srcpath, "", pattern);
+    if (is_regular_file(srcpath)) {
+        // special case: just one file
+        return spitblock(srcpath, basename(srcpath));
+    } else {
+        return spitdir(srcpath, "", pattern);
+    }
 }
 

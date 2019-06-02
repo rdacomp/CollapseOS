@@ -15,6 +15,9 @@ to the filenames under it.
 `cfspack` takes an optional second argument, a "fnmatch" pattern. If specified,
 only files patching the pattern will be included.
 
+If path is a file, a CFS with a single file will be spit and its name will
+exclude the directory part of that filename.
+
 The program errors out if a file name is too long (> 26 bytes) or too big
 (> 0x10000 - 0x20 bytes).
 
