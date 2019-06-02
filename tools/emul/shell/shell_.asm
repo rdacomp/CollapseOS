@@ -17,10 +17,9 @@
 #include "parse.asm"
 
 .equ	BLOCKDEV_RAMSTART	RAMSTART
-.equ	BLOCKDEV_COUNT		4
+.equ	BLOCKDEV_COUNT		3
 #include "blockdev.asm"
 ; List of devices
-.dw	emulGetC, emulPutC, 0, 0
 .dw	fsdevGetC, fsdevPutC, fsdevSeek, fsdevTell
 .dw	stdoutGetC, stdoutPutC, stdoutSeek, stdoutTell
 .dw	stdinGetC, stdinPutC, stdinSeek, stdinTell
@@ -36,9 +35,10 @@
 #include "fs_cmds.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
-.equ	SHELL_EXTRA_CMD_COUNT	7
+.equ	SHELL_EXTRA_CMD_COUNT	9
 #include "shell.asm"
-.dw	blkBselCmd, blkSeekCmd, fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
+.dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
+.dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
 .equ	PGM_CODEADDR		USERCODE
 #include "pgm.asm"
@@ -48,18 +48,14 @@ init:
 	; setup stack
 	ld	hl, KERNEL_RAMEND
 	ld	sp, hl
-	xor	a
-	ld	de, BLOCKDEV_GETC
-	call	blkSel
+	ld	hl, emulGetC
+	ld	de, emulPutC
 	call	stdioInit
 	call	fsInit
-	ld	a, 1	; select fsdev
+	ld	a, 0	; select fsdev
 	ld	de, BLOCKDEV_GETC
 	call	blkSel
 	call	fsOn
-	xor	a	; select ACIA
-	ld	de, BLOCKDEV_GETC
-	call	blkSel
 	call	shellInit
 	ld	hl, pgmShellHook
 	ld	(SHELL_CMDHOOK), hl

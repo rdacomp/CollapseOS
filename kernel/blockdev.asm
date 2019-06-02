@@ -150,7 +150,9 @@ blkGetC:
 blkGetCW:
 	ld	ix, (BLOCKDEV_GETC)
 .loop:
+	push	ix		; fs messes with IX a lot
 	call	callIX
+	pop	ix
 	jr	nz, .loop
 	ret
 

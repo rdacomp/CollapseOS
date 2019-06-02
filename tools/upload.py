@@ -32,8 +32,8 @@ def main():
         print("File too big. 0xff bytes max")
         return 1
     fd = os.open(args.device, os.O_RDWR)
-    sendcmd(fd, 'load {:x}'.format(st.st_size).encode())
-    print("Loading...")
+    sendcmd(fd, 'poke {:x}'.format(st.st_size).encode())
+    print("Poking...")
     with open(args.filename, 'rb') as fp:
         fcontents = fp.read()
         for c in fcontents:
@@ -41,7 +41,7 @@ def main():
             # Let's give the machine a bit of time to breathe. We ain't in a
             # hurry now, are we?
             time.sleep(0.0001)
-    print("Loaded")
+    print("Poked")
     os.read(fd, 5)
     print("Peeking back...")
     sendcmd(fd, 'peek {:x}'.format(st.st_size).encode())

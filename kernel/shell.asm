@@ -22,7 +22,6 @@
 ; *** REQUIREMENTS ***
 ; parse
 ; stdio
-; blkdev
 
 ; *** DEFINES ***
 ; SHELL_EXTRA_CMD_COUNT: Number of extra cmds to be expected after the regular
@@ -32,7 +31,7 @@
 ; *** CONSTS ***
 
 ; number of entries in shellCmdTbl
-.equ	SHELL_CMD_COUNT		7+SHELL_EXTRA_CMD_COUNT
+.equ	SHELL_CMD_COUNT		6+SHELL_EXTRA_CMD_COUNT
 
 ; maximum number of bytes to receive as args in all commands. Determines the
 ; size of the args variable.
@@ -411,58 +410,29 @@ shellPeek:
 	xor	a
 	ret
 
-; Load the specified number of bytes (max 0xff) from IO and write them in the
-; current memory pointer (which doesn't change). This gets chars from
-; blkGetCW.
-; Control is returned to the shell only after all bytes are read.
-;
-; Example: load 42
-shellLoadCmd:
-	.db	"load", 0b001, 0, 0
-shellLoad:
+; poke byte where memory pointer points and set them to bytes types through
+; stdioGetC. If the optional numerical byte arg is supplied, this number of
+; bytes will be expected from stdioGetC. Blocks until all bytes have been
+; fetched.
+shellPokeCmd:
+	.db	"poke", 0b101, 0, 0
+shellPoke:
 	push	bc
 	push	hl
 
 	ld	a, (hl)
+	or	a		; cp 0
+	jr	nz, .arg1isset	; if arg1 is set, no need for a default
+	ld	a, 1		; default for arg1
+.arg1isset:
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
-.loop:  call	blkGetCW
-	jr	nz, .ioError
+.loop:	call	stdioGetC
+	jr	nz, .loop	; nothing typed? loop
 	ld	(hl), a
 	inc	hl
 	djnz	.loop
-	; success
-	xor	a
-	jr	.end
-.ioError:
-	ld	a, SHELL_ERR_IO_ERROR
-.end:
-	pop	hl
-	pop	bc
-	ret
 
-; Load the specified number of bytes (max 0xff) from the current memory pointer
-; and write them to I/O. Memory pointer doesn't move. This puts chars to
-; blkPutC.
-; Control is returned to the shell only after all bytes are written.
-;
-; Example: save 42
-shellSaveCmd:
-	.db	"save", 0b001, 0, 0
-shellSave:
-	push	bc
-	push	hl
-
-	ld	a, (hl)
-	ld	b, a
-	ld	hl, (SHELL_MEM_PTR)
-.loop:
-	ld	a, (hl)
-	inc	hl
-	call	blkPutC
-	djnz	.loop
-
-.end:
 	pop	hl
 	pop	bc
 	xor	a
@@ -530,6 +500,6 @@ shellIOWRCmd:
 ; This table is at the very end of the file on purpose. The idea is to be able
 ; to graft extra commands easily after an include in the glue file.
 shellCmdTbl:
-	.dw shellMptrCmd, shellPeekCmd, shellLoadCmd, shellSaveCmd, shellCallCmd
+	.dw shellMptrCmd, shellPeekCmd, shellPokeCmd, shellCallCmd
 	.dw shellIORDCmd, shellIOWRCmd
 

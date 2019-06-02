@@ -16,13 +16,7 @@ jp	aciaInt
 .equ	ACIA_RAMSTART	RAMSTART
 #include "acia.asm"
 
-.equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
-.equ	BLOCKDEV_COUNT		1
-#include "blockdev.asm"
-; List of devices
-.dw	aciaGetC, aciaPutC, 0, 0
-
-.equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
+.equ	STDIO_RAMSTART	ACIA_RAMEND
 #include "stdio.asm"
 
 .equ	SHELL_RAMSTART	STDIO_RAMEND
@@ -37,9 +31,8 @@ init:
 	im 1
 
 	call	aciaInit
-	xor	a
-	ld	de, BLOCKDEV_GETC
-	call	blkSel
+	ld	hl, aciaGetC
+	ld	de, aciaPutC
 	call	stdioInit
 	call	shellInit
 	ei

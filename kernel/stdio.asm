@@ -1,12 +1,9 @@
 ; stdio
 ;
-; Allows other modules to print to "standard out", that is, the console through
-; which the user is connected in a decoupled manner.
+; Allows other modules to print to "standard out", and get data from "stamdard
+; in", that is, the console through which the user is connected in a decoupled
+; manner.
 ;
-; *** REQUIREMENTS ***
-; blkdev. select the block device you want to use as stdio just before you call
-; stdioInit.
-
 ; *** VARIABLES ***
 ; Used to store formatted hex values just before printing it.
 .equ	STDIO_HEX_FMT	STDIO_RAMSTART
@@ -14,14 +11,10 @@
 .equ	STDIO_PUTC	STDIO_GETC+2
 .equ	STDIO_RAMEND	STDIO_PUTC+2
 
-; Select the blockdev to use as stdio before calling this.
+; Sets GetC to the routine where HL points to and PutC to DE.
 stdioInit:
-	push	hl
-	ld	hl, (BLOCKDEV_GETC)
 	ld	(STDIO_GETC), hl
-	ld	hl, (BLOCKDEV_PUTC)
-	ld	(STDIO_PUTC), hl
-	pop	hl
+	ld	(STDIO_PUTC), de
 	ret
 
 stdioGetC:
