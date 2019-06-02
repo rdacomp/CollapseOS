@@ -38,13 +38,13 @@ they should try to adhere to the convention, that is:
 
 ## Shell usage
 
-`blockdev.asm` supplies 2 shell commands that you can graft to your shell thus:
+`blockdev.asm` supplies 4 shell commands that you can graft to your shell thus:
 
     [...]
-    SHELL_EXTRA_CMD_COUNT	.equ	2
+    SHELL_EXTRA_CMD_COUNT	.equ	4
     #include "shell.asm"
     ; extra commands
-    .dw	blkBselCmd, blkSeekCmd
+    .dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
     [...]
 
 ### bsel
@@ -62,6 +62,18 @@ The device position is device-specific: if you seek on a device, then switch
 to another device and seek again, your previous position isn't lost. You will
 still be on the same position when you come back.
 
+### load
+
+`load` works a bit like `poke` except that it reads its data from the currently
+active blockdev at its current position. If it hits the end of the blockdev
+before it could load its specified number of bytes, it stops. It only raises an
+error if it couldn't load any byte.
+
+### save
+
+`save` is the opposite of `load`. It writes the specified number of bytes from
+memory to the active blockdev at its current position.
+
 ### Example
 
 Let's try an example: You glue yourself a Collapse OS with ACIA as its first
@@ -70,7 +82,7 @@ could do to copy memory around:
 
     > mptr d000
     D000
-    > load 4 [device 0 is selected initially]
+    > poke 4
     [enter "abcd"]
     > peek 4
     61626364
@@ -83,7 +95,7 @@ could do to copy memory around:
     [returns immediately]
     > peek 4
     61626364
-    > seek 0002
+    > seek 00 0002
     > load 2
     > peek 4
     63646364

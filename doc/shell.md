@@ -19,7 +19,7 @@ smaller than `0x10`. Example calls:
 
     mptr 01ff
     peek 4
-    load 1f
+    poke 1f
     call 00 0123
 
 All numbers printed by the shell are in hexadecimals form.
@@ -56,20 +56,16 @@ bytes we want to read. Example:
     > peek 2
     ED56
 
-## load
+## poke
 
 Puts the serial console in input mode and waits for a specific number of
 characters to be typed (that number being specified by a byte argument). These
 characters will be literally placed in memory, one after the other, starting at
 `memptr`.
 
-This command is, for now, of limited use because it's tied to the active
-console, but a method for selecting I/O sources is planned and this command will
-become much more useful.
-
 Example:
 
-    > load 5
+    > poke 5
     Hello
     > peek 5
     48656C6C6F
