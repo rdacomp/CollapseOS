@@ -89,12 +89,6 @@ int spitdir(char *path, char *prefix, char *pattern)
             fprintf(stderr, "Filename too long: %s/%s\n", prefix, ep->d_name);
             return 1;
         }
-        if (pattern) {
-            if (fnmatch(pattern, ep->d_name, FNM_EXTMATCH) != 0) {
-                continue;
-            }
-        }
-
         char fullpath[0x1000];
         strcpy(fullpath, path);
         strcat(fullpath, "/");
@@ -111,6 +105,12 @@ int spitdir(char *path, char *prefix, char *pattern)
                 return r;
             }
         } else {
+            if (pattern) {
+                if (fnmatch(pattern, ep->d_name, FNM_EXTMATCH) != 0) {
+                    continue;
+                }
+            }
+
             int r = spitblock(fullpath, newprefix);
             if (r != 0) {
                 return r;
