@@ -11,6 +11,7 @@ jp	init
 .fill	0x38-$
 jp	aciaInt
 
+#include "err.h"
 #include "core.asm"
 #include "parse.asm"
 .equ	ACIA_RAMSTART	RAMSTART

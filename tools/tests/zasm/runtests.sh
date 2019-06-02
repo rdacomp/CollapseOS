@@ -6,7 +6,7 @@ TMPFILE=$(mktemp)
 SCAS=scas
 KERNEL=../../../kernel
 APPS=../../../apps
-ZASM=../../emul/zasm/zasm
+ZASM=../../zasm.sh
 ASMFILE=${APPS}/zasm/instr.asm
 
 cmpas() {

@@ -3,7 +3,7 @@
 set -e
 set -o pipefail
 
-ZASM=../../emul/zasm/zasm
+ZASM=../../zasm.sh
 RUNBIN=../../emul/runbin/runbin
 
 for fn in *.asm; do

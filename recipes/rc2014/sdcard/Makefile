@@ -1,6 +1,6 @@
 TARGETS = os.bin cfsin/helo
 TOOLS = ../../../tools
-ZASM = $(TOOLS)/emul/zasm/zasm
+ZASM = $(TOOLS)/zasm.sh
 CFSPACK = $(TOOLS)/cfspack/cfspack
 
 .PHONY: all

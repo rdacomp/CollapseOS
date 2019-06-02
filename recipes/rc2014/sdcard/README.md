@@ -1,7 +1,5 @@
 # Accessing a MicroSD card
 
-**Status: work in progress.**
-
 SD cards are great because they are accessible directly. No supporting IC is
 necessary. The easiest way to access them is through the SPI protocol.
 

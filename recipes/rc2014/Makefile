@@ -1,5 +1,5 @@
 TARGET = os.bin
-ZASM = ../../tools/emul/zasm/zasm
+ZASM = ../../tools/zasm.sh
 
 .PHONY: all
 all: $(TARGET)

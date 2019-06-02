@@ -3,11 +3,13 @@
 #include "../libz80/z80.h"
 #include "kernel.h"
 #include "user.h"
-#include "includes.h"
 
 /* zasm reads from a specified blkdev, assemble the file and writes the result
  * in another specified blkdev. In our emulator layer, we use stdin and stdout
  * as those specified blkdevs.
+ *
+ * This executable takes one argument: the path to a .cfs file to use for
+ * includes.
  *
  * Because the input blkdev needs support for Seek, we buffer it in the emulator
  * layer.
@@ -152,8 +154,12 @@ static void mem_write(int unused, uint16_t addr, uint8_t val)
     mem[addr] = val;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc > 2) {
+        fprintf(stderr, "Too many args\n");
+        return 1;
+    }
     // initialize memory
     for (int i=0; i<sizeof(KERNEL); i++) {
         mem[i] = KERNEL[i];
@@ -161,10 +167,21 @@ int main()
     for (int i=0; i<sizeof(USERSPACE); i++) {
         mem[i+USER_CODE] = USERSPACE[i];
     }
-    for (int i=0; i<sizeof(FSDEV); i++) {
-        fsdev[i] = FSDEV[i];
+    fsdev_size = 0;
+    if (argc == 2) {
+        FILE *fp = fopen(argv[1], "r");
+        if (fp == NULL) {
+            fprintf(stderr, "Can't open file %s\n", argv[1]);
+            return 1;
+        }
+        int c = fgetc(fp);
+        while (c != EOF) {
+            fsdev[fsdev_size] = c;
+            fsdev_size++;
+            c = fgetc(fp);
+        }
+        fclose(fp);
     }
-    fsdev_size = sizeof(FSDEV);
     // read stdin in buffer
     inpt_size = 0;
     inpt_ptr = 0;
