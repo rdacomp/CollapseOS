@@ -77,17 +77,17 @@ init:
 ; *** blkdev 2: file handle 0 ***
 
 blk2GetC:
-	ld	de, FS_HANDLES
+	ld	ix, FS_HANDLES
 	jp	fsGetC
 
 blk2PutC:
-	ld	de, FS_HANDLES
+	ld	ix, FS_HANDLES
 	jp	fsPutC
 
 blk2Seek:
-	ld	de, FS_HANDLES
+	ld	ix, FS_HANDLES
 	jp	fsSeek
 
 blk2Tell:
-	ld	de, FS_HANDLES
+	ld	ix, FS_HANDLES
 	jp	fsTell

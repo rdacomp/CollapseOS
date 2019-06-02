@@ -109,36 +109,36 @@ fsdevTell:
 .equ	STDOUT_HANDLE	FS_HANDLES
 
 stdoutGetC:
-	ld	de, STDOUT_HANDLE
+	ld	ix, STDOUT_HANDLE
 	jp	fsGetC
 
 stdoutPutC:
-	ld	de, STDOUT_HANDLE
+	ld	ix, STDOUT_HANDLE
 	jp	fsPutC
 
 stdoutSeek:
-	ld	de, STDOUT_HANDLE
+	ld	ix, STDOUT_HANDLE
 	jp	fsSeek
 
 stdoutTell:
-	ld	de, STDOUT_HANDLE
+	ld	ix, STDOUT_HANDLE
 	jp	fsTell
 
 .equ	STDIN_HANDLE	FS_HANDLES+FS_HANDLE_SIZE
 
 stdinGetC:
-	ld	de, STDIN_HANDLE
+	ld	ix, STDIN_HANDLE
 	jp	fsGetC
 
 stdinPutC:
-	ld	de, STDIN_HANDLE
+	ld	ix, STDIN_HANDLE
 	jp	fsPutC
 
 stdinSeek:
-	ld	de, STDIN_HANDLE
+	ld	ix, STDIN_HANDLE
 	jp	fsSeek
 
 stdinTell:
-	ld	de, STDIN_HANDLE
+	ld	ix, STDIN_HANDLE
 	jp	fsTell
 
