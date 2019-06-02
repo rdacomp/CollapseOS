@@ -58,7 +58,7 @@ init:
 	halt
 
 .zasmArgs:
-	.db	" 0 1", 0
+	.db	"0 1", 0
 
 ; *** I/O ***
 emulGetC:

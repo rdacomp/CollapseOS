@@ -69,7 +69,6 @@ parseHexPair:
 	pop	bc
 	ret
 
-; TODO: make parseArgs not expect a leading space.
 ; Parse arguments at (HL) with specifiers at (DE) into (IX).
 ;
 ; Args specifiers are a series of flag for each arg:
@@ -94,7 +93,6 @@ parseArgs:
 	push	ix
 
 	ld	b, PARSE_ARG_MAXCOUNT
-	xor	c
 .loop:
 	; init the arg value to a default 0
 	xor	a
@@ -105,22 +103,12 @@ parseArgs:
 	or	a		; cp 0
 	jr	z, .endofargs
 
-	; do we have a proper space char?
-	cp	' '
-	jr	z, .hasspace	; We're fine
-
-	; is our previous arg a multibyte? (argspec still in C)
-	bit	1, c
-	jr	z, .error	; bit not set? error
-	dec	hl		; offset the "inc hl" below
-
-.hasspace:
 	; Get the specs
 	ld	a, (de)
 	bit	0, a		; do we have an arg?
 	jr	z, .error	; not set? then we have too many args
-	ld	c, a		; save the specs for the next loop
-	inc	hl		; (hl) points to a space, go next
+
+	ld	c, a		; save the specs for multibyte check later
 	bit	3, a		; is our arg a string?
 	jr	z, .notAString
 	; our arg is a string. Let's place HL in our next two bytes and call
@@ -128,9 +116,11 @@ parseArgs:
 	ld	(ix), l
 	ld	(ix+1), h
 	jr	.success	; directly to success: skip endofargs checks
+
 .notAString:
 	call	parseHexPair
 	jr	c, .error
+
 	; we have a good arg and we need to write A in (IX).
 	ld	(ix), a
 
@@ -138,10 +128,23 @@ parseArgs:
 	inc	de
 	inc	ix
 	inc	hl		; get to following char (generally a space)
+
+	; Our arg is parsed, our pointers are increased. Normally, HL should
+	; point to a space *unless* our argspec indicates a multibyte arg.
+	bit	1, c
+	jr	nz, .nospacecheck	; bit set? no space check
+	; do we have a proper space char (or null char)?
+	ld	a, (hl)
+	or	a
+	jr	z, .endofargs
+	cp	' '
+	jr	nz, .error
+	inc	hl
+.nospacecheck:
 	djnz	.loop
 	; If we get here, it means that our next char *has* to be a null char
 	ld	a, (hl)
-	cp	0
+	or	a		; cp 0
 	jr	z, .success	; zero? great!
 	jr	.error
 
@@ -149,12 +152,11 @@ parseArgs:
 	; We encountered our null char. Let's verify that we either have no
 	; more args or that they are optional
 	ld	a, (de)
-	cp	0
+	or	a
 	jr	z, .success	; no arg? success
 	bit	2, a
-	jr	nz, .success	; if set, arg is optional. success
-	jr	.error
-
+	jr	z, .error	; if unset, arg is not optional. error
+	; success
 .success:
 	xor	a
 	jr	.end

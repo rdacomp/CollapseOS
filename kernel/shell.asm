@@ -168,7 +168,11 @@ shellParse:
 	; advance the HL pointer to the beginning of the args.
 	ld	a, ' '
 	call	findchar
+	or	a		; end of string? don't increase HL
+	jr	z, .noargs
+	inc	hl		; char after space
 
+.noargs:
 	; Now, let's have DE point to the argspecs
 	ld	a, 4
 	call	addDE

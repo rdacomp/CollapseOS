@@ -27,6 +27,8 @@ zasmMain:
 	ld	de, .argspecs
 	ld	ix, ZASM_RAMSTART
 	call	parseArgs
+	ld	hl, 0
+	ld	de, 0
 	ld	a, SHELL_ERR_BAD_ARGS
 	ret	nz
 
@@ -35,7 +37,6 @@ zasmMain:
 	ld	a, (ZASM_RAMSTART)	; blkdev in ID
 	ld	de, IO_IN_GETC
 	call	blkSel
-	inc	hl
 	ld	a, (ZASM_RAMSTART+1)	; blkdev out ID
 	ld	de, IO_OUT_GETC
 	call	blkSel
