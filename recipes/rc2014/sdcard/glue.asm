@@ -25,10 +25,9 @@ jp	aciaInt
 .equ	ACIA_RAMSTART	RAMSTART
 #include "acia.asm"
 .equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
-.equ	BLOCKDEV_COUNT		3
+.equ	BLOCKDEV_COUNT		2
 #include "blockdev.asm"
 ; List of devices
-.dw	aciaGetC, aciaPutC, 0, 0
 .dw	sdcGetC, sdcPutC, sdcSeek, sdcTell
 .dw	blk2GetC, blk2PutC, blk2Seek, blk2Tell
 
@@ -43,9 +42,10 @@ jp	aciaInt
 #include "fs_cmds.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
-.equ	SHELL_EXTRA_CMD_COUNT	9
+.equ	SHELL_EXTRA_CMD_COUNT	11
 #include "shell.asm"
-.dw	sdcInitializeCmd, sdcFlushCmd, blkBselCmd, blkSeekCmd
+.dw	sdcInitializeCmd, sdcFlushCmd
+.dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
 #include "pgm.asm"
@@ -61,15 +61,18 @@ init:
 	; setup stack
 	ld	hl, RAMEND
 	ld	sp, hl
-	im 1
+	im	1
 	call	aciaInit
-	xor	a
-	ld	de, BLOCKDEV_GETC
-	call	blkSel
+	ld	hl, aciaGetC
+	ld	de, aciaPutC
 	call	stdioInit
 	call	shellInit
 	ld	hl, pgmShellHook
 	ld	(SHELL_CMDHOOK), hl
+
+	xor	a
+	ld	de, BLOCKDEV_GETC
+	call	blkSel
 
 	ei
 	jp	shellLoop

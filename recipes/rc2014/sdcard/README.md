@@ -90,8 +90,9 @@ World!":
 
 Then, insert your SD card in your SPI relay and boot the RC2014.
 
-Run the `sdci` command which will initialize the card. Then, run `bsel 1` to
-select the second blockdev, which is configured to be the sd card.
+Run the `sdci` command which will initialize the card. The blockdev 0 is
+already selected at initialization, but you could, to be sure, run `bsel 0` to
+select the first blockdev, which is configured to be the sd card.
 
 Set your memory pointer to somewhere you can write to with `mptr 9000` and then
 you're ready to load your contents with `load d` (load the 13 bytes that you
@@ -109,7 +110,6 @@ Then, you insert your SD card in your SPI relay and go:
 
     Collapse OS
     > sdci
-    > bsel 1
     > fson
     > fls
     helo
@@ -126,6 +126,42 @@ at a predefined place (in our case, `0x9000`) and executes it.
 Now let that sink in for a minute. You've just mounted a filesystem on a SD
 card, loaded a file from it in memory and executed that file, all that on a
 kernel that weights less than 3 kilobytes!
+
+## Writing to a file in the SD card
+
+Now what we're going to do is to write back to a file on the SD card. From a
+system with the SD card initialized and the FS mounted, do:
+
+    > fopn 0 hello.txt
+    > bsel 1
+    > mptr 9000
+    9000
+    > load d
+    > peek d
+    48656C6C6F20576F726C64210A
+
+Now that we have our "Hello World!\n" loaded in memory, let's modify it and make
+it start with "XXX" and save it to the file. `sdcf` flushes the current SD card
+buffer to the card. It's automatically ran whenever we change sector during a
+read/write/seek, but was can also explicitly call it with `sdcf`.
+
+    > poke 3
+    [type "XXX"]
+    > peek d
+    5858586C6F20576F726C64210A
+    > seek 00 0000
+    0000
+    > save d
+    > sdcf
+
+The new "XXXlo World!\n" is now written to the card, at its proper place in CFS!
+You can verify this by pulling out the card (no need to unmount it from Collapse
+OS, but if you insert it again, you'll need to run `sdci` again), insert it in
+your modern system and run:
+
+    $ head -c 512 /dev/sdX | xxd
+
+You'll see your "XXXlo World!\n" somewhere, normally at offset `0x120`!
 
 [schematic]: spirelay/spirelay.pdf
 [inspiration]: https://www.ecstaticlyrics.com/electronics/SPI/fast_z80_interface.html
