@@ -3,12 +3,16 @@
 set -e
 set -o pipefail
 
-ZASM=../../zasm.sh
-RUNBIN=../../emul/runbin/runbin
+BASE=../../..
+TOOLS=../..
+ZASM="${TOOLS}/zasm.sh"
+RUNBIN="${TOOLS}/emul/runbin/runbin"
+KERNEL="${BASE}/kernel"
+APPS="${BASE}/apps"
 
 for fn in *.asm; do
     echo "Running test ${fn}"
-    if ! ${ZASM} < ${fn} | ${RUNBIN}; then
+    if ! ${ZASM} "${KERNEL}" "${APPS}" < ${fn} | ${RUNBIN}; then
         echo "failed with code ${PIPESTATUS[1]}"
         exit 1
     fi

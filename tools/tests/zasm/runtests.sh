@@ -10,8 +10,10 @@ ZASM=../../zasm.sh
 ASMFILE=${APPS}/zasm/instr.asm
 
 cmpas() {
-    EXPECTED=$($SCAS -I ${KERNEL} -I ${APPS} -o - "$1" | xxd)
-    ACTUAL=$(cat $1 | $ZASM | xxd)
+    FN=$1
+    shift 1
+    EXPECTED=$($SCAS -I ${KERNEL} -I ${APPS} -o - "${FN}" | xxd)
+    ACTUAL=$(cat ${FN} | $ZASM "$@" | xxd)
     if [ "$ACTUAL" == "$EXPECTED" ]; then
         echo ok
     else
@@ -25,7 +27,7 @@ cmpas() {
 
 for fn in test*.asm; do
     echo "Comparing ${fn}"
-    cmpas $fn
+    cmpas $fn "${KERNEL}" "${APPS}"
 done
 
 ./geninstrs.py $ASMFILE | \
