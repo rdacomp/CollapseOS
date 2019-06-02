@@ -45,9 +45,11 @@ blkSeekCmd:
 	ret
 
 ; Load the specified number of bytes (max 0xff) from IO and write them in the
-; current memory pointer (which doesn't change). This gets chars from
-; blkGetCW.
-; Control is returned to the shell only after all bytes are read.
+; current memory pointer (which doesn't change). If the blkdev hits end of
+; stream before we reach our specified number of bytes, we stop loading.
+;
+; Returns a SHELL_ERR_IO_ERROR only if we couldn't read any byte (if the first
+; call to GetC failed)
 ;
 ; Example: load 42
 blkLoadCmd:
@@ -59,11 +61,15 @@ blkLoad:
 	ld	a, (hl)
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
-.loop:  call	blkGetCW
+	call	blkGetC
 	jr	nz, .ioError
+.loop:
 	ld	(hl), a
 	inc	hl
+	call	blkGetC
+	jr	nz, .loopend
 	djnz	.loop
+.loopend:
 	; success
 	xor	a
 	jr	.end
