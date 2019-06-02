@@ -4,6 +4,7 @@ KERNEL = ../../kernel
 APPS = ../../apps
 ZASMBIN = zasm/zasm
 INCCFS = zasm/includes.cfs
+SRCPATTERN = *.+(asm|h)
 
 .PHONY: all
 all: $(TARGETS)
@@ -18,14 +19,9 @@ zasm/user.h: zasm/zasm.bin
 	./bin2c.sh USERSPACE < $< | tee $@ > /dev/null
 
 $(INCCFS): $(CFSPACK)
-	rm -rf zasm/includes
-	cp -r $(KERNEL) zasm/includes
-	cp -r $(APPS)/zasm zasm/includes/zasm
-	find zasm/includes -name *.md -o -name *.example -o -name glue.asm -delete
-	find zasm/includes -type f -exec sed -i -e 's/;.*//g' {} \;
-	cp user.h zasm/includes
-	$(CFSPACK) zasm/includes > $@
-	rm -rf zasm/includes
+	$(CFSPACK) $(KERNEL) "$(SRCPATTERN)" > $@
+	$(CFSPACK) $(APPS) "$(SRCPATTERN)" >> $@
+	$(CFSPACK) user.h >> $@
 
 shell/shell: shell/shell.c libz80/libz80.o shell/kernel.h $(CFSPACK)
 $(ZASMBIN): zasm/zasm.c libz80/libz80.o zasm/kernel.h zasm/user.h
