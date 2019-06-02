@@ -1,6 +1,8 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <dirent.h>
 #include <string.h>
+#include <fnmatch.h>
 
 #define BLKSIZE 0x100
 #define HEADERSIZE 0x20
@@ -55,7 +57,7 @@ int spitblock(char *fullpath, char *fn)
     return 0;
 }
 
-int spitdir(char *path, char *prefix)
+int spitdir(char *path, char *prefix, char *pattern)
 {
     DIR *dp;
     struct dirent *ep;
@@ -79,6 +81,12 @@ int spitdir(char *path, char *prefix)
             fprintf(stderr, "Filename too long: %s/%s\n", prefix, ep->d_name);
             return 1;
         }
+        if (pattern) {
+            if (fnmatch(pattern, ep->d_name, FNM_EXTMATCH) != 0) {
+                continue;
+            }
+        }
+
         char fullpath[0x1000];
         strcpy(fullpath, path);
         strcat(fullpath, "/");
@@ -90,7 +98,7 @@ int spitdir(char *path, char *prefix)
         }
         strcat(newprefix, ep->d_name);
         if (ep->d_type == DT_DIR) {
-            int r = spitdir(fullpath, newprefix);
+            int r = spitdir(fullpath, newprefix, pattern);
             if (r != 0) {
                 return r;
             }
@@ -107,11 +115,15 @@ int spitdir(char *path, char *prefix)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: cfspack /path/to/dir\n");
+    if ((argc > 3) || (argc < 2)) {
+        fprintf(stderr, "Usage: cfspack /path/to/dir [pattern] \n");
         return 1;
     }
     char *srcpath = argv[1];
-    return spitdir(srcpath, "");
+    char *pattern = NULL;
+    if (argc == 3) {
+        pattern = argv[2];
+    }
+    return spitdir(srcpath, "", pattern);
 }
 

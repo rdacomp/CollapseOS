@@ -1,6 +1,6 @@
 # cfspack
 
-A tool/library to pack a directory into a CFS blob and unpack a CFS blob into
+A tool/library to pack files into a CFS blob and unpack a CFS blob into
 a directory.
 
 ## Usage
@@ -11,6 +11,9 @@ To pack a directory into a CFS blob, run:
 
 The blob is spit to stdout. If there are subdirectories, they will be prefixes
 to the filenames under it.
+
+`cfspack` takes an optional second argument, a "fnmatch" pattern. If specified,
+only files patching the pattern will be included.
 
 The program errors out if a file name is too long (> 26 bytes) or too big
 (> 0x10000 - 0x20 bytes).
