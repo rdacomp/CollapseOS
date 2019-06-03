@@ -35,16 +35,19 @@ pgmShellHook:
 	call	fsFindFN
 	jr	nz, .noFile
 	; We have a file! Load it and run it.
+	ex	de, hl	; but first, make HL point to unparsed args.
 	jp	pgmRun
 .noFile:
 	ld	a, SHELL_ERR_IO_ERROR
 	ret
 
 ; Loads code in file that FS_PTR is currently pointing at and place it in
-; PGM_CODEADDR. Then, jump to PGM_CODEADDR.
+; PGM_CODEADDR. Then, jump to PGM_CODEADDR. We expect HL to point to unparsed
+; arguments being given to the program.
 pgmRun:
 	call	fsIsValid
 	jr	nz, .ioError
+	push	hl		; unparsed args
 	ld	ix, FS_HANDLES
 	call	fsOpen
 	ld	hl, PGM_CODEADDR
@@ -53,6 +56,8 @@ pgmRun:
 	ld	(hl), a		; Z preserved
 	inc	hl		; Z preserved in 16-bit
 	jr	z, .loop
+
+	pop	hl		; recall args
 	; ready to jump!
 	jp	PGM_CODEADDR
 
