@@ -2,5 +2,4 @@
 /zasm/zasm
 /runbin/runbin
 /*/*-bin.h
-/cfsin
-/cfsout
+/cfsin/zasm

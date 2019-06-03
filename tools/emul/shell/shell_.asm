@@ -11,6 +11,25 @@
 	jp	init
 
 ; *** JUMP TABLE ***
+	jp	strncmp
+	jp	addDE
+	jp	addHL
+	jp	upcase
+	jp	unsetZ
+	jp	intoDE
+	jp	intoHL
+	jp	writeHLinDE
+	jp	findchar
+	jp	parseHex
+	jp	parseHexPair
+	jp	blkSel
+	jp	fsFindFN
+	jp	fsOpen
+	jp	fsGetC
+	jp	fsSeek
+	jp	fsTell
+	jp	cpHLDE
+	jp	parseArgs
 	jp	printstr
 
 #include "core.asm"

@@ -4,9 +4,10 @@ KERNEL = ../../kernel
 APPS = ../../apps
 ZASMBIN = zasm/zasm
 ZASMSH = ../zasm.sh
+SHELLAPPS = $(addprefix cfsin/, zasm)
 
 .PHONY: all
-all: $(TARGETS)
+all: $(TARGETS) $(SHELLAPPS)
 
 shell/kernel-bin.h: shell/shell_.asm $(ZASMBIN)
 	$(ZASMSH) $(KERNEL) < $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
@@ -30,6 +31,9 @@ libz80/libz80.o: libz80/z80.c
 $(CFSPACK):
 	make -C ../cfspack
 
+$(SHELLAPPS): $(ZASMBIN)
+	$(ZASMSH) $(KERNEL) $(APPS) shell/user.h < $(APPS)/$(notdir $@)/glue.asm > $@
+
 .PHONY: updatebootstrap
 updatebootstrap: $(ZASMBIN) $(INCCFS)
 	$(ZASMSH) $(KERNEL) < zasm/glue.asm > zasm/kernel.bin
@@ -46,4 +50,4 @@ rescue:
 
 .PHONY: clean
 clean:
-	rm -f $(TARGETS) {zasm,shell}/*-bin.h
+	rm -f $(TARGETS) $(SHELLAPPS) {zasm,shell}/*-bin.h
