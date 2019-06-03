@@ -5,9 +5,10 @@ APPS = ../../apps
 ZASMBIN = zasm/zasm
 ZASMSH = ../zasm.sh
 SHELLAPPS = $(addprefix cfsin/, zasm)
+CFSIN_CONTENTS = $(SHELLAPPS) cfsin/user.h
 
 .PHONY: all
-all: $(TARGETS) $(SHELLAPPS)
+all: $(TARGETS) $(CFSIN_CONTENTS)
 
 shell/kernel-bin.h: shell/shell_.asm $(ZASMBIN)
 	$(ZASMSH) $(KERNEL) < $< | ./bin2c.sh KERNEL | tee $@ > /dev/null
@@ -33,6 +34,9 @@ $(CFSPACK):
 
 $(SHELLAPPS): $(ZASMBIN)
 	$(ZASMSH) $(KERNEL) $(APPS) shell/user.h < $(APPS)/$(notdir $@)/glue.asm > $@
+
+cfsin/user.h: shell/user.h
+	cp $< $@
 
 .PHONY: updatebootstrap
 updatebootstrap: $(ZASMBIN) $(INCCFS)
