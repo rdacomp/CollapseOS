@@ -140,7 +140,7 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
     } else if (addr == STDERR_PORT) {
         fputc(val, stderr);
     } else {
-        fprintf(stderr, "Out of bounds I/O write: %d / %d\n", addr, val);
+        fprintf(stderr, "Out of bounds I/O write: %d / %d (0x%x)\n", addr, val, val);
     }
 }
 

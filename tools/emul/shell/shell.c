@@ -103,7 +103,7 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
     } else if (addr == FS_SEEKE_PORT) {
         fsdev_ptr = (fsdev_ptr & 0x00ffff) | (val << 16);
     } else {
-        fprintf(stderr, "Out of bounds I/O write: %d / %d\n", addr, val);
+        fprintf(stderr, "Out of bounds I/O write: %d / %d (0x%x)\n", addr, val, val);
     }
 }
 
