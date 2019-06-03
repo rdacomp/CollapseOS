@@ -19,3 +19,6 @@
 
 ; Out of memory
 .equ	ERR_OOM			0x07
+
+; *** Other ***
+.equ	ZASM_DEBUG_PORT		42

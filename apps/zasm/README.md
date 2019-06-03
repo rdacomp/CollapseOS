@@ -127,6 +127,13 @@ allowed. An included file cannot have an `#inc` directive.
           explicitly with `.fill`, if needed. Often used to assemble binaries
           designed to run at offsets other than zero (userland).
 
+**.out**: Outputs the value of the expression supplied as an argument to
+          `ZASM_DEBUG_PORT`. The value is always interpreted as a word, so
+          there's always two `out` instruction executed per directive. High byte
+          is sent before low byte. Useful or debugging, quickly figuring our
+          RAM constants, etc. The value is only outputted during the second
+          pass.
+
 **#inc**: Takes a string literal as an argument. Open the file name specified
           in the argument in the currently active filesystem, parse that file
           and output its binary content as is the code has been in the includer

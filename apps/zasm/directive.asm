@@ -5,7 +5,8 @@
 .equ	D_EQU	0x02
 .equ	D_ORG	0x03
 .equ	D_FIL	0x04
-.equ	D_INC	0x05
+.equ	D_OUT	0x05
+.equ	D_INC	0x06
 .equ	D_BAD	0xff
 
 ; *** Variables ***
@@ -20,6 +21,7 @@ directiveNames:
 	.db	".EQU"
 	.db	".ORG"
 	.db	".FIL"
+	.db	".OUT"
 	.db	"#inc"
 
 ; This is a list of handlers corresponding to indexes in directiveNames
@@ -29,6 +31,7 @@ directiveHandlers:
 	.dw	handleEQU
 	.dw	handleORG
 	.dw	handleFIL
+	.dw	handleOUT
 	.dw	handleINC
 
 handleDB:
@@ -185,6 +188,33 @@ handleFIL:
 	ld	a, ERR_BAD_ARG
 .error:
 	call	unsetZ
+	ret
+
+handleOUT:
+	push	hl
+	; Read our expression
+	call	readWord
+	jr	nz, .badfmt
+	call	zasmIsFirstPass		; No .out during first pass
+	jr	z, .end
+	ld	hl, scratchpad
+	call	parseExpr
+	jr	nz, .badarg
+	push	ix \ pop hl
+	ld	a, h
+	out	(ZASM_DEBUG_PORT), a
+	ld	a, l
+	out	(ZASM_DEBUG_PORT), a
+	jr	.end
+.badfmt:
+	ld	a, ERR_BAD_FMT
+	jr	.error
+.badarg:
+	ld	a, ERR_BAD_ARG
+.error:
+	call	unsetZ
+.end:
+	pop	hl
 	ret
 
 handleINC:
