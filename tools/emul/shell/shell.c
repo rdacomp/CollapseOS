@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <termios.h>
 #include "../libz80/z80.h"
-#include "kernel.h"
+#include "kernel-bin.h"
 
 /* Collapse OS shell with filesystem
  *

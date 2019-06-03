@@ -27,11 +27,14 @@ zasmMain:
 	ld	de, .argspecs
 	ld	ix, ZASM_RAMSTART
 	call	parseArgs
+	jr	z, .goodargs
+	; bad args
 	ld	hl, 0
 	ld	de, 0
 	ld	a, SHELL_ERR_BAD_ARGS
-	ret	nz
+	ret
 
+.goodargs:
 	; HL now points to parsed args
 	; Init I/O
 	ld	a, (ZASM_RAMSTART)	; blkdev in ID

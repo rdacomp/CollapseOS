@@ -1,8 +1,6 @@
 /shell/shell
 /zasm/zasm
 /runbin/runbin
-/zasm/includes.*
-/*/kernel.h
-/*/user.h
+/*/*-bin.h
 /cfsin
 /cfsout
