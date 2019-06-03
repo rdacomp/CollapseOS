@@ -6,8 +6,8 @@
 ; MMAP_START: Memory address where the mmap begins
 
 ; *** VARIABLES ***
-MMAP_PTR	.equ	MMAP_RAMSTART
-MMAP_RAMEND	.equ	MMAP_PTR+2
+.equ	MMAP_PTR	MMAP_RAMSTART
+.equ	MMAP_RAMEND	MMAP_PTR+2
 
 ; *** CODE ***
 
