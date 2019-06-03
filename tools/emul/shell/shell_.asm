@@ -81,6 +81,7 @@ init:
 	ld	hl, emulGetC
 	ld	de, emulPutC
 	call	stdioInit
+	call	mmapInit
 	call	fsInit
 	ld	a, 0	; select fsdev
 	ld	de, BLOCKDEV_GETC
