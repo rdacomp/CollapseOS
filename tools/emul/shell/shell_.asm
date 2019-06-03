@@ -1,7 +1,9 @@
 ; named shell_.asm to avoid infinite include loop.
 .equ	RAMSTART	0x4000
-.equ	KERNEL_RAMEND	0x5000
-.equ	USERCODE	0x9000
+; kernel ram is well under 0x100 bytes. We're giving us 0x200 bytes so that we
+; never worry about the stack.
+.equ	KERNEL_RAMEND	0x4200
+.equ	USERCODE	KERNEL_RAMEND
 .equ	STDIO_PORT	0x00
 .equ	FS_DATA_PORT	0x01
 .equ	FS_SEEKL_PORT	0x02
@@ -37,16 +39,21 @@
 #include "parse.asm"
 
 .equ	BLOCKDEV_RAMSTART	RAMSTART
-.equ	BLOCKDEV_COUNT		3
+.equ	BLOCKDEV_COUNT		4
 #include "blockdev.asm"
 ; List of devices
 .dw	fsdevGetC, fsdevPutC, fsdevSeek, fsdevTell
 .dw	stdoutGetC, stdoutPutC, stdoutSeek, stdoutTell
 .dw	stdinGetC, stdinPutC, stdinSeek, stdinTell
+.dw	mmapGetC, mmapPutC, mmapSeek, mmapTell
 
 #include "blockdev_cmds.asm"
 
-.equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
+.equ	MMAP_RAMSTART	BLOCKDEV_RAMEND
+.equ	MMAP_START	0xe000
+#include "mmap.asm"
+
+.equ	STDIO_RAMSTART	MMAP_RAMEND
 #include "stdio.asm"
 
 .equ	FS_RAMSTART	STDIO_RAMEND
@@ -63,6 +70,8 @@
 .equ	PGM_RAMSTART		SHELL_RAMEND
 .equ	PGM_CODEADDR		USERCODE
 #include "pgm.asm"
+
+.out	PGM_RAMEND
 
 init:
 	di

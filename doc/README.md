@@ -11,3 +11,4 @@
 * [Load code in RAM and run it](load-run-code.md)
 * [Using block devices](blockdev.md)
 * [Using the filesystem](fs.md)
+* [Assembling z80 source from the shell](zasm.md)

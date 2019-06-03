@@ -1,5 +1,5 @@
-.equ    USER_CODE       0x9000
-.equ    USER_RAMSTART   0xa800
+.equ    USER_CODE       0x4200
+.equ    USER_RAMSTART   USER_CODE+0x1800
 .equ    FS_HANDLE_SIZE  8
 
 ; *** JUMP TABLE ***
