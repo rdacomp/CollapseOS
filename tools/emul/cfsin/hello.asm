@@ -1,6 +1,5 @@
-.equ	printstr	0x3c
-
-.org	0x9000
+#include "user.h"
+.org	USER_CODE
 
 	ld	hl, sAwesome
 	call	printstr

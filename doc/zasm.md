@@ -22,7 +22,7 @@ is configured to start at `0xe00`
     > bsel 3                ; select mmap
     > peek 5
     210890CD3C              ; looking good
-    > mptr 9000             ; hello.asm is configured to run from 0x9000
+    > mptr 4200             ; hello.asm is configured to run from 0x4200
     > load ff               ; load compiled code from mmap
     > peek 5
     210890CD3C              ; looking good
