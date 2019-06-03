@@ -8,8 +8,15 @@
 ; non-zero means error. Programs should avoid having error code overlaps with
 ; the shell so that we know where the error comes from.
 ;
+; *** Requirements ***
+; fs
+;
 ; *** Defines ***
 ; PGM_CODEADDR: Memory address where to place the code we load.
+;
+; *** Variables ***
+.equ	PGM_HANDLE	PGM_RAMSTART
+.equ	PGM_RAMEND	PGM_HANDLE+FS_HANDLE_SIZE
 
 ; Routine suitable to plug into SHELL_CMDHOOK. HL points to the full cmdline.
 ; We can mutate it because the shell doesn't do anything with it afterwards.
@@ -48,7 +55,7 @@ pgmRun:
 	call	fsIsValid
 	jr	nz, .ioError
 	push	hl		; unparsed args
-	ld	ix, FS_HANDLES
+	ld	ix, PGM_HANDLE
 	call	fsOpen
 	ld	hl, PGM_CODEADDR
 .loop:

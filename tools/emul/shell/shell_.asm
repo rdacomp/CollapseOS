@@ -60,6 +60,7 @@
 .dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
+.equ	PGM_RAMSTART		SHELL_RAMEND
 .equ	PGM_CODEADDR		USERCODE
 #include "pgm.asm"
 
