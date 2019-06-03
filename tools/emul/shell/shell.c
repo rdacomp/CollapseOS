@@ -26,6 +26,7 @@
  */
 
 //#define DEBUG
+#define MAX_FSDEV_SIZE 0x20000
 
 // in sync with shell.asm
 #define RAMSTART 0x4000
@@ -37,7 +38,7 @@
 
 static Z80Context cpu;
 static uint8_t mem[0xffff] = {0};
-static uint8_t fsdev[0x20000] = {0};
+static uint8_t fsdev[MAX_FSDEV_SIZE] = {0};
 static uint32_t fsdev_size = 0;
 static uint32_t fsdev_ptr = 0;
 static int running;
@@ -58,7 +59,10 @@ static uint8_t io_read(int unused, uint16_t addr)
 #endif
             return fsdev[fsdev_ptr++];
         } else {
-            fprintf(stderr, "Out of bounds FSDEV read at %d\n", fsdev_ptr);
+            // don't warn when ==, we're not out of bounds, just at the edge.
+            if (fsdev_ptr > fsdev_size) {
+                fprintf(stderr, "Out of bounds FSDEV read at %d\n", fsdev_ptr);
+            }
             return 0;
         }
     } else if (addr == FS_SEEKL_PORT) {
@@ -85,6 +89,10 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
     } else if (addr == FS_DATA_PORT) {
         if (fsdev_ptr < fsdev_size) {
             fsdev[fsdev_ptr++] = val;
+        } else if ((fsdev_ptr == fsdev_size) && (fsdev_ptr < MAX_FSDEV_SIZE)) {
+            // We're at the end of fsdev, grow it
+            fsdev[fsdev_ptr++] = val;
+            fsdev_size++;
         } else {
             fprintf(stderr, "Out of bounds FSDEV write at %d\n", fsdev_ptr);
         }
