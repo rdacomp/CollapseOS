@@ -26,7 +26,7 @@ look like:
         im 1
         call aciaInit
         xor	a
-        ld	de, BLOCKDEV_GETC
+        ld	de, BLOCKDEV_SEL
         call	blkSel
         call	stdioInit
         call    shellInit

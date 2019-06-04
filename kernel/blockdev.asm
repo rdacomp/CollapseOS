@@ -59,15 +59,12 @@
 ; Pointer to the selected block device. A block device is a 8 bytes block of
 ; memory with pointers to GetC, PutC, Seek and Tell routines, in that order.
 ; 0 means unsupported.
-.equ	BLOCKDEV_GETC		BLOCKDEV_RAMSTART
-.equ	BLOCKDEV_PUTC		BLOCKDEV_GETC+2
-.equ	BLOCKDEV_SEEK		BLOCKDEV_PUTC+2
-.equ	BLOCKDEV_TELL		BLOCKDEV_SEEK+2
-.equ	BLOCKDEV_RAMEND		BLOCKDEV_TELL+2
+.equ	BLOCKDEV_SEL		BLOCKDEV_RAMSTART
+.equ	BLOCKDEV_RAMEND		BLOCKDEV_SEL+8
 
 ; *** CODE ***
 ; Select block index specified in A and place them in routine pointers at (DE).
-; For example, for a "regular" blkSel, you will want to set DE to BLOCKDEV_GETC.
+; For example, for a "regular" blkSel, you will want to set DE to BLOCKDEV_SEL.
 blkSel:
 	push	af
 	push	de
@@ -120,13 +117,13 @@ blkSel:
 ; Sets Z according to whether read was successful: Set if successful, unset
 ; if not.
 blkGetC:
-	ld	ix, (BLOCKDEV_GETC)
+	ld	ix, (BLOCKDEV_SEL)
 	jp	(ix)
 
 ; Reads B chars from blkGetC and copy them in (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkRead:
-	ld	ix, (BLOCKDEV_GETC)
+	ld	ix, (BLOCKDEV_SEL)
 _blkRead:
 	push	hl
 	push	bc
@@ -145,16 +142,20 @@ _blkRead:
 ; Writes character in A in current position in the selected device. Sets Z
 ; according to whether the operation was successful.
 blkPutC:
-	ld	ix, (BLOCKDEV_PUTC)
+	ld	ix, (BLOCKDEV_SEL+2)
 	jp	(ix)
 
 ; Writes B chars to blkPutC from (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkWrite:
-	ld	ix, (BLOCKDEV_PUTC)
+	ld	ix, (BLOCKDEV_SEL)
 _blkWrite:
+	push	ix
 	push	hl
 	push	bc
+	; make IX point to PutC
+	inc	ix
+	inc	ix
 .loop:
 	ld	a, (hl)
 	call	callIX
@@ -165,6 +166,7 @@ _blkWrite:
 .end:
 	pop	bc
 	pop	hl
+	pop	ix
 	ret
 
 ; Seeks the block device in one of 5 modes, which is the A argument:
@@ -184,8 +186,8 @@ _blkWrite:
 ; If the device is "growable", it's possible that seeking to end when calling
 ; PutC doesn't necessarily result in a failure.
 blkSeek:
-	ld	ix, (BLOCKDEV_SEEK)
-	ld	iy, (BLOCKDEV_TELL)
+	ld	ix, (BLOCKDEV_SEL+4)
+	ld	iy, (BLOCKDEV_SEL+6)
 _blkSeek:
 	; we preserve DE so that it's possible to call blkSeek in mode != 0
 	; while not discarding our current DE value.
@@ -234,7 +236,7 @@ _blkSeek:
 ; Returns the current position of the selected device in HL (low) and DE (high).
 blkTell:
 	ld	de, 0			; in case device ignores DE.
-	ld	ix, (BLOCKDEV_TELL)
+	ld	ix, (BLOCKDEV_SEL+6)
 	jp	(ix)
 
 ; This label is at the end of the file on purpose: the glue file should include

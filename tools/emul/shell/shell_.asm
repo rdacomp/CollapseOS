@@ -47,7 +47,6 @@
 .dw	stdinGetC, stdinPutC, stdinSeek, stdinTell
 .dw	mmapGetC, mmapPutC, mmapSeek, mmapTell
 
-#include "blockdev_cmds.asm"
 
 .equ	MMAP_RAMSTART	BLOCKDEV_RAMEND
 .equ	MMAP_START	0xe000
@@ -59,7 +58,6 @@
 .equ	FS_RAMSTART	STDIO_RAMEND
 .equ	FS_HANDLE_COUNT	2
 #include "fs.asm"
-#include "fs_cmds.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT	9
@@ -67,11 +65,14 @@
 .dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
+#include "blockdev_cmds.asm"
+#include "fs_cmds.asm"
+
 .equ	PGM_RAMSTART		SHELL_RAMEND
 .equ	PGM_CODEADDR		USERCODE
 #include "pgm.asm"
 
-.out	PGM_RAMEND
+;.out	PGM_RAMEND
 
 init:
 	di
@@ -84,7 +85,7 @@ init:
 	call	mmapInit
 	call	fsInit
 	ld	a, 0	; select fsdev
-	ld	de, BLOCKDEV_GETC
+	ld	de, BLOCKDEV_SEL
 	call	blkSel
 	call	fsOn
 	call	shellInit

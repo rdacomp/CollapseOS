@@ -49,7 +49,7 @@ init:
 	ld	hl, 0xffff
 	ld	sp, hl
 	ld	a, 2	; select fsdev
-	ld	de, BLOCKDEV_GETC
+	ld	de, BLOCKDEV_SEL
 	call	blkSel
 	call	fsOn
 	ld	hl, .zasmArgs

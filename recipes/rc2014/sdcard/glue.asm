@@ -72,7 +72,7 @@ init:
 	ld	(SHELL_CMDHOOK), hl
 
 	xor	a
-	ld	de, BLOCKDEV_GETC
+	ld	de, BLOCKDEV_SEL
 	call	blkSel
 
 	ei

@@ -8,7 +8,7 @@ blkBselCmd:
 	cp	BLOCKDEV_COUNT
 	jr	nc, .error	; if selection >= device count, error
 	push	de
-	ld	de, BLOCKDEV_GETC
+	ld	de, BLOCKDEV_SEL
 	call	blkSel
 	pop	de
 	xor	a

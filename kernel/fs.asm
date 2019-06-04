@@ -369,7 +369,7 @@ fsblkPutC:
 
 fsblkWrite:
 	push	ix
-	ld	ix, (FS_PUTC)
+	ld	ix, (FS_GETC)	 ; we have to point to blkdev's beginning
 	call	_blkWrite
 	pop	ix
 	ret
@@ -523,7 +523,7 @@ fsOn:
 	push	bc
 	; We have to set blkdev routines early before knowing whether the
 	; mounting succeeds because methods like fsReadMeta uses fsblk* methods.
-	ld	hl, BLOCKDEV_GETC
+	ld	hl, BLOCKDEV_SEL
 	ld	de, FS_GETC
 	ld	bc, 8		; we have 8 bytes to copy
 	ldir			; copy!
