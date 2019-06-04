@@ -40,16 +40,10 @@
 ; flag and continue on the general IN stream.
 
 ; *** Variables ***
-.equ	IO_IN_GETC	IO_RAMSTART
-.equ	IO_IN_PUTC	IO_IN_GETC+2
-.equ	IO_IN_SEEK	IO_IN_PUTC+2
-.equ	IO_IN_TELL	IO_IN_SEEK+2
-.equ	IO_OUT_GETC	IO_IN_TELL+2
-.equ	IO_OUT_PUTC	IO_OUT_GETC+2
-.equ	IO_OUT_SEEK	IO_OUT_PUTC+2
-.equ	IO_OUT_TELL	IO_OUT_SEEK+2
+.equ	IO_IN_BLK	IO_RAMSTART
+.equ	IO_OUT_BLK	IO_IN_BLK+BLOCKDEV_SIZE
 ; Save pos for ioSavePos and ioRecallPos
-.equ	IO_SAVED_POS	IO_OUT_TELL+2
+.equ	IO_SAVED_POS	IO_OUT_BLK+BLOCKDEV_SIZE
 ; File handle for included source
 .equ	IO_INCLUDE_HDL	IO_SAVED_POS+2
 ; see ioPutBack below
@@ -108,8 +102,8 @@ ioGetC:
 	; continue on to "normal" reading. We don't want to return our zero
 .normalmode:
 	; normal mode, read from IN stream
-	ld	ix, (IO_IN_GETC)
-	call	_callIX
+	ld	ix, IO_IN_BLK
+	call	_blkGetC
 	cp	0x0a		; newline
 	ret	nz		; not newline? return
 	; inc current lineno
@@ -132,7 +126,7 @@ _callIX:
 	ret
 
 ; Put back non-zero character A into the "ioGetC stack". The next ioGetC call,
-; instead of reading from IO_IN_GETC, will return that character. That's the
+; instead of reading from IO_IN_BLK, will return that character. That's the
 ; easiest way I found to handle the readWord/gotoNextLine problem.
 ioPutBack:
 	ld	(IO_PUTBACK_BUF), a
@@ -148,8 +142,8 @@ ioPutC:
 	call	zasmIsFirstPass
 	jr	z, .skip
 	pop	af
-	ld	ix, (IO_OUT_PUTC)
-	jp	(ix)
+	ld	ix, IO_OUT_BLK
+	jp	_blkPutC
 .skip:
 	pop	af
 	ret
@@ -184,8 +178,8 @@ _ioSeek:
 	ld	a, 0		; don't alter flags
 	jr	nz, .include
 	; normal mode, seek in IN stream
-	ld	ix, (IO_IN_SEEK)
-	jp	(ix)
+	ld	ix, IO_IN_BLK
+	jp	_blkSeek
 .include:
 	; We're in "include mode", seek in FS
 	ld	ix, IO_INCLUDE_HDL
@@ -195,8 +189,8 @@ _ioTell:
 	call	ioInInclude
 	jp	nz, .include
 	; normal mode, seek in IN stream
-	ld	ix, (IO_IN_TELL)
-	jp	(ix)
+	ld	ix, IO_IN_BLK
+	jp	_blkTell
 .include:
 	; We're in "include mode", tell from FS
 	ld	ix, IO_INCLUDE_HDL

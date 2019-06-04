@@ -81,18 +81,12 @@ static uint8_t io_read(int unused, uint16_t addr)
             return 0;
         }
     } else if (addr == FS_SEEK_PORT) {
-        if (fsdev_seek_tell_cnt == 0) {
-#ifdef DEBUG
-            fprintf(stderr, "FS tell %d\n", fsdev_ptr);
-#endif
-            fsdev_seek_tell_cnt = 1;
-            return fsdev_ptr >> 16;
-        } else if (fsdev_seek_tell_cnt == 1) {
-            fsdev_seek_tell_cnt = 2;
-            return (fsdev_ptr >> 8) & 0xff;
+        if (fsdev_seek_tell_cnt != 0) {
+            return fsdev_seek_tell_cnt;
+        } else if (fsdev_ptr >= fsdev_size) {
+            return 1;
         } else {
-            fsdev_seek_tell_cnt = 0;
-            return fsdev_ptr & 0xff;
+            return 0;
         }
     } else {
         fprintf(stderr, "Out of bounds I/O read: %d\n", addr);

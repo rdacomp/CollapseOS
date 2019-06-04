@@ -26,34 +26,34 @@ chkoom() {
     done
     ${ZASM} <<< "$s" > /dev/null
     local res=$?
-    if [[ $res == 7 ]]; then
+    if [[ $res == 23 ]]; then
         echo "Good!"
     else
-        echo "$res != 7"
+        echo "$res != 23"
         exit 1
     fi
 }
 
-chkerr "foo" 1
-chkerr "ld a, foo" 2
-chkerr "ld a, hl" 2
-chkerr ".db foo" 2
-chkerr ".dw foo" 2
-chkerr ".equ foo bar" 2
-chkerr ".org foo" 2
-chkerr ".fill foo" 2
-chkerr "ld a," 3
-chkerr "ld a, 'A" 3
-chkerr ".db 0x42," 3
-chkerr ".dw 0x4242," 3
-chkerr ".equ" 3
-chkerr ".equ foo" 3
-chkerr ".org" 3
-chkerr ".fill" 3
-chkerr "#inc" 3
-chkerr "#inc foo" 3
-chkerr "ld a, 0x100" 4
-chkerr ".db 0x100" 4
-chkerr "#inc \"doesnotexist\"" 5
-chkerr ".equ foo 42 \\ .equ foo 42" 6
+chkerr "foo" 17
+chkerr "ld a, foo" 18
+chkerr "ld a, hl" 18
+chkerr ".db foo" 18
+chkerr ".dw foo" 18
+chkerr ".equ foo bar" 18
+chkerr ".org foo" 18
+chkerr ".fill foo" 18
+chkerr "ld a," 19
+chkerr "ld a, 'A" 19
+chkerr ".db 0x42," 19
+chkerr ".dw 0x4242," 19
+chkerr ".equ" 19
+chkerr ".equ foo" 19
+chkerr ".org" 19
+chkerr ".fill" 19
+chkerr "#inc" 19
+chkerr "#inc foo" 19
+chkerr "ld a, 0x100" 20
+chkerr ".db 0x100" 20
+chkerr "#inc \"doesnotexist\"" 21
+chkerr ".equ foo 42 \\ .equ foo 42" 22
 chkoom

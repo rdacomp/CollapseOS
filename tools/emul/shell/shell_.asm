@@ -6,9 +6,7 @@
 .equ	USERCODE	KERNEL_RAMEND
 .equ	STDIO_PORT	0x00
 .equ	FS_DATA_PORT	0x01
-.equ	FS_SEEKL_PORT	0x02
-.equ	FS_SEEKH_PORT	0x03
-.equ	FS_SEEKE_PORT	0x04
+.equ	FS_ADDR_PORT	0x02
 
 	jp	init
 
@@ -33,6 +31,10 @@
 	jp	cpHLDE
 	jp	parseArgs
 	jp	printstr
+	jp	_blkGetC
+	jp	_blkPutC
+	jp	_blkSeek
+	jp	_blkTell
 
 #include "core.asm"
 #include "err.h"
@@ -42,17 +44,16 @@
 .equ	BLOCKDEV_COUNT		4
 #include "blockdev.asm"
 ; List of devices
-.dw	fsdevGetC, fsdevPutC, fsdevSeek, fsdevTell
-.dw	stdoutGetC, stdoutPutC, stdoutSeek, stdoutTell
-.dw	stdinGetC, stdinPutC, stdinSeek, stdinTell
-.dw	mmapGetC, mmapPutC, mmapSeek, mmapTell
+.dw	fsdevGetC, fsdevPutC
+.dw	stdoutGetC, stdoutPutC
+.dw	stdinGetC, stdinPutC
+.dw	mmapGetC, mmapPutC
 
 
-.equ	MMAP_RAMSTART	BLOCKDEV_RAMEND
 .equ	MMAP_START	0xe000
 #include "mmap.asm"
 
-.equ	STDIO_RAMSTART	MMAP_RAMEND
+.equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
 #include "stdio.asm"
 
 .equ	FS_RAMSTART	STDIO_RAMEND
@@ -82,7 +83,6 @@ init:
 	ld	hl, emulGetC
 	ld	de, emulPutC
 	call	stdioInit
-	call	mmapInit
 	call	fsInit
 	ld	a, 0	; select fsdev
 	ld	de, BLOCKDEV_SEL
@@ -104,35 +104,36 @@ emulPutC:
 	ret
 
 fsdevGetC:
+	ld	a, e
+	out	(FS_ADDR_PORT), a
+	ld	a, h
+	out	(FS_ADDR_PORT), a
+	ld	a, l
+	out	(FS_ADDR_PORT), a
+	in	a, (FS_ADDR_PORT)
+	or	a
+	ret	nz
 	in	a, (FS_DATA_PORT)
 	cp	a		; ensure Z
 	ret
 
 fsdevPutC:
+	push	af
+	ld	a, e
+	out	(FS_ADDR_PORT), a
+	ld	a, h
+	out	(FS_ADDR_PORT), a
+	ld	a, l
+	out	(FS_ADDR_PORT), a
+	in	a, (FS_ADDR_PORT)
+	or	a
+	jr	nz, .error
+	pop	af
 	out	(FS_DATA_PORT), a
 	ret
-
-fsdevSeek:
-	push	af
-	ld	a, l
-	out	(FS_SEEKL_PORT), a
-	ld	a, h
-	out	(FS_SEEKH_PORT), a
-	ld	a, e
-	out	(FS_SEEKE_PORT), a
+.error:
 	pop	af
-	ret
-
-fsdevTell:
-	push	af
-	in	a, (FS_SEEKL_PORT)
-	ld	l, a
-	in	a, (FS_SEEKH_PORT)
-	ld	h, a
-	in	a, (FS_SEEKE_PORT)
-	ld	e, a
-	pop	af
-	ret
+	jp	unsetZ		; returns
 
 .equ	STDOUT_HANDLE	FS_HANDLES
 
@@ -144,14 +145,6 @@ stdoutPutC:
 	ld	ix, STDOUT_HANDLE
 	jp	fsPutC
 
-stdoutSeek:
-	ld	ix, STDOUT_HANDLE
-	jp	fsSeek
-
-stdoutTell:
-	ld	ix, STDOUT_HANDLE
-	jp	fsTell
-
 .equ	STDIN_HANDLE	FS_HANDLES+FS_HANDLE_SIZE
 
 stdinGetC:
@@ -161,12 +154,4 @@ stdinGetC:
 stdinPutC:
 	ld	ix, STDIN_HANDLE
 	jp	fsPutC
-
-stdinSeek:
-	ld	ix, STDIN_HANDLE
-	jp	fsSeek
-
-stdinTell:
-	ld	ix, STDIN_HANDLE
-	jp	fsTell
 

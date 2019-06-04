@@ -6,6 +6,8 @@ fsOnCmd:
 ; Lists filenames in currently active FS
 flsCmd:
 	.db	"fls", 0, 0, 0, 0
+	call	fsIsOn
+	jr	nz, .error
 	call	fsBegin
 	jr	nz, .error
 .loop:

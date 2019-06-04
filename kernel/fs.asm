@@ -93,23 +93,16 @@
 .equ	FS_ERR_NOT_FOUND	0x6
 
 ; *** VARIABLES ***
-; A copy of BLOCKDEV routines when the FS was mounted. 0 if no FS is mounted.
-.equ	FS_GETC		FS_RAMSTART
-.equ	FS_PUTC		FS_GETC+2
-.equ	FS_SEEK		FS_PUTC+2
-.equ	FS_TELL		FS_SEEK+2
+; A copy of BLOCKDEV_SEL when the FS was mounted. 0 if no FS is mounted.
+.equ	FS_BLK		FS_RAMSTART
 ; Offset at which our FS start on mounted device
 ; This pointer is 32 bits. 32 bits pointers are a bit awkward: first two bytes
 ; are high bytes *low byte first*, and then the low two bytes, same order.
 ; When loaded in HL/DE, the four bytes are loaded in this order: E, D, L, H
-.equ	FS_START	FS_TELL+2
-; Offset at which we are currently pointing to with regards to our routines
-; below, which all assume this offset as a context. This offset is not relative
-; to FS_START. It can be used directly with fsblkSeek. 32 bits.
-.equ	FS_PTR		FS_START+4
-; This variable below contain the metadata of the last block FS_PTR was moved
+.equ	FS_START	FS_BLK+BLOCKDEV_SIZE
+; This variable below contain the metadata of the last block we moved
 ; to. We read this data in memory to avoid constant seek+read operations.
-.equ	FS_META		FS_PTR+4
+.equ	FS_META		FS_START+4
 .equ	FS_HANDLES	FS_META+FS_METASIZE
 .equ	FS_RAMEND	FS_HANDLES+FS_HANDLE_COUNT*FS_HANDLE_SIZE
 
@@ -121,21 +114,27 @@ P_FS_MAGIC:
 
 fsInit:
 	xor	a
-	ld	hl, FS_GETC
-	ld	b, FS_RAMEND-FS_GETC
+	ld	hl, FS_BLK
+	ld	b, FS_RAMEND-FS_BLK
 	call	fill
 	ret
 
 ; *** Navigation ***
 
-; Resets FS_PTR to the beginning. Errors out if no FS is mounted.
+; Seek to the beginning. Errors out if no FS is mounted.
 ; Sets Z if success, unset if error
 fsBegin:
+	call	fsIsOn
+	ret	nz
 	push	hl
-	ld	hl, (FS_START)
-	ld	(FS_PTR), hl
+	push	de
+	push	af
+	ld	de, (FS_START)
 	ld	hl, (FS_START+2)
-	ld	(FS_PTR+2), hl
+	ld	a, BLOCKDEV_SEEK_ABSOLUTE
+	call	fsblkSeek
+	pop	af
+	pop	de
 	pop	hl
 	call	fsReadMeta
 	jp	fsIsValid	; sets Z, returns
@@ -147,25 +146,20 @@ fsNext:
 	push	bc
 	push	hl
 	ld	a, (FS_META+FS_META_ALLOC_OFFSET)
-	cp	0
+	or	a		; cp 0
 	jr	z, .error	; if our block allocates 0 blocks, this is the
 				; end of the line.
-	call	fsPlace
 	ld	b, a		; we will seek A times
 .loop:
 	ld	a, BLOCKDEV_SEEK_FORWARD
 	ld	hl, FS_BLOCKSIZE
 	call	fsblkSeek
 	djnz	.loop
-	; Good, were here. We're going to read meta from our current position.
-	call	fsblkTell	; --> HL, --> DE
-	ld	(FS_PTR), de
-	ld	(FS_PTR+2), hl
 	call	fsReadMeta
 	jr	nz, .createChainEnd
 	call	fsIsValid
 	jr	nz, .createChainEnd
-	; We're good! We have a valid FS block and FS_PTR is already updated.
+	; We're good! We have a valid FS block.
 	; Meta is already read. Nothing to do!
 	cp	a	; ensure Z
 	jr	.end
@@ -183,10 +177,9 @@ fsNext:
 	pop	bc
 	ret
 
-; Reads metadata at current FS_PTR and place it in FS_META.
-; Returns Z according to whether the fsblkRead operation succeeded.
+; Reads metadata at current fsblk and place it in FS_META.
+; Returns Z according to whether the operation succeeded.
 fsReadMeta:
-	call	fsPlace
 	push	bc
 	push	hl
 	ld	b, FS_METASIZE
@@ -194,12 +187,13 @@ fsReadMeta:
 	call	fsblkRead	; Sets Z
 	pop	hl
 	pop	bc
-	ret
+	ret	nz
+	; Only rewind on success
+	jr	_fsRewindAfterMeta
 
-; Writes metadata in FS_META at current FS_PTR.
+; Writes metadata in FS_META at current fsblk.
 ; Returns Z according to whether the fsblkWrite operation succeeded.
 fsWriteMeta:
-	call	fsPlace
 	push	bc
 	push	hl
 	ld	b, FS_METASIZE
@@ -207,6 +201,19 @@ fsWriteMeta:
 	call	fsblkWrite	; Sets Z
 	pop	hl
 	pop	bc
+	ret	nz
+	; Only rewind on success
+	jr	_fsRewindAfterMeta
+
+_fsRewindAfterMeta:
+	; return back to before the read op
+	push	af
+	push	hl
+	ld	a, BLOCKDEV_SEEK_BACKWARD
+	ld	hl, FS_METASIZE
+	call	fsblkSeek
+	pop	hl
+	pop	af
 	ret
 
 ; Initializes FS_META with "CFS" followed by zeroes
@@ -229,20 +236,6 @@ fsInitMeta:
 	pop	af
 	ret
 
-; Make sure that our underlying blockdev is correctly placed.
-fsPlace:
-	push	af
-	push	hl
-	push	de
-	xor	a
-	ld	de, (FS_PTR)
-	ld	hl, (FS_PTR+2)
-	call	fsblkSeek
-	pop	de
-	pop	hl
-	pop	af
-	ret
-
 ; Create a new file with A blocks allocated to it and with its new name at
 ; (HL).
 ; Before doing so, enumerate all blocks in search of a deleted file with
@@ -250,7 +243,7 @@ fsPlace:
 ; if the allocated space asked is exactly the same, or of it isn't, split the
 ; free space in 2 and create a new deleted metadata block next to the newly
 ; created block.
-; Places FS_PTR to the newly allocated block. You have to write the new
+; Places fsblk to the newly allocated block. You have to write the new
 ; filename yourself.
 fsAlloc:
 	push	bc
@@ -272,8 +265,6 @@ fsAlloc:
 	; TODO: handle case where C < A (block splitting)
 	jr	.loop1
 .found:
-	call	fsPlace		; Make sure that our block device points to
-				; the beginning of our FS block
 	; We've reached last block. Two situations are possible at this point:
 	; 1 - the block is the "end of line" block
 	; 2 - the block is a deleted block that we we're re-using.
@@ -287,11 +278,7 @@ fsAlloc:
 	ld	de, FS_META+FS_META_FNAME_OFFSET
 	ld	bc, FS_MAX_NAME_SIZE
 	ldir
-	; Good, FS_META ready. Now, let's update FS_PTR because it hasn't been
-	; changed yet.
-	call	fsblkTell
-	ld	(FS_PTR), de
-	ld	(FS_PTR+2), hl
+	; Good, FS_META ready.
 	; Ok, now we can write our metadata
 	call	fsWriteMeta
 .end:
@@ -299,7 +286,7 @@ fsAlloc:
 	pop	bc
 	ret
 
-; Place FS_PTR to the filename with the name in (HL).
+; Place fsblk to the filename with the name in (HL).
 ; Sets Z on success, unset when not found.
 fsFindFN:
 	push	de
@@ -348,47 +335,43 @@ fsIsDeleted:
 
 fsblkGetC:
 	push	ix
-	ld	ix, (FS_GETC)
-	call	callIX
+	ld	ix, FS_BLK
+	call	_blkGetC
 	pop	ix
 	ret
 
 fsblkRead:
 	push	ix
-	ld	ix, (FS_GETC)
+	ld	ix, FS_BLK
 	call	_blkRead
 	pop	ix
 	ret
 
 fsblkPutC:
 	push	ix
-	ld	ix, (FS_PUTC)
-	call	callIX
+	ld	ix, FS_BLK
+	call	_blkPutC
 	pop	ix
 	ret
 
 fsblkWrite:
 	push	ix
-	ld	ix, (FS_GETC)	 ; we have to point to blkdev's beginning
+	ld	ix, FS_BLK
 	call	_blkWrite
 	pop	ix
 	ret
 
 fsblkSeek:
 	push	ix
-	push	iy
-	ld	ix, (FS_SEEK)
-	ld	iy, (FS_TELL)
+	ld	ix, FS_BLK
 	call	_blkSeek
-	pop	iy
 	pop	ix
 	ret
 
 fsblkTell:
 	push	ix
-	ld	de, 0
-	ld	ix, (FS_TELL)
-	call	callIX
+	ld	ix, FS_BLK
+	call	_blkTell
 	pop	ix
 	ret
 
@@ -399,13 +382,13 @@ fsOpen:
 	push	hl
 	push	af
 	; Starting pos
-	ld	a, (FS_PTR)
+	ld	a, (FS_BLK+4)
 	ld	(ix), a
-	ld	a, (FS_PTR+1)
+	ld	a, (FS_BLK+5)
 	ld	(ix+1), a
-	ld	a, (FS_PTR+2)
+	ld	a, (FS_BLK+6)
 	ld	(ix+2), a
-	ld	a, (FS_PTR+3)
+	ld	a, (FS_BLK+7)
 	ld	(ix+3), a
 	; Current pos
 	ld	hl, FS_METASIZE
@@ -516,7 +499,7 @@ fsTell:
 
 ; Mount the fs subsystem upon the currently selected blockdev at current offset.
 ; Verify is block is valid and error out if its not, mounting nothing.
-; Upon mounting, copy currently selected device in FS_GETC/PUTC/SEEK/TELL.
+; Upon mounting, copy currently selected device in FS_BLK.
 fsOn:
 	push	hl
 	push	de
@@ -524,14 +507,12 @@ fsOn:
 	; We have to set blkdev routines early before knowing whether the
 	; mounting succeeds because methods like fsReadMeta uses fsblk* methods.
 	ld	hl, BLOCKDEV_SEL
-	ld	de, FS_GETC
-	ld	bc, 8		; we have 8 bytes to copy
+	ld	de, FS_BLK
+	ld	bc, BLOCKDEV_SIZE
 	ldir			; copy!
 	call	fsblkTell
 	ld	(FS_START), de
 	ld	(FS_START+2), hl
-	ld	(FS_PTR), de
-	ld	(FS_PTR+2), hl
 	call	fsReadMeta
 	jr	nz, .error
 	call	fsIsValid
@@ -542,8 +523,8 @@ fsOn:
 .error:
 	; couldn't mount. Let's reset our variables.
 	xor	a
-	ld	b, FS_META-FS_GETC	; reset routine pointers and FS ptrs
-	ld	hl, FS_GETC
+	ld	b, FS_META-FS_BLK	; reset routine pointers and FS ptrs
+	ld	hl, FS_BLK
 	call	fill
 
 	ld	a, FS_ERR_NO_FS
@@ -555,10 +536,10 @@ fsOn:
 
 ; Sets Z according to whether we have a filesystem mounted.
 fsIsOn:
-	; check whether (FS_GETC) is zero
+	; check whether (FS_BLK) is zero
 	push	hl
 	push	de
-	ld	hl, (FS_GETC)
+	ld	hl, (FS_BLK)
 	ld	de, 0
 	call	cpHLDE
 	jr	nz, .mounted

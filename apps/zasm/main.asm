@@ -38,10 +38,10 @@ zasmMain:
 	; HL now points to parsed args
 	; Init I/O
 	ld	a, (ZASM_RAMSTART)	; blkdev in ID
-	ld	de, IO_IN_GETC
+	ld	de, IO_IN_BLK
 	call	blkSel
 	ld	a, (ZASM_RAMSTART+1)	; blkdev out ID
-	ld	de, IO_OUT_GETC
+	ld	de, IO_OUT_BLK
 	call	blkSel
 
 	; Init modules

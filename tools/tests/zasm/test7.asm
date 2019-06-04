@@ -1,6 +1,7 @@
 .equ    USER_CODE       0x4800
 .equ    USER_RAMSTART   0x5800
 .equ    FS_HANDLE_SIZE  8
+.equ    BLOCKDEV_SIZE   8
 
 ; *** JUMP TABLE ***
 .equ    strncmp        0x03
@@ -22,6 +23,10 @@
 .equ    fsTell         0x33
 .equ    cpHLDE         0x36
 .equ    parseArgs      0x39
+.equ    _blkGetC       0x3c
+.equ    _blkPutC       0x3f
+.equ    _blkSeek       0x42
+.equ    _blkTell       0x45
 
 #include "err.h"
 #include "zasm/const.asm"

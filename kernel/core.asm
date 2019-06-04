@@ -47,6 +47,14 @@ intoHL:
 	pop	de
 	ret
 
+intoIX:
+	push	de
+	push	ix \ pop de
+	call	intoDE
+	push	de \ pop ix
+	pop	de
+	ret
+
 ; add the value of A into HL
 addHL:
 	push	af
@@ -92,6 +100,15 @@ writeHLinDE:
 	ld	(de), a
 	dec	de
 	pop	af
+	ret
+
+; Call the method (IX) is a pointer to. In other words, call intoIX before
+; callIX
+callIXI:
+	push	ix
+	call	intoIX
+	call	callIX
+	pop	ix
 	ret
 
 ; jump to the location pointed to by IX. This allows us to call IX instead of

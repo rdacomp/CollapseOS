@@ -37,6 +37,10 @@ jp	aciaInt
 	jp	cpHLDE
 	jp	parseArgs
 	jp	printstr
+	jp	_blkGetC
+	jp	_blkPutC
+	jp	_blkSeek
+	jp	_blkTell
 
 #include "err.h"
 #include "core.asm"
@@ -47,23 +51,20 @@ jp	aciaInt
 .equ	BLOCKDEV_COUNT		3
 #include "blockdev.asm"
 ; List of devices
-.dw	sdcGetC, sdcPutC, sdcSeek, sdcTell
-.dw	mmapGetC, mmapPutC, mmapSeek, mmapTell
-.dw	blk2GetC, blk2PutC, blk2Seek, blk2Tell
+.dw	sdcGetC, sdcPutC
+.dw	mmapGetC, mmapPutC
+.dw	blk2GetC, blk2PutC
 
-#include "blockdev_cmds.asm"
 
-.equ	MMAP_RAMSTART	BLOCKDEV_RAMEND
 .equ	MMAP_START	0xe000
 #include "mmap.asm"
 
-.equ	STDIO_RAMSTART	MMAP_RAMEND
+.equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
 #include "stdio.asm"
 
 .equ	FS_RAMSTART	STDIO_RAMEND
 .equ	FS_HANDLE_COUNT	1
 #include "fs.asm"
-#include "fs_cmds.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT	11
@@ -71,6 +72,9 @@ jp	aciaInt
 .dw	sdcInitializeCmd, sdcFlushCmd
 .dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
+
+#include "fs_cmds.asm"
+#include "blockdev_cmds.asm"
 
 .equ	PGM_RAMSTART	SHELL_RAMEND
 #include "pgm.asm"
@@ -93,7 +97,6 @@ init:
 	ld	hl, aciaGetC
 	ld	de, aciaPutC
 	call	stdioInit
-	call	mmapInit
 	call	shellInit
 	ld	hl, pgmShellHook
 	ld	(SHELL_CMDHOOK), hl
@@ -114,11 +117,3 @@ blk2GetC:
 blk2PutC:
 	ld	ix, FS_HANDLES
 	jp	fsPutC
-
-blk2Seek:
-	ld	ix, FS_HANDLES
-	jp	fsSeek
-
-blk2Tell:
-	ld	ix, FS_HANDLES
-	jp	fsTell

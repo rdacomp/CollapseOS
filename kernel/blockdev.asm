@@ -6,39 +6,27 @@
 ; then the glue code assigns a blockdev ID to that device. It then becomes easy
 ; to access arbitrary devices in a convenient manner.
 ;
-; This part exposes a new "bsel" command to select the currently active block
-; device.
+; This module exposes a seek/tell/getc/putc API that is then re-routed to
+; underlying drivers. There will eventually be more than one driver type, but
+; for now we sit on only one type of driver: random access driver.
 ;
-; *** Blockdev routines ***
+; *** Random access drivers ***
 ;
-; There are 4 blockdev routines that can be defined by would-be block devices
-; and they follow these specifications:
+; Random access drivers are expected to supply two routines: GetC and PutC.
 ;
 ; GetC:
-; Reads one character from selected device and returns its value in A.
+; Reads one character at address specified in DE/HL and returns its value in A.
 ; Sets Z according to whether read was successful: Set if successful, unset
 ; if not.
 ;
-; A successful GetC should advance the "pointer" of the device (if there is one)
-; by one byte so that a subsequent GetC will read the next char. Unsuccessful
-; reads generally mean that we reached EOF.
-;
+; Unsuccessful reads generally mean that requested addr is out of bounds (we
+; reached EOF).
 ;
 ; PutC:
-; Writes character in A in current position in the selected device. Sets Z
-; according to whether the operation was successful.
+; Writes character in A at address specified in DE/HL. Sets Z according to
+; whether the operation was successful.
 ;
-; A successful PutC should advance the "pointer" of the device (if there is one)
-; by one byte so that the next PutC places the next char next to this one.
-; Unsuccessful writes generally mean that we reached EOF.
-;
-; Seek:
-; Place device "pointer" at position dictated by HL (low 16 bits) and DE (high
-; 16 bits).
-;
-; Tell:
-; Return the position of the "pointer" in HL (low 16 bits) and DE (high 16
-; bits).
+; Unsuccessful writes generally mean that we're out of bounds for writing.
 ;
 ; All routines are expected to preserve unused registers.
 
@@ -47,20 +35,18 @@
 ; BLOCKDEV_COUNT: The number of devices we manage.
 
 ; *** CONSTS ***
-.equ	BLOCKDEV_ERR_OUT_OF_BOUNDS	0x03
-
 .equ	BLOCKDEV_SEEK_ABSOLUTE		0
 .equ	BLOCKDEV_SEEK_FORWARD		1
 .equ	BLOCKDEV_SEEK_BACKWARD		2
 .equ	BLOCKDEV_SEEK_BEGINNING		3
 .equ	BLOCKDEV_SEEK_END		4
 
+.equ	BLOCKDEV_SIZE			8
 ; *** VARIABLES ***
 ; Pointer to the selected block device. A block device is a 8 bytes block of
-; memory with pointers to GetC, PutC, Seek and Tell routines, in that order.
-; 0 means unsupported.
+; memory with pointers to GetC, PutC, and a 32-bit counter, in that order.
 .equ	BLOCKDEV_SEL		BLOCKDEV_RAMSTART
-.equ	BLOCKDEV_RAMEND		BLOCKDEV_SEL+8
+.equ	BLOCKDEV_RAMEND		BLOCKDEV_SEL+BLOCKDEV_SIZE
 
 ; *** CODE ***
 ; Select block index specified in A and place them in routine pointers at (DE).
@@ -73,43 +59,51 @@ blkSel:
 	ld	hl, blkDevTbl
 	or	a		; cp 0
 	jr	z, .afterloop	; index is zero? don't loop
-	push	bc
-	ld	b, a
-.loop:
-	ld	a, 8
-	call	addHL
-	djnz	.loop
-	pop	bc
+	push	bc		; <|
+	ld	b, a		;  |
+.loop:				;  |
+	ld	a, 4		;  |
+	call	addHL		;  |
+	djnz	.loop		;  |
+	pop	bc		; <|
 .afterloop:
-	push	hl
-		call	intoHL
-		call	writeHLinDE
-		inc	de
-		inc	de
-	pop	hl
+	; Write GETC
+	push	hl		; <|
+	call	intoHL		;  |
+	call	writeHLinDE	;  |
+	inc	de		;  |
+	inc	de		;  |
+	pop	hl		; <|
 	inc	hl
 	inc	hl
-	push	hl
-		call	intoHL
-		call	writeHLinDE
-		inc	de
-		inc	de
-	pop	hl
-	inc	hl
-	inc	hl
-	push	hl
-		call	intoHL
-		call	writeHLinDE
-		inc	de
-		inc	de
-	pop	hl
-	inc	hl
-	inc	hl
+	; Write PUTC
 	call	intoHL
 	call	writeHLinDE
+	inc	de
+	inc	de
+	; Initialize pos
+	xor	a
+	ld	(de), a
+	inc	de
+	ld	(de), a
+	inc	de
+	ld	(de), a
+	inc	de
+	ld	(de), a
 
 	pop	hl
 	pop	de
+	pop	af
+	ret
+
+_blkInc:
+	ret	nz		; don't advance when in error condition
+	push	af
+	push	hl
+	ld	a, BLOCKDEV_SEEK_FORWARD
+	ld	hl, 1
+	call	_blkSeek
+	pop	hl
 	pop	af
 	ret
 
@@ -117,18 +111,42 @@ blkSel:
 ; Sets Z according to whether read was successful: Set if successful, unset
 ; if not.
 blkGetC:
-	ld	ix, (BLOCKDEV_SEL)
-	jp	(ix)
+	ld	ix, BLOCKDEV_SEL
+_blkGetC:
+	push	hl
+	push	de
+	call	_blkTell
+	call	callIXI
+	pop	de
+	pop	hl
+	jr	_blkInc		; advance and return
+
+; Writes character in A in current position in the selected device. Sets Z
+; according to whether the operation was successful.
+blkPutC:
+	ld	ix, BLOCKDEV_SEL
+_blkPutC:
+	push	ix
+	push	hl
+	push	de
+	call	_blkTell
+	inc	ix	; make IX point to PutC
+	inc	ix
+	call	callIXI
+	pop	de
+	pop	hl
+	pop	ix
+	jr	_blkInc		; advance and return
 
 ; Reads B chars from blkGetC and copy them in (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkRead:
-	ld	ix, (BLOCKDEV_SEL)
+	ld	ix, BLOCKDEV_SEL
 _blkRead:
 	push	hl
 	push	bc
 .loop:
-	call	callIX
+	call	_blkGetC
 	jr	nz, .end	; Z already unset
 	ld	(hl), a
 	inc	hl
@@ -139,26 +157,16 @@ _blkRead:
 	pop	hl
 	ret
 
-; Writes character in A in current position in the selected device. Sets Z
-; according to whether the operation was successful.
-blkPutC:
-	ld	ix, (BLOCKDEV_SEL+2)
-	jp	(ix)
-
 ; Writes B chars to blkPutC from (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkWrite:
-	ld	ix, (BLOCKDEV_SEL)
+	ld	ix, BLOCKDEV_SEL
 _blkWrite:
-	push	ix
 	push	hl
 	push	bc
-	; make IX point to PutC
-	inc	ix
-	inc	ix
 .loop:
 	ld	a, (hl)
-	call	callIX
+	call	_blkPutC
 	jr	nz, .end	; Z already unset
 	inc	hl
 	djnz	.loop
@@ -166,7 +174,6 @@ _blkWrite:
 .end:
 	pop	bc
 	pop	hl
-	pop	ix
 	ret
 
 ; Seeks the block device in one of 5 modes, which is the A argument:
@@ -186,12 +193,8 @@ _blkWrite:
 ; If the device is "growable", it's possible that seeking to end when calling
 ; PutC doesn't necessarily result in a failure.
 blkSeek:
-	ld	ix, (BLOCKDEV_SEL+4)
-	ld	iy, (BLOCKDEV_SEL+6)
+	ld	ix, BLOCKDEV_SEL
 _blkSeek:
-	; we preserve DE so that it's possible to call blkSeek in mode != 0
-	; while not discarding our current DE value.
-	push	de
 	cp	BLOCKDEV_SEEK_FORWARD
 	jr	z, .forward
 	cp	BLOCKDEV_SEEK_BACKWARD
@@ -201,43 +204,70 @@ _blkSeek:
 	cp	BLOCKDEV_SEEK_END
 	jr	z, .end
 	; all other modes are considered absolute
-	jr	.seek		; for absolute mode, HL and DE are already
-				; correct
+	ld	(ix+4), e
+	ld	(ix+5), d
+	ld	(ix+6), l
+	ld	(ix+7), h
+	ret
 .forward:
-	push	bc
-	push	hl
-	; We want to be able to plug our own TELL function, which is why we
-	; don't call blkTell directly here.
-	; Calling TELL
-	ld	de, 0	; in case out Tell routine doesn't return DE
-	call	callIY	; HL/DE now have our curpos
-	pop	bc	; pop HL into BC
-	add	hl, bc
-	pop	bc	; pop orig BC back
-	jr	nc, .seek	; no carry? let's seek.
-	; carry, adjust DE
-	inc	de
-	jr	.seek
+	push	bc		; <-|
+	push	hl		; <||
+	ld	l, (ix+6)	;  || low byte
+	ld	h, (ix+7)	;  ||
+	pop	bc		; <||
+	add	hl, bc		;   |
+	pop	bc		; <-|
+	ld	(ix+6), l
+	ld	(ix+7), h
+	ret	nc		; no carry? no need to adjust high byte
+	; carry, adjust high byte
+	inc	(ix+4)
+	ret	nz
+	inc	(ix+5)
+	ret
 .backward:
-	; TODO - subtraction are more complicated...
-	jr	.seek
+	and	a		; clear carry
+	push	bc		; <-|
+	push	hl		; <||
+	ld	l, (ix+6)	;  || low byte
+	ld	h, (ix+7)	;  ||
+	pop	bc		; <||
+	sbc	hl, bc		;   |
+	pop	bc		; <-|
+	ld	(ix+6), l
+	ld	(ix+7), h
+	ret	nc		; no carry? no need to adjust high byte
+	ld	a, 0xff
+	dec	(ix+4)
+	cp	(ix+4)
+	ret	nz
+	; we decremented from 0
+	dec	(ix+5)
+	ret
 .beginning:
-	ld	hl, 0
-	ld	de, 0
-	jr	.seek
+	xor	a
+	ld	(ix+4), a
+	ld	(ix+5), a
+	ld	(ix+6), a
+	ld	(ix+7), a
+	ret
 .end:
-	ld	hl, 0xffff
-	ld	de, 0xffff
-.seek:
-	call	callIX
-	pop	de
+	ld	a, 0xff
+	ld	(ix+4), a
+	ld	(ix+5), a
+	ld	(ix+6), a
+	ld	(ix+7), a
 	ret
 
 ; Returns the current position of the selected device in HL (low) and DE (high).
 blkTell:
-	ld	de, 0			; in case device ignores DE.
-	ld	ix, (BLOCKDEV_SEL+6)
-	jp	(ix)
+	ld	ix, BLOCKDEV_SEL
+_blkTell:
+	ld	e, (ix+4)
+	ld	d, (ix+5)
+	ld	l, (ix+6)
+	ld	h, (ix+7)
+	ret
 
 ; This label is at the end of the file on purpose: the glue file should include
 ; a list of device routine table entries just after the include. Each line

@@ -28,6 +28,10 @@ jp	fsSeek
 jp	fsTell
 jp	cpHLDE
 jp	parseArgs
+jp	_blkGetC
+jp	_blkPutC
+jp	_blkSeek
+jp	_blkTell
 
 #include "core.asm"
 #include "err.h"
@@ -36,9 +40,9 @@ jp	parseArgs
 .equ	BLOCKDEV_COUNT		3
 #include "blockdev.asm"
 ; List of devices
-.dw	emulGetC, 0, emulSeek, emulTell
-.dw	0, emulPutC, 0, 0
-.dw	fsdevGetC, fsdevPutC, fsdevSeek, fsdevTell
+.dw	emulGetC, unsetZ
+.dw	unsetZ, emulPutC
+.dw	fsdevGetC, fsdevPutC
 
 .equ	FS_RAMSTART	BLOCKDEV_RAMEND
 .equ	FS_HANDLE_COUNT	0
@@ -62,6 +66,12 @@ init:
 
 ; *** I/O ***
 emulGetC:
+	; the STDIN_SEEK port works by poking it twice. First poke is for high
+	; byte, second poke is for low one.
+	ld	a, h
+	out	(STDIN_SEEK), a
+	ld	a, l
+	out	(STDIN_SEEK), a
 	in	a, (STDIO_PORT)
 	or	a		; cp 0
 	jr	z, .eof
@@ -75,33 +85,21 @@ emulPutC:
 	out	(STDIO_PORT), a
 	ret
 
-emulSeek:
-	; the STDIN_SEEK port works by poking it twice. First poke is for high
-	; byte, second poke is for low one.
-	ld	a, h
-	out	(STDIN_SEEK), a
-	ld	a, l
-	out	(STDIN_SEEK), a
-	ret
-
-emulTell:
-	; same principle as STDIN_SEEK
-	in	a, (STDIN_SEEK)
-	ld	h, a
-	in	a, (STDIN_SEEK)
-	ld	l, a
-	ret
-
 fsdevGetC:
+	ld	a, e
+	out	(FS_SEEK_PORT), a
+	ld	a, h
+	out	(FS_SEEK_PORT), a
+	ld	a, l
+	out	(FS_SEEK_PORT), a
+	in	a, (FS_SEEK_PORT)
+	or	a
+	ret	nz
 	in	a, (FS_DATA_PORT)
 	cp	a		; ensure Z
 	ret
 
 fsdevPutC:
-	out	(FS_DATA_PORT), a
-	ret
-
-fsdevSeek:
 	push	af
 	ld	a, e
 	out	(FS_SEEK_PORT), a
@@ -109,17 +107,13 @@ fsdevSeek:
 	out	(FS_SEEK_PORT), a
 	ld	a, l
 	out	(FS_SEEK_PORT), a
+	in	a, (FS_SEEK_PORT)
+	or	a
+	jr	nz, .error
 	pop	af
+	out	(FS_DATA_PORT), a
 	ret
-
-fsdevTell:
-	push	af
-	in	a, (FS_SEEK_PORT)
-	ld	e, a
-	in	a, (FS_SEEK_PORT)
-	ld	h, a
-	in	a, (FS_SEEK_PORT)
-	ld	l, a
+.error:
 	pop	af
-	ret
+	jp	unsetZ		; returns
 

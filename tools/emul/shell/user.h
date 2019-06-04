@@ -1,6 +1,7 @@
 .equ    USER_CODE       0x4200
 .equ    USER_RAMSTART   USER_CODE+0x1800
 .equ    FS_HANDLE_SIZE  8
+.equ    BLOCKDEV_SIZE   8
 
 ; *** JUMP TABLE ***
 .equ    strncmp        0x03
@@ -23,3 +24,7 @@
 .equ    cpHLDE         0x36
 .equ    parseArgs      0x39
 .equ    printstr       0x3c
+.equ    _blkGetC       0x3f
+.equ    _blkPutC       0x42
+.equ    _blkSeek       0x45
+.equ    _blkTell       0x48

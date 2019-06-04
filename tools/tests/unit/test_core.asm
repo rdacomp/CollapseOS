@@ -8,6 +8,28 @@ test:
 	ld	hl, 0xffff
 	ld	sp, hl
 
+	; *** Just little z80 flags memo.
+	and	a		; clear carry
+	ld	hl, 100
+	ld	de, 101
+	sbc	hl, de
+	jp	nc, fail	; carry is set
+	call	nexttest
+
+	and	a		; clear carry
+	ld	hl, 101
+	ld	de, 100
+	sbc	hl, de
+	jp	c, fail		; carry is reset
+	call	nexttest
+
+	ld	a, 1
+	dec	a
+	jp	m, fail		; positive
+	dec	a
+	jp	p, fail		; negative
+	call	nexttest
+
 	; *** subHL ***
 	ld	hl, 0x123
 	ld	a, 0x25

@@ -38,7 +38,12 @@
 ; fsTell
 ; cpHLDE
 ; parseArgs
+; _blkGetC
+; _blkPutC
+; _blkSeek
+; _blkTell
 ; FS_HANDLE_SIZE
+; BLOCKDEV_SIZE
 
 ; *** Variables ***
 

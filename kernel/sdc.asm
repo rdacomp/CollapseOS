@@ -25,12 +25,9 @@
 .equ	SDC_BLKSIZE	512
 
 ; *** Variables ***
-; Where the block dev current points to. This is a byte index. Higher 7 bits
-; indicate a sector number, lower 9 bits are an offset in the current SDC_BUF.
-.equ	SDC_PTR		SDC_RAMSTART
 ; Whenever we read a sector, we read a whole block at once and we store it
 ; in memory. That's where it goes.
-.equ	SDC_BUF		SDC_PTR+2
+.equ	SDC_BUF		SDC_RAMSTART
 ; Sector number currently in SDC_BUF. 0xff, it's initial value, means "no
 ; sector.
 .equ	SDC_BUFSEC	SDC_BUF+SDC_BLKSIZE
@@ -221,8 +218,6 @@ sdcInitialize:
 	jr	nz, .error
 	; Success! out of idle mode!
 	; initialize variables
-	ld	hl, 0
-	ld	(SDC_PTR), hl
 	ld	a, 0xff
 	ld	(SDC_BUFSEC), a
 	xor	a
@@ -378,24 +373,24 @@ sdcWriteBlk:
 	pop	bc
 	ret
 
-; Ensures that (SDC_BUFSEC) is in sync with (SDC_PTR), that is, that the current
-; buffer in memory corresponds to where SDC_PTR points to. If it doesn't, loads
-; the sector that (SDC_PTR) points to in (SDC_BUF) and update (SDC_BUFSEC).
+; Ensures that (SDC_BUFSEC) is in sync with HL, that is, that the current
+; buffer in memory corresponds to where HL points to. If it doesn't, loads
+; the sector that HL points to in (SDC_BUF) and update (SDC_BUFSEC).
 ; If the (SDC_BUFDIRTY) flag is set, we write the content of the in-memory
 ; buffer to the SD card before we read a new sector.
 ; Returns Z on success, not-Z on error (with the error code from either
 ; sdcReadBlk or sdcWriteBlk)
 sdcSync:
-	; SDC_PTR points to the character we're supposed to read or right now,
+	; HL points to the character we're supposed to read or right now,
 	; but we first have to check whether we need to load a new sector in
-	; memory. To do this, we compare the high 7 bits of (SDC_PTR) with
+	; memory. To do this, we compare the high 7 bits of HL with
 	; (SDC_BUFSEC). If they're different, we need to load a new block.
 	push	hl
 	ld	a, (SDC_BUFSEC)
-	ld	h, a
-	ld	a, (SDC_PTR+1)	; high byte has bufsec in its high 7 bits
+	ld	l, a
+	ld	a, h
 	srl	a
-	cp	h
+	cp	l
 	pop	hl
 	ret	z		; equal? nothing to do
 	; We have to read a new sector, but first, let's write the current one
@@ -403,7 +398,7 @@ sdcSync:
 	call	sdcWriteBlk
 	ret	nz		; error
 	; Let's read our new sector
-	ld	a, (SDC_PTR+1)
+	ld	a, h
 	srl	a
 	jp	sdcReadBlk	; returns
 
@@ -422,12 +417,15 @@ sdcFlushCmd:
 
 ; *** blkdev routines ***
 
-; Make HL point to (SDC_PTR) in current buffer
+; Make HL point to its proper place in SDC_BUF.
+; HL currently is an offset to read in the SD card. Load the proper sector in
+; memory and make HL point to the correct data in the memory buffer.
 _sdcPlaceBuf:
 	call	sdcSync
 	ret	nz		; error
-	ld	a, (SDC_PTR+1)	; high byte
+	ld	a, h		; high byte
 	and	0x01		; is first bit set?
+	ld	a, l		; doesn't change flags
 	jr	nz, .highbuf	; first bit set? we're in the "highbuf" zone.
 	; lowbuf zone
 	; Read byte from memory at proper offset in lowbuf (first 0x100 bytes)
@@ -438,10 +436,9 @@ _sdcPlaceBuf:
 	ld	hl, SDC_BUF+0x100
 .read:
 	; HL is now placed either on the lower or higher half of SDC_BUF and
-	; all we need is to increase HL by the number in SDC_PTR's LSB (little
-	; endian, remember).
-	ld	a, (SDC_PTR)	; LSB
-	call	addHL		; returns
+	; all we need is to increase HL by the number in A which is the lower
+	; half of our former HL value.
+	call	addHL
 	xor	a		; ensure Z
 	ret
 
@@ -452,12 +449,6 @@ sdcGetC:
 
 	; This is it!
 	ld	a, (hl)
-
-	; before we return A, we need to increase (SDC_PTR)
-	ld	hl, (SDC_PTR)
-	inc	hl
-	ld	(SDC_PTR), hl
-
 	cp	a		; ensure Z
 	jr	.end
 .error:
@@ -477,12 +468,6 @@ sdcPutC:
 	pop	af
 	ld	(hl), a
 
-
-	; we need to increase (SDC_PTR)
-	ld	hl, (SDC_PTR)
-	inc	hl
-	ld	(SDC_PTR), hl
-
 	ld	a, 1
 	ld	(SDC_BUFDIRTY), a
 	xor	a		; ensure Z
@@ -493,12 +478,3 @@ sdcPutC:
 .end:
 	pop	hl
 	ret
-
-sdcSeek:
-	ld	(SDC_PTR), hl
-	ret
-
-sdcTell:
-	ld	hl, (SDC_PTR)
-	ret
-

@@ -29,10 +29,9 @@ jp	aciaInt
 .equ	BLOCKDEV_COUNT		2
 #include "blockdev.asm"
 ; List of devices
-.dw	sdcGetC, sdcPutC, sdcSeek, sdcTell
-.dw	blk2GetC, blk2PutC, blk2Seek, blk2Tell
+.dw	sdcGetC, sdcPutC
+.dw	blk2GetC, blk2PutC
 
-#include "blockdev_cmds.asm"
 
 .equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
 #include "stdio.asm"
@@ -40,7 +39,6 @@ jp	aciaInt
 .equ	FS_RAMSTART	STDIO_RAMEND
 .equ	FS_HANDLE_COUNT	1
 #include "fs.asm"
-#include "fs_cmds.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT	11
@@ -49,9 +47,13 @@ jp	aciaInt
 .dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
+#include "blockdev_cmds.asm"
+#include "fs_cmds.asm"
+
+.equ	PGM_RAMSTART		SHELL_RAMEND
 #include "pgm.asm"
 
-.equ	SDC_RAMSTART	SHELL_RAMEND
+.equ	SDC_RAMSTART	PGM_RAMEND
 .equ	SDC_PORT_CSHIGH	6
 .equ	SDC_PORT_CSLOW	5
 .equ	SDC_PORT_SPI	4
@@ -87,11 +89,3 @@ blk2GetC:
 blk2PutC:
 	ld	ix, FS_HANDLES
 	jp	fsPutC
-
-blk2Seek:
-	ld	ix, FS_HANDLES
-	jp	fsSeek
-
-blk2Tell:
-	ld	ix, FS_HANDLES
-	jp	fsTell
