@@ -48,7 +48,6 @@
 
 ; *** CONSTS ***
 .equ	BLOCKDEV_ERR_OUT_OF_BOUNDS	0x03
-.equ	BLOCKDEV_ERR_UNSUPPORTED	0x04
 
 .equ	BLOCKDEV_SEEK_ABSOLUTE		0
 .equ	BLOCKDEV_SEEK_FORWARD		1
@@ -117,34 +116,12 @@ blkSel:
 	pop	af
 	ret
 
-; call IX unless it's zero
-_blkCall:
-	; Before we call... is IX zero? We don't want to call a zero.
-	push	af
-	xor	a
-	push	hl
-	push	ix \ pop hl
-	cp	h
-	jr	nz, .ok		; not zero, ok
-	cp	l
-	jr	z, .error	; zero, error
-.ok:
-	pop	hl
-	pop	af
-	call	callIX
-	ret
-.error:
-	pop	hl
-	pop	af
-	ld	a, BLOCKDEV_ERR_UNSUPPORTED
-	ret
-
 ; Reads one character from selected device and returns its value in A.
 ; Sets Z according to whether read was successful: Set if successful, unset
 ; if not.
 blkGetC:
 	ld	ix, (BLOCKDEV_GETC)
-	jr	_blkCall
+	jp	(ix)
 
 ; Reads B chars from blkGetC and copy them in (HL).
 ; Sets Z if successful, unset Z if there was an error.
@@ -154,7 +131,7 @@ _blkRead:
 	push	hl
 	push	bc
 .loop:
-	call	_blkCall
+	call	callIX
 	jr	nz, .end	; Z already unset
 	ld	(hl), a
 	inc	hl
@@ -169,7 +146,7 @@ _blkRead:
 ; according to whether the operation was successful.
 blkPutC:
 	ld	ix, (BLOCKDEV_PUTC)
-	jr	_blkCall
+	jp	(ix)
 
 ; Writes B chars to blkPutC from (HL).
 ; Sets Z if successful, unset Z if there was an error.
@@ -180,7 +157,7 @@ _blkWrite:
 	push	bc
 .loop:
 	ld	a, (hl)
-	call	_blkCall
+	call	callIX
 	jr	nz, .end	; Z already unset
 	inc	hl
 	djnz	.loop
@@ -250,7 +227,7 @@ _blkSeek:
 	ld	hl, 0xffff
 	ld	de, 0xffff
 .seek:
-	call	_blkCall
+	call	callIX
 	pop	de
 	ret
 
@@ -258,7 +235,7 @@ _blkSeek:
 blkTell:
 	ld	de, 0			; in case device ignores DE.
 	ld	ix, (BLOCKDEV_TELL)
-	jp	_blkCall
+	jp	(ix)
 
 ; This label is at the end of the file on purpose: the glue file should include
 ; a list of device routine table entries just after the include. Each line

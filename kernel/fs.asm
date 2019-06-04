@@ -349,7 +349,7 @@ fsIsDeleted:
 fsblkGetC:
 	push	ix
 	ld	ix, (FS_GETC)
-	call	_blkCall
+	call	callIX
 	pop	ix
 	ret
 
@@ -363,7 +363,7 @@ fsblkRead:
 fsblkPutC:
 	push	ix
 	ld	ix, (FS_PUTC)
-	call	_blkCall
+	call	callIX
 	pop	ix
 	ret
 
@@ -388,7 +388,7 @@ fsblkTell:
 	push	ix
 	ld	de, 0
 	ld	ix, (FS_TELL)
-	call	_blkCall
+	call	callIX
 	pop	ix
 	ret
 
