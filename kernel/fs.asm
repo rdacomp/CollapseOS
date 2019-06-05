@@ -440,11 +440,39 @@ fsWithinBounds:
 .outOfBounds:
 	jp	unsetZ			; returns
 
+; Adjust, if needed, file size of handle (IX) to HL+1.
+; This adjustment only happens if this makes file size grow.
+fsAdjustBounds:
+	call	fsWithinBounds
+	ret	z
+	; Not within bounds? let's increase them
+	push	hl
+	ld	hl, 0
+	call	fsPlaceH	; fs blkdev is now at beginning of content
+	; we need the blkdev to be on filesize's offset
+	ld	hl, FS_METASIZE-FS_META_FSIZE_OFFSET
+	ld	a, BLOCKDEV_SEEK_BACKWARD
+	call	fsblkSeek
+	pop	hl
+	; blkdev is at the right spot, HL is back to its original value, let's
+	; write it.
+	push	hl
+	inc	hl	; We write HL+1, remember
+	; now let's write our new filesize both in blkdev and in file handle's
+	; cache.
+	ld	a, l
+	ld	(ix+4), a
+	call	fsblkPutC
+	ld	a, h
+	ld	(ix+5), a
+	call	fsblkPutC
+	pop	hl
+	xor	a	; ensure Z
+	ret
+
 ; Read a byte in handle at (IX) at position HL and put it into A.
 ; Z is set on success, unset if handle is at the end of the file.
 fsGetC:
-	ld	a, h
-	ld	a, l
 	call	fsWithinBounds
 	jr	z, .proceed
 	; We want to unset Z, but also return 0 to ensure that a GetC that
@@ -461,13 +489,12 @@ fsGetC:
 ; Write byte A in handle (IX) and advance the handle's position.
 ; Z is set on success, unset if handle is at the end of the file.
 ; TODO: detect end of block alloc
-; TODO: grow file size if appropriate
 fsPutC:
 	push	hl
 	call	fsPlaceH
 	call	fsblkPutC
 	pop	hl
-	ret
+	jp	fsAdjustBounds	; returns
 
 ; Mount the fs subsystem upon the currently selected blockdev at current offset.
 ; Verify is block is valid and error out if its not, mounting nothing.
