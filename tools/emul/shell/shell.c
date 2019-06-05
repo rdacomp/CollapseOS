@@ -32,9 +32,11 @@
 #define FS_DATA_PORT 0x01
 // Controls what address (24bit) the data port returns. To select an address,
 // this port has to be written to 3 times, starting with the MSB.
-// Reading this port returns an out-of-bounds indicator. 0 means addr is within
-// bounds, non zero means either that we're in the middle of an addr-setting
-// operation or that the address is not within bounds.
+// Reading this port returns an out-of-bounds indicator. Meaning:
+// 0 means addr is within bounds
+// 1 means that we're equal to fsdev size (error for reading, ok for writing)
+// 2 means more than fsdev size (always invalid)
+// 3 means incomplete addr setting
 #define FS_ADDR_PORT 0x02
 
 static Z80Context cpu;
@@ -74,8 +76,11 @@ static uint8_t io_read(int unused, uint16_t addr)
         }
     } else if (addr == FS_ADDR_PORT) {
         if (fsdev_addr_lvl != 0) {
-            return fsdev_addr_lvl;
-        } else if (fsdev_ptr >= fsdev_size) {
+            return 3;
+        } else if (fsdev_ptr > fsdev_size) {
+            fprintf(stderr, "Out of bounds FSDEV addr request at %d / %d\n", fsdev_ptr, fsdev_size);
+            return 2;
+        } else if (fsdev_ptr == fsdev_size) {
             return 1;
         } else {
             return 0;
@@ -101,11 +106,17 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
             return;
         }
         if (fsdev_ptr < fsdev_size) {
+#ifdef DEBUG
+            fprintf(stderr, "Writing to FSDEV (%d)\n", fsdev_ptr);
+#endif
             fsdev[fsdev_ptr] = val;
         } else if ((fsdev_ptr == fsdev_size) && (fsdev_ptr < MAX_FSDEV_SIZE)) {
             // We're at the end of fsdev, grow it
             fsdev[fsdev_ptr] = val;
             fsdev_size++;
+#ifdef DEBUG
+            fprintf(stderr, "Growing FSDEV (%d)\n", fsdev_ptr);
+#endif
         } else {
             fprintf(stderr, "Out of bounds FSDEV write at %d\n", fsdev_ptr);
         }

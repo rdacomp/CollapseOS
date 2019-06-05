@@ -125,8 +125,8 @@ fsdevPutC:
 	ld	a, l
 	out	(FS_ADDR_PORT), a
 	in	a, (FS_ADDR_PORT)
-	or	a
-	jr	nz, .error
+	cp	2		; only A > 1 means error
+	jr	nc, .error	; A >= 2
 	pop	af
 	out	(FS_DATA_PORT), a
 	cp	a		; ensure Z
