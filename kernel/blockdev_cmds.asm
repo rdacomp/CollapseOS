@@ -82,8 +82,7 @@ blkLoad:
 
 ; Load the specified number of bytes (max 0xff) from the current memory pointer
 ; and write them to I/O. Memory pointer doesn't move. This puts chars to
-; blkPutC.
-; Control is returned to the shell only after all bytes are written.
+; blkPutC. Raises error if not all bytes could be written.
 ;
 ; Example: save 42
 blkSaveCmd:
@@ -99,11 +98,16 @@ blkSave:
 	ld	a, (hl)
 	inc	hl
 	call	blkPutC
+	jr	nz, .ioError
 	djnz	.loop
-
+.loopend:
+	; success
+	xor	a
+	jr	.end
+.ioError:
+	ld	a, SHELL_ERR_IO_ERROR
 .end:
 	pop	hl
 	pop	bc
-	xor	a
 	ret
 

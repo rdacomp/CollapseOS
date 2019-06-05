@@ -129,6 +129,7 @@ fsdevPutC:
 	jr	nz, .error
 	pop	af
 	out	(FS_DATA_PORT), a
+	cp	a		; ensure Z
 	ret
 .error:
 	pop	af
