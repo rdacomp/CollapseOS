@@ -86,9 +86,8 @@
 .equ	FS_META_FNAME_OFFSET	6
 ; Size in bytes of a FS handle:
 ; * 4 bytes for starting offset of the FS block
-; * 2 bytes for current position relative to block's position
 ; * 2 bytes for file size
-.equ	FS_HANDLE_SIZE		8
+.equ	FS_HANDLE_SIZE		6
 .equ	FS_ERR_NO_FS		0x5
 .equ	FS_ERR_NOT_FOUND	0x6
 
@@ -390,76 +389,63 @@ fsOpen:
 	ld	(ix+2), a
 	ld	a, (FS_BLK+7)
 	ld	(ix+3), a
-	; Current pos
-	ld	hl, FS_METASIZE
-	ld	(ix+4), l
-	ld	(ix+5), h
 	; file size
 	ld      hl, (FS_META+FS_META_FSIZE_OFFSET)
-	ld	(ix+6), l
-	ld	(ix+7), h
+	ld	(ix+4), l
+	ld	(ix+5), h
 	pop	af
 	pop	hl
 	ret
 
-; Place FS blockdev at proper position for file handle in (IX).
+; Place FS blockdev at proper position for file handle in (IX) at position HL.
 fsPlaceH:
 	push	af
-	push	bc
-	push	hl
 	push	de
+	push	hl
+	; Move fsdev to beginning of block
 	ld	e, (ix)
 	ld	d, (ix+1)
 	ld	l, (ix+2)
 	ld	h, (ix+3)
-	ld	c, (ix+4)
-	ld	b, (ix+5)
-	add	hl, bc
-	jr	nc, .nocarry
-	inc	de
-.nocarry:
 	ld	a, BLOCKDEV_SEEK_ABSOLUTE
 	call	fsblkSeek
-	pop	de
+
+	; skip metadata
+	ld	a, BLOCKDEV_SEEK_FORWARD
+	ld	hl, FS_METASIZE
+	call	fsblkSeek
+
 	pop	hl
-	pop	bc
+	pop	de
+
+	; go to specified pos
+	ld	a, BLOCKDEV_SEEK_FORWARD
+	call	fsblkSeek
 	pop	af
 	ret
 
 ; Advance file handle in (IX) by one byte
-fsAdvanceH:
-	push	af
-	inc	(ix+4)
-	jr	nz, .end
-	inc	(ix+5)
-.end:
-	pop	af
-	ret
-
-; Sets Z according to whether file handle at (IX) is within bounds, that is, if
-; current position is smaller than file size.
-fsHandleWithinBounds:
-	push	hl
+; Sets Z according to whether HL is within bounds for file handle at (IX), that
+; is, if it is smaller than file size.
+fsWithinBounds:
 	push	de
-	; current pos in HL, adjusted to remove FS_METASIZE
-	call	fsTell
 	; file size
-	ld	e, (ix+6)
-	ld	d, (ix+7)
+	ld	e, (ix+4)
+	ld	d, (ix+5)
 	call	cpHLDE
 	pop	de
-	pop	hl
 	jr	nc, .outOfBounds	; HL >= DE
 	cp	a			; ensure Z
 	ret
 .outOfBounds:
 	jp	unsetZ			; returns
 
-; Read a byte in handle at (IX), put it into A and advance the handle's
-; position.
+; Read a byte in handle at (IX) at position HL and put it into A.
 ; Z is set on success, unset if handle is at the end of the file.
 fsGetC:
-	call	fsHandleWithinBounds
+	ld	a, h
+	ld	a, l
+	call	fsWithinBounds
 	jr	z, .proceed
 	; We want to unset Z, but also return 0 to ensure that a GetC that
 	; doesn't check Z doesn't end up with false data.
@@ -467,35 +453,14 @@ fsGetC:
 	jp	unsetZ		; returns
 .proceed:
 	call	fsPlaceH
-	call	fsblkGetC
-	ret	nz		; error, don't advance
-	; increase current pos
-	jp	fsAdvanceH	; returns
+	jp	fsblkGetC	; returns
 
 ; Write byte A in handle (IX) and advance the handle's position.
 ; Z is set on success, unset if handle is at the end of the file.
 ; TODO: detect end of block alloc
 fsPutC:
 	call	fsPlaceH
-	call	fsblkPutC
-	jp	fsAdvanceH	; returns
-
-; Sets position of handle (IX) to HL. This position does *not* include metadata.
-; It is an offset that starts at actual data.
-; Sets Z if offset is within bounds, unsets Z if it isn't.
-fsSeek:
-	ld	a, FS_METASIZE
-	call	addHL
-	ld	(ix+4), l
-	ld	(ix+5), h
-	ret
-
-; Returns current position of file handle at (IX) in HL.
-fsTell:
-	ld	l, (ix+4)
-	ld	h, (ix+5)
-	ld	a, FS_METASIZE
-	jp	subHL		; returns
+	jp	fsblkPutC	; returns
 
 ; Mount the fs subsystem upon the currently selected blockdev at current offset.
 ; Verify is block is valid and error out if its not, mounting nothing.

@@ -23,11 +23,10 @@
 	jp	parseHex
 	jp	parseHexPair
 	jp	blkSel
+	jp	blkSet
 	jp	fsFindFN
 	jp	fsOpen
 	jp	fsGetC
-	jp	fsSeek
-	jp	fsTell
 	jp	cpHLDE
 	jp	parseArgs
 	jp	printstr

@@ -20,6 +20,7 @@ is configured to start at `0xe00`
     > fopn 0 hello.asm      ; open file in handle 0
     > zasm 1 3              ; assemble opened file and spit result in mmap
     > bsel 3                ; select mmap
+    > mptr e000             ; set memptr to mmap's beginning
     > peek 5
     210890CD3C              ; looking good
     > mptr 4200             ; hello.asm is configured to run from 0x4200

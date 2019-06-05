@@ -16,17 +16,16 @@
 .equ    parseHex       0x1e
 .equ    parseHexPair   0x21
 .equ    blkSel         0x24
-.equ    fsFindFN       0x27
-.equ    fsOpen         0x2a
-.equ    fsGetC         0x2d
-.equ    fsSeek         0x30
-.equ    fsTell         0x33
-.equ    cpHLDE         0x36
-.equ    parseArgs      0x39
-.equ    _blkGetC       0x3c
-.equ    _blkPutC       0x3f
-.equ    _blkSeek       0x42
-.equ    _blkTell       0x45
+.equ    blkSet         0x27
+.equ    fsFindFN       0x2a
+.equ    fsOpen         0x2d
+.equ    fsGetC         0x30
+.equ    cpHLDE         0x33
+.equ    parseArgs      0x36
+.equ    _blkGetC       0x39
+.equ    _blkPutC       0x3c
+.equ    _blkSeek       0x3f
+.equ    _blkTell       0x42
 
 #include "err.h"
 #include "zasm/const.asm"

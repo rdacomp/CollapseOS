@@ -46,8 +46,10 @@
 .equ	IO_SAVED_POS	IO_OUT_BLK+BLOCKDEV_SIZE
 ; File handle for included source
 .equ	IO_INCLUDE_HDL	IO_SAVED_POS+2
+; blkdev for include file
+.equ	IO_INCLUDE_BLK	IO_INCLUDE_HDL+FS_HANDLE_SIZE
 ; see ioPutBack below
-.equ	IO_PUTBACK_BUF	IO_INCLUDE_HDL+FS_HANDLE_SIZE
+.equ	IO_PUTBACK_BUF	IO_INCLUDE_BLK+BLOCKDEV_SIZE
 .equ	IO_IN_INCLUDE	IO_PUTBACK_BUF+1
 .equ	IO_PC		IO_IN_INCLUDE+1
 ; Current lineno in top-level file
@@ -64,6 +66,9 @@ ioInit:
 	xor	a
 	ld	(IO_PUTBACK_BUF), a
 	ld	(IO_IN_INCLUDE), a
+	ld	de, IO_INCLUDE_BLK
+	ld	hl, _ioIncBlk
+	call	blkSet
 	jp	ioResetCounters
 
 ioGetC:
@@ -73,8 +78,8 @@ ioGetC:
 	call	ioInInclude
 	jr	z, .normalmode
 	; We're in "include mode", read from FS
-	ld	ix, IO_INCLUDE_HDL
-	call	fsGetC
+	ld	ix, IO_INCLUDE_BLK
+	call	_blkGetC
 	cp	0x0a		; newline
 	jr	nz, .notNewline
 	; We have newline. Increase lineno and return (the rest of the
@@ -182,8 +187,8 @@ _ioSeek:
 	jp	_blkSeek
 .include:
 	; We're in "include mode", seek in FS
-	ld	ix, IO_INCLUDE_HDL
-	jp	fsSeek		; returns
+	ld	ix, IO_INCLUDE_BLK
+	jp	_blkSeek	; returns
 
 _ioTell:
 	call	ioInInclude
@@ -193,8 +198,8 @@ _ioTell:
 	jp	_blkTell
 .include:
 	; We're in "include mode", tell from FS
-	ld	ix, IO_INCLUDE_HDL
-	jp	fsTell		; returns
+	ld	ix, IO_INCLUDE_BLK
+	jp	_blkTell	; returns
 
 ; Sets Z according to whether we're inside an include
 ioInInclude:
@@ -213,6 +218,9 @@ ioOpenInclude:
 	ld	(IO_IN_INCLUDE), a
 	ld	hl, 0
 	ld	(IO_INC_LINENO), hl
+	xor	a
+	ld	ix, IO_INCLUDE_BLK
+	call	_blkSeek
 	cp	a		; ensure Z
 	ret
 
@@ -228,4 +236,11 @@ ioLineNo:
 .end:
 	pop	af
 	ret
+
+_ioIncGetC:
+	ld	ix, IO_INCLUDE_HDL
+	jp	fsGetC
+
+_ioIncBlk:
+	.dw	_ioIncGetC, unsetZ
 

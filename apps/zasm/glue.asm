@@ -31,11 +31,10 @@
 ; parseHex
 ; parseHexPair
 ; blkSel
+; blkSet
 ; fsFindFN
 ; fsOpen
 ; fsGetC
-; fsSeek
-; fsTell
 ; cpHLDE
 ; parseArgs
 ; _blkGetC

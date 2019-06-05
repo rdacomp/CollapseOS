@@ -120,6 +120,8 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
             fsdev_ptr |= val;
             fsdev_addr_lvl = 0;
         }
+    } else {
+        fprintf(stderr, "Out of bounds I/O write: %d / %d (0x%x)\n", addr, val, val);
     }
 }
 

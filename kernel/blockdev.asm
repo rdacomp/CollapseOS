@@ -58,7 +58,7 @@ blkSel:
 
 	ld	hl, blkDevTbl
 	or	a		; cp 0
-	jr	z, .afterloop	; index is zero? don't loop
+	jr	z, .end		; index is zero? don't loop
 	push	bc		; <|
 	ld	b, a		;  |
 .loop:				;  |
@@ -66,7 +66,19 @@ blkSel:
 	call	addHL		;  |
 	djnz	.loop		;  |
 	pop	bc		; <|
-.afterloop:
+.end:
+	call	blkSet
+	pop	hl
+	pop	de
+	pop	af
+	ret
+
+; Setup blkdev handle in (DE) using routines at (HL).
+blkSet:
+	push	af
+	push	de
+	push	hl
+
 	; Write GETC
 	push	hl		; <|
 	call	intoHL		;  |
