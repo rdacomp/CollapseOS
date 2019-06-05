@@ -71,7 +71,15 @@ fopnCmd:
 	push	de
 	ld	a, (hl)		; file handle index
 	ld	de, FS_HANDLES
-	call	addDE		; DE now stores pointer to file handle
+	or	a		; cp 0
+	jr	z, .noInc	; DE already point to correct handle
+	ld	b, a
+.loop:
+	ld	a, FS_HANDLE_SIZE
+	call	addDE
+	djnz	.loop
+.noInc:
+	; DE now stores pointer to file handle
 	inc	hl
 	call	intoHL		; HL now holds the string we look for
 	call	fsFindFN

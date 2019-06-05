@@ -461,6 +461,7 @@ fsGetC:
 ; Write byte A in handle (IX) and advance the handle's position.
 ; Z is set on success, unset if handle is at the end of the file.
 ; TODO: detect end of block alloc
+; TODO: grow file size if appropriate
 fsPutC:
 	push	hl
 	call	fsPlaceH
