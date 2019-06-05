@@ -57,11 +57,13 @@ pgmRun:
 	push	hl		; unparsed args
 	ld	ix, PGM_HANDLE
 	call	fsOpen
-	ld	hl, PGM_CODEADDR
+	ld	hl, 0		; addr that we read in file handle
+	ld	de, PGM_CODEADDR	; addr in mem we write to
 .loop:
 	call	fsGetC		; we use Z at end of loop
-	ld	(hl), a		; Z preserved
+	ld	(de), a		; Z preserved
 	inc	hl		; Z preserved in 16-bit
+	inc	de		; Z preserved in 16-bit
 	jr	z, .loop
 
 	pop	hl		; recall args

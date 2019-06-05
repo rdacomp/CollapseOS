@@ -452,15 +452,21 @@ fsGetC:
 	xor	a
 	jp	unsetZ		; returns
 .proceed:
+	push	hl
 	call	fsPlaceH
-	jp	fsblkGetC	; returns
+	call	fsblkGetC
+	pop	hl
+	ret
 
 ; Write byte A in handle (IX) and advance the handle's position.
 ; Z is set on success, unset if handle is at the end of the file.
 ; TODO: detect end of block alloc
 fsPutC:
+	push	hl
 	call	fsPlaceH
-	jp	fsblkPutC	; returns
+	call	fsblkPutC
+	pop	hl
+	ret
 
 ; Mount the fs subsystem upon the currently selected blockdev at current offset.
 ; Verify is block is valid and error out if its not, mounting nothing.
