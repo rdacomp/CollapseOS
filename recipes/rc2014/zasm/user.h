@@ -1,4 +1,4 @@
-.equ    USER_CODE       0x8600
+.equ    USER_CODE       0x9d00
 .equ    USER_RAMSTART   USER_CODE+0x1800
 .equ    FS_HANDLE_SIZE  6
 .equ    BLOCKDEV_SIZE   8
@@ -22,9 +22,9 @@
 .equ    fsGetC         0x30
 .equ    cpHLDE         0x33
 
-.equ    parseArgs      0x3e
-.equ    printstr       0x41
-.equ    _blkGetC       0x44
-.equ    _blkPutC       0x47
-.equ    _blkSeek       0x4a
-.equ    _blkTell       0x4d
+.equ    parseArgs      0x3b
+.equ    printstr       0x3e
+.equ    _blkGetC       0x41
+.equ    _blkPutC       0x44
+.equ    _blkSeek       0x47
+.equ    _blkTell       0x4a

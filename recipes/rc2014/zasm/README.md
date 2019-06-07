@@ -51,12 +51,11 @@ Compiling and running `hello.asm` is done very much like in
     > sdci
     > fson
     > fopn 0 hello.asm
-    > zasm 2 1
-    > mptr 8600
-    > bsel 1
-    > seek 00 0000
-    > load ff
-    > call 00 0000
+    > fnew 1 dest
+    > fopn 1 dest
+    > zasm 1 2
+    > dest
     Assembled from a RC2014
+    >
 
 That RC2014 is starting to feel powerful now, right?

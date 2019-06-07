@@ -1,9 +1,10 @@
 ; classic RC2014 setup (8K ROM + 32K RAM) and a stock Serial I/O module
 ; The RAM module is selected on A15, so it has the range 0x8000-0xffff
 .equ	RAMSTART	0x8000
-; kernel RAM usage is under 0x300 bytes. We give ourselves at least 0x300 bytes
+; kernel RAM usage, because of SDC, is a bit high and bring us almost to 0x9c00
+; We allocate at least 0x100 bytes for RAM, which is why we have this threshold.
 ; for the stack.
-.equ	RAMEND		0x8600
+.equ	RAMEND		0x9d00
 .equ	PGM_CODEADDR	RAMEND
 .equ	ACIA_CTL	0x80	; Control and status. RS off.
 .equ	ACIA_IO		0x81	; Transmit. RS on.
@@ -47,12 +48,13 @@ jp	aciaInt
 .equ	ACIA_RAMSTART	RAMSTART
 #include "acia.asm"
 .equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
-.equ	BLOCKDEV_COUNT		3
+.equ	BLOCKDEV_COUNT		4
 #include "blockdev.asm"
 ; List of devices
 .dw	sdcGetC, sdcPutC
-.dw	mmapGetC, mmapPutC
+.dw	blk1GetC, blk1PutC
 .dw	blk2GetC, blk2PutC
+.dw	mmapGetC, mmapPutC
 
 
 .equ	MMAP_START	0xe000
@@ -62,7 +64,7 @@ jp	aciaInt
 #include "stdio.asm"
 
 .equ	FS_RAMSTART	STDIO_RAMEND
-.equ	FS_HANDLE_COUNT	1
+.equ	FS_HANDLE_COUNT	2
 #include "fs.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
@@ -107,12 +109,22 @@ init:
 	ei
 	jp	shellLoop
 
-; *** blkdev 2: file handle 0 ***
+; *** blkdev 1: file handle 0 ***
 
-blk2GetC:
+blk1GetC:
 	ld	ix, FS_HANDLES
 	jp	fsGetC
 
-blk2PutC:
+blk1PutC:
 	ld	ix, FS_HANDLES
+	jp	fsPutC
+
+; *** blkdev 2: file handle 1 ***
+
+blk2GetC:
+	ld	ix, FS_HANDLES+FS_HANDLE_SIZE
+	jp	fsGetC
+
+blk2PutC:
+	ld	ix, FS_HANDLES+FS_HANDLE_SIZE
 	jp	fsPutC
