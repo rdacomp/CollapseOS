@@ -274,6 +274,7 @@ fsAlloc:
 	ld	a, c		; C == the number of blocks user asked for
 	ld	(FS_META+FS_META_ALLOC_OFFSET), a
 	pop	hl		; now we want our HL arg
+	; TODO: stop after null char. we're filling meta with garbage here.
 	ld	de, FS_META+FS_META_FNAME_OFFSET
 	ld	bc, FS_MAX_NAME_SIZE
 	ldir

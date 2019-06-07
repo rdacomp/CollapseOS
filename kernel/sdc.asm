@@ -117,6 +117,27 @@ sdcWaitResp:
 	pop	bc
 	ret
 
+; The opposite of sdcWaitResp: we wait until response if 0xff. After a
+; successful read or write operation, the card will be busy for a while. We need
+; to give it time before interacting with it again. Technically, we could
+; continue processing on our side while the card it busy, and maybe we will one
+; day, but at the moment, I'm having random write errors if I don't do this
+; right after a write, so I prefer to stay cautious for now.
+; This has no error condition and preserves A
+sdcWaitReady:
+	push	af
+	push	bc
+	ld	b, 20
+.loop:
+	call	sdcIdle
+	inc	a		; if 0xff, it's going to become zero
+	jr	z, .end		; zero? good, we're not busy any more
+	djnz	.loop
+.end:
+	pop	bc
+	pop	af
+	ret
+
 ; Sends a command to the SD card, along with arguments and specified CRC fields.
 ; (CRC is only needed in initial commands though).
 ; A: Command to send
@@ -254,13 +275,20 @@ sdcInitialize:
 	or	a		; cp 0
 	jr	nz, .error
 	; Success! out of idle mode!
+	; At this point, our buffers are innitialized. We could have some logic
+	; that determines whether a buffer is initialized in appropriate SDC
+	; routines and act appropriately, but why bother when we could, instead,
+	; just buffer the first two sectors of the card on initialization? This
+	; way, no need for special conditions.
 	; initialize variables
 	ld	hl, SDC_BUFSEC1
-	ld	(SDC_BUFPTR), hl
-	ld	a, 0xff
-	ld	(SDC_BUFSEC1), a
 	xor	a
-	ld	(SDC_BUFDIRTY1), a
+	ld	(SDC_BUFPTR), hl
+	call	sdcReadBlk		; read sector 0 in buf1
+	ld	hl, SDC_BUFSEC2
+	inc	a
+	ld	(SDC_BUFPTR), hl
+	call	sdcReadBlk		; read sector 1 in buf2
 	jr	.end
 
 .error:
@@ -341,7 +369,8 @@ sdcReadBlk:
 	; Read our 2 CRC bytes
 	call	sdcIdle
 	call	sdcIdle
-	; success!
+	; success! wait until card is ready
+	call	sdcWaitReady
 	jr	.end
 .error:
 	; try to preserve error code
@@ -419,6 +448,9 @@ sdcWriteBlk:
 	inc	hl		; dirty flag
 	xor	a
 	ld	(hl), a
+
+	; Before returning, wait until card is ready
+	call	sdcWaitReady
 	jr	.end
 .error:
 	; try to preserve error code
