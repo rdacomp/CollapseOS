@@ -23,18 +23,17 @@
 	jp	parseHex
 	jp	parseHexPair
 	jp	blkSel
+	jp	blkSet
 	jp	fsFindFN
 	jp	fsOpen
 	jp	fsGetC
-	jp	fsSeek
-	jp	fsTell		; approaching 0x38...
+	jp	cpHLDE		; approaching 0x38...
 
 ; interrupt hook
 .fill	0x38-$
 jp	aciaInt
 
 ; *** Jump Table (cont.) ***
-	jp	cpHLDE
 	jp	parseArgs
 	jp	printstr
 	jp	_blkGetC
