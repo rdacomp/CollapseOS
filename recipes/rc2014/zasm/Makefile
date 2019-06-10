@@ -1,4 +1,4 @@
-CFSTARGETS = cfsin/zasm cfsin/user.h
+CFSTARGETS = cfsin/zasm cfsin/sdct cfsin/user.h
 BASE = ../../..
 TOOLS = $(BASE)/tools
 ZASM = $(TOOLS)/zasm.sh
@@ -20,6 +20,9 @@ sdcard.cfs: $(CFSTARGETS) $(CFSPACK)
 
 cfsin/zasm: $(ZASMBIN)
 	$(ZASM) $(KERNEL) $(APPS) user.h < $(APPS)/zasm/glue.asm > $@
+
+cfsin/sdct: $(ZASMBIN)
+	$(ZASM) $(APPS) user.h < $(APPS)/sdct/glue.asm > $@
 
 cfsin/user.h: user.h
 	cp $< $@

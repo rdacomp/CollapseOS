@@ -41,6 +41,9 @@ jp	aciaInt
 	jp	_blkPutC
 	jp	_blkSeek
 	jp	_blkTell
+	jp	printHexPair
+	jp	sdcGetC
+	jp	sdcPutC
 
 #include "err.h"
 #include "core.asm"

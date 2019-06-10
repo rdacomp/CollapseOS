@@ -28,3 +28,6 @@
 .equ    _blkPutC       0x44
 .equ    _blkSeek       0x47
 .equ    _blkTell       0x4a
+.equ    printHexPair   0x4d
+.equ    sdcGetC        0x50
+.equ    sdcPutC        0x53

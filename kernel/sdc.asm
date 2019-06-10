@@ -126,15 +126,12 @@ sdcWaitResp:
 ; This has no error condition and preserves A
 sdcWaitReady:
 	push	af
-	push	bc
-	ld	b, 20
+	; for now, we have no timeout for waiting. It means that broken SD
+	; cards can cause infinite loops.
 .loop:
 	call	sdcIdle
 	inc	a		; if 0xff, it's going to become zero
-	jr	z, .end		; zero? good, we're not busy any more
-	djnz	.loop
-.end:
-	pop	bc
+	jr	nz, .loop	; not zero? still busy. loop
 	pop	af
 	ret
 
@@ -169,6 +166,9 @@ sdcCmd:
 	call	sdcSendRecv
 	; send CRC
 	ld	a, c
+	; Most of the time, we don't care about C, but in all cases, we want
+	; the last bit to be high. It's the stop bit.
+	or	0x01
 	call	sdcSendRecv
 
 	; And now we just have to wait for a valid response...
@@ -275,20 +275,6 @@ sdcInitialize:
 	or	a		; cp 0
 	jr	nz, .error
 	; Success! out of idle mode!
-	; At this point, our buffers are innitialized. We could have some logic
-	; that determines whether a buffer is initialized in appropriate SDC
-	; routines and act appropriately, but why bother when we could, instead,
-	; just buffer the first two sectors of the card on initialization? This
-	; way, no need for special conditions.
-	; initialize variables
-	ld	hl, SDC_BUFSEC1
-	xor	a
-	ld	(SDC_BUFPTR), hl
-	call	sdcReadBlk		; read sector 0 in buf1
-	ld	hl, SDC_BUFSEC2
-	inc	a
-	ld	(SDC_BUFPTR), hl
-	call	sdcReadBlk		; read sector 1 in buf2
 	jr	.end
 
 .error:
@@ -322,6 +308,7 @@ sdcSetBlkSize:
 ; Returns 0 in A if success, non-zero if error.
 sdcReadBlk:
 	push	bc
+	push	de
 	push	hl
 
 	out	(SDC_PORT_CSLOW), a
@@ -371,6 +358,7 @@ sdcReadBlk:
 	call	sdcIdle
 	; success! wait until card is ready
 	call	sdcWaitReady
+	xor	a		; success
 	jr	.end
 .error:
 	; try to preserve error code
@@ -380,6 +368,7 @@ sdcReadBlk:
 .end:
 	out	(SDC_PORT_CSHIGH), a
 	pop	hl
+	pop	de
 	pop	bc
 	ret
 
@@ -451,6 +440,8 @@ sdcWriteBlk:
 
 	; Before returning, wait until card is ready
 	call	sdcWaitReady
+	xor	a
+	; A is already 0
 	jr	.end
 .error:
 	; try to preserve error code
@@ -538,7 +529,23 @@ sdcSync:
 sdcInitializeCmd:
 	.db	"sdci", 0, 0, 0
 	call	sdcInitialize
-	jp	sdcSetBlkSize		; returns
+	ret	nz
+	call	sdcSetBlkSize
+	ret	nz
+	; At this point, our buffers are unnitialized. We could have some logic
+	; that determines whether a buffer is initialized in appropriate SDC
+	; routines and act appropriately, but why bother when we could, instead,
+	; just buffer the first two sectors of the card on initialization? This
+	; way, no need for special conditions.
+	; initialize variables
+	ld	hl, SDC_BUFSEC1
+	xor	a
+	ld	(SDC_BUFPTR), hl
+	call	sdcReadBlk		; read sector 0 in buf1
+	ld	hl, SDC_BUFSEC2
+	inc	a
+	ld	(SDC_BUFPTR), hl
+	jp	sdcReadBlk		; read sector 1 in buf2, returns
 
 ; Flush the current SDC buffer if dirty
 sdcFlushCmd:
@@ -615,7 +622,10 @@ sdcPutC:
 	xor	a		; ensure Z
 	jr	.end
 .error:
+	; preserve error code
+	ex	af, af'
 	pop	af
+	ex	af, af'
 	call	unsetZ
 .end:
 	pop	hl
