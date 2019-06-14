@@ -23,6 +23,7 @@ disabled.
 This recipe is for installing a minimal Collapse OS system on the RC2014. There
 are other recipes related to the RC2014:
 
+* [Writing to a AT28 from Collapse OS](eeprom/README.md)
 * [Accessing a MicroSD card](sdcard/README.md)
 * [Assembling binaries](zasm/README.md)
 
