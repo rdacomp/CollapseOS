@@ -2,7 +2,7 @@
 
 Collapse OS likely runs from ROM code. If you need to fiddle with your machine
 more deeply, you will want to send arbitrary code to it and run it. You can do
-so with the shell's `load` and `call` commands.
+so with the shell's `poke` and `call` commands.
 
 For example, let's say that you want to run this simple code that you have
 sitting on your "modern" machine and want to execute on your running Collapse OS
@@ -22,7 +22,7 @@ Now, we'll send that code to address `0xa000`:
 
     > mptr a000
     A000
-    > load 8 (resulting binary is 8 bytes long)
+    > poke 8 (resulting binary is 8 bytes long)
 
 Now, at this point, it's a bit delicate. To pipe your binary to your serial
 connection, you have to close `screen` with CTRL+A then `:quit` to free your
@@ -31,7 +31,7 @@ tty device. Then, you can run:
     cat tosend.bin > /dev/ttyUSB0 (or whatever is your device)
 
 You can then re-open your connection with screen. You'll have a blank screen,
-but if the number of characters sent corresponds to what you gave `load`, then
+but if the number of characters sent corresponds to what you gave `poke`, then
 Collapse OS will be waiting for a new command. Go ahead, verify that the
 transfer was successful with:
 
@@ -62,16 +62,19 @@ Success!
 
 The serial connection is not always 100% reliable and a bad byte can slip in
 when you push your code and that's not fun when you try to debug your code (is
-this bad behavior caused by my logic or by a bad serial upload?).
+this bad behavior caused by my logic or by a bad serial upload?). Moreover,
+sending contents bigger than `0xff` bytes can be a hassle.
 
 To this end, there is a `upload.py` file in `tools/` that takes care of loading
-the file and verify the contents. So, instead of doing `load 8` followed by
-your `cat` above, you would have done:
+the file and verify the contents. So, instead of doing `mptr a000` followed by
+`poke 8` followed by your `cat` above, you would have done:
 
-    ./upload.py /dev/ttyUSB0 tosend.bin
+    ./upload.py /dev/ttyUSB0 a000 tosend.bin
 
-This emits `load` and `peek` commands and fail appropriately if the `peek`
-doesn't match sent contents. Very handy.
+This emits `mptr`, `poke` and `peek` commands and fail appropriately if the
+`peek` doesn't match sent contents. If the file is larger than `0xff` bytes,
+repeat the process until the whole file was sent (file must fit in memory space
+though, of course). Very handy.
 
 ## Labels in RAM code
 
