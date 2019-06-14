@@ -62,7 +62,7 @@ init:
 	jp	shellLoop
 
 a28wCmd:
-	.db	"a28w", 0b011, 0b001
+	.db	"a28w", 0b011, 0b001, 0
 	ld	a, (hl)
 	ld	(AT28W_MAXBYTES+1), a
 	inc	hl

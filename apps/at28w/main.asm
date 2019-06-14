@@ -26,7 +26,7 @@ at28wInner:
 	ld	b, h
 	ld	c, l
 	ld	hl, AT28W_MEMSTART
-	call	at28BCZero
+	call	at28wBCZero
 	jr	nz, .loop
 	; BC is zero, default to 0x2000 (8x, the size of the AT28)
 	ld	bc, 0x2000
@@ -55,7 +55,7 @@ at28wInner:
 	jr	nz, .mismatch
 	inc	hl
 	dec	bc
-	call	at28BCZero
+	call	at28wBCZero
 	jr	nz, .loop
 
 .loopend:
@@ -67,7 +67,7 @@ at28wInner:
 	ld	a, AT28W_ERR_MISMATCH
 	ret
 
-at28BCZero:
+at28wBCZero:
 	xor	a
 	cp	b
 	ret	nz

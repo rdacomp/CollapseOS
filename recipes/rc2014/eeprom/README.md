@@ -66,8 +66,8 @@ as at argument to `a28w`. You can run:
     > seek 00 0000
     > a28w <size-of-contents>
 
-It takes a while to write. About 1 second per byte (soon, I'll implement page
-writing which should make it much faster).
+It takes a little while to write. About 1 second per 0x100 bytes (soon, I'll
+implement page writing which should make it much faster).
 
 If the program doesn't report an error, you're all good! The program takes care
 of verifying each byte, so everything should be in place. You can verify
