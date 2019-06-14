@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-# Push specified file (max 0xff bytes) to specified device and verify that
-# the contents is correct by sending a "peek" command afterwards and check
-# the output. Errors out if the contents isn't the same. The parameter
-# passed to the "peek" command is the length of the uploaded file.
+# Push specified file  to specified device and verify that the contents is
+# correct by sending a "peek" command afterwards and check the output. Errors
+# out if the contents isn't the same. The parameter passed to the "peek"
+# command is the length of the uploaded file.
 
 import argparse
 import os
