@@ -20,7 +20,7 @@ execute it!
     > fnew 1 dest           ; create destination file
     > fopn 0 hello.asm      ; open source file in handle 0
     > fopn 1 dest           ; open dest binary in handle 1
-    > zasm 1 3              ; assemble source file into binary file
+    > zasm 1 2              ; assemble source file into binary file
     > dest                  ; call newly compiled file
     Assembled from the shell
     >                       ; Awesome!
