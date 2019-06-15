@@ -484,6 +484,7 @@ fsGetC:
 	push	hl
 	call	fsPlaceH
 	call	fsblkGetC
+	cp	a		; ensure Z
 	pop	hl
 	ret
 

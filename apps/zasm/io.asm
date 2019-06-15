@@ -80,8 +80,9 @@ ioGetC:
 	; We're in "include mode", read from FS
 	ld	ix, IO_INCLUDE_BLK
 	call	_blkGetC
+	jr	nz, .includeEOF
 	cp	0x0a		; newline
-	jr	nz, .notNewline
+	ret	nz		; not newline? nothing to do
 	; We have newline. Increase lineno and return (the rest of the
 	; processing below isn't needed.
 	push	hl
@@ -90,9 +91,7 @@ ioGetC:
 	pop	hl
 	ret
 
-.notNewline:
-	or	a		; cp 0
-	ret	nz		; not zero, all good
+.includeEOF:
 	; We reached EOF. What we do depends on whether we're in Local Pass
 	; mode. Yes, I know, a bit hackish. Normally, we *should* be
 	; transparently getting of include mode and avoid meddling with global
