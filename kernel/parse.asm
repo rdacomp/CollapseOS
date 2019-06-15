@@ -92,12 +92,13 @@ parseArgs:
 	push	hl
 	push	ix
 
-	ld	b, PARSE_ARG_MAXCOUNT
-.loop:
 	; init the arg value to a default 0
 	xor	a
 	ld	(ix), a
-
+	ld	(ix+1), a
+	ld	(ix+2), a
+	ld	b, PARSE_ARG_MAXCOUNT
+.loop:
 	ld	a, (hl)
 	; is this the end of the line?
 	or	a		; cp 0
