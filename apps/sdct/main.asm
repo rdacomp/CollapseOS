@@ -5,7 +5,12 @@ sdctMain:
 	ld	de, SDCT_RAMSTART
 .wLoop:
 	ld	a, (de)
-	call	sdcPutC
+	; To avoid overwriting important data and to test the 24-bit addressing,
+	; we set DE to 12 instead of zero
+	push	de		; <|
+	ld	de, 12		;  |
+	call	sdcPutC		;  |
+	pop	de		; <|
 	jr	nz, .error
 	inc	hl
 	inc	de
@@ -23,7 +28,10 @@ sdctMain:
 	ld	hl, 0
 	ld	de, SDCT_RAMSTART
 .rLoop:
-	call	sdcGetC
+	push	de		; <|
+	ld	de, 12		;  |
+	call	sdcGetC		;  |
+	pop	de		; <|
 	jr	nz, .error
 	ex	de, hl
 	cp	(hl)

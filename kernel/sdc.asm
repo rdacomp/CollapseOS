@@ -59,16 +59,16 @@
 ; This is a pointer to the currently selected buffer. This points to the BUFSEC
 ; part, that is, two bytes before actual content begins.
 .equ	SDC_BUFPTR	SDC_RAMSTART
-; Sector number currently in SDC_BUF1.
+; Sector number currently in SDC_BUF1. Little endian like any other z80 word.
 .equ	SDC_BUFSEC1	SDC_BUFPTR+2
 ; Whether the buffer has been written to. 0 means clean. 1 means dirty.
-.equ	SDC_BUFDIRTY1	SDC_BUFSEC1+1
+.equ	SDC_BUFDIRTY1	SDC_BUFSEC1+2
 ; The contents of the buffer.
 .equ	SDC_BUF1	SDC_BUFDIRTY1+1
 
 ; second buffer has the same structure as the first.
 .equ	SDC_BUFSEC2	SDC_BUF1+SDC_BLKSIZE
-.equ	SDC_BUFDIRTY2	SDC_BUFSEC2+1
+.equ	SDC_BUFDIRTY2	SDC_BUFSEC2+2
 .equ	SDC_BUF2	SDC_BUFDIRTY2+1
 .equ	SDC_RAMEND	SDC_BUF2+SDC_BLKSIZE
 
@@ -301,21 +301,18 @@ sdcSetBlkSize:
 	pop	hl
 	ret
 
-; Read block index specified in A and place the contents in buffer pointed to
+; Read block index specified in DE and place the contents in buffer pointed to
 ; by (SDC_BUFPTR).
 ; Doesn't check CRC. If the operation is a success, updates buffer's sector to
-; the value of A.
+; the value of DE.
 ; Returns 0 in A if success, non-zero if error.
 sdcReadBlk:
 	push	bc
-	push	de
 	push	hl
 
 	out	(SDC_PORT_CSLOW), a
-	ld	hl, 0		; read single block at addr A
-	ld	d, 0
-	ld	e, a		; E isn't touched in the rest of the routine
-				; and holds onto our original A
+	ld	hl, 0
+	; DE already has the correct value
 	ld	a, 0b01010001	; CMD17
 	call	sdcCmd
 	or	a		; cp 0
@@ -341,7 +338,10 @@ sdcReadBlk:
 	; actual data, but at this point, we don't have any error conditions
 	; left, success is guaranteed. To avoid needlesssly INCing hl, let's
 	; set sector and dirty along the way
-	ld	a, e			; sector number
+	ld	a, e			; sector number LSB
+	ld	(hl), a
+	inc	hl			; sector number MSB
+	ld	a, d
 	ld	(hl), a
 	inc	hl			; dirty flag
 	xor	a			; unset
@@ -368,7 +368,6 @@ sdcReadBlk:
 .end:
 	out	(SDC_PORT_CSHIGH), a
 	pop	hl
-	pop	de
 	pop	bc
 	ret
 
@@ -377,7 +376,8 @@ sdcReadBlk:
 ; A returns 0 in A on success (with Z set), non-zero (with Z unset) on error.
 sdcWriteBlk:
 	push	hl
-	ld	hl, (SDC_BUFPTR)	; HL points to sector
+	ld	hl, (SDC_BUFPTR)	; HL points to sector LSB
+	inc	hl			; sector MSB
 	inc	hl			; now to dirty flag
 	xor	a
 	cp	(hl)
@@ -389,11 +389,13 @@ sdcWriteBlk:
 	push	de
 
 	out	(SDC_PORT_CSLOW), a
-	dec	hl		; sector
+	dec	hl		; sector MSB
 	ld	a, (hl)
-	ld	hl, 0		; write single block at addr A
-	ld	d, 0
+	ld	d, a
+	dec	hl		; sector LSB
+	ld	a, (hl)
 	ld	e, a
+	ld	hl, 0		; high addr word always zero, DE already set
 	ld	a, 0b01011000	; CMD24
 	call	sdcCmd
 	or	a		; cp 0
@@ -411,6 +413,7 @@ sdcWriteBlk:
 	; Sending our data token!
 	ld	bc, SDC_BLKSIZE
 	ld	hl, (SDC_BUFPTR)
+	inc	hl		; sector MSB
 	inc	hl		; dirty flag
 	inc	hl		; beginning of contents
 
@@ -434,6 +437,7 @@ sdcWriteBlk:
 	call	sdcWaitResp
 	; Success! Now let's unset the dirty flag
 	ld	hl, (SDC_BUFPTR)
+	inc	hl		; sector MSB
 	inc	hl		; dirty flag
 	xor	a
 	ld	(hl), a
@@ -456,72 +460,83 @@ sdcWriteBlk:
 	pop	hl
 	ret
 
-; Considering the first 7 bits of HL, select the most appropriate of our two
+; Considering the first 15 bits of EHL, select the most appropriate of our two
 ; buffers and, if necessary, sync that buffer with the SD card. If the selected
-; buffer doesn't have the same sector as what HL asks, load that buffer from
+; buffer doesn't have the same sector as what EHL asks, load that buffer from
 ; the SD card.
 ; If the dirty flag is set, we write the content of the in-memory buffer to the
 ; SD card before we read a new sector.
 ; Returns Z on success, not-Z on error (with the error code from either
 ; sdcReadBlk or sdcWriteBlk)
 sdcSync:
-	; HL points to the character we're supposed to read or right now. Let's
-	; extract the wanted sector from this.
+	push	de
+	; Given a 24-bit address in EHL, extracts the 15-bit sector from it and
+	; place it in DE.
+	; We need to shift both E and H right by one bit
+	srl	e	; sets Carry
+	ld	d, e
 	ld	a, h
-	srl	a			; A --> the requested sector number
-	push	hl			; Save the requested addr for later
-	ld	l, a
+	rra		; takes Carry
+	ld	e, a
+
 	; Let's first see if our first buffer has our sector
-	ld	a, (SDC_BUFSEC1)
-	cp	l
+	ld	a, (SDC_BUFSEC1)	; sector LSB
+	cp	e
+	jr	nz, .notBuf1
+	ld	a, (SDC_BUFSEC1+1)	; sector MSB
+	cp	d
 	jr	z, .buf1Ok
 
+.notBuf1:
 	; Ok, let's check for buf2 then
-	ld	a, (SDC_BUFSEC2)
-	cp	l
+	ld	a, (SDC_BUFSEC2)	; sector LSB
+	cp	e
+	jr	nz, .notBuf2
+	ld	a, (SDC_BUFSEC2+1)	; sector MSB
+	cp	d
 	jr	z, .buf2Ok
 
+.notBuf2:
 	; None of our two buffers have the sector we need, we'll need to load
 	; a new one.
 
 	; We select our buffer depending on which is dirty. If both are on the
 	; same status of dirtiness, we pick any (the first in our case). If one
 	; of them is dirty, we pick the clean one.
-	ld	hl, SDC_BUFSEC1
-	ld	a, (SDC_BUFDIRTY1)
-	or	a			; is buf1 dirty?
-	jr	z, .ready		; no? good, that's our buffer
-	; yes? then buf2 is our buffer.
-	ld	hl, SDC_BUFSEC2
-
-.ready:
-	; At this point, HL points to one of our two buffers, the good one.
-	; Let's save it to SDC_BUFPTR
-	ld	(SDC_BUFPTR), hl
-
-	; You remember that HL we saved a long time ago? Now's the time to
-	; bring it back.
-	pop	hl
+	push	de			; <|
+	ld	de, SDC_BUFSEC1		;  |
+	ld	a, (SDC_BUFDIRTY1)	;  |
+	or	a			;  | is buf1 dirty?
+	jr	z, .ready		;  | no? good, that's our buffer
+	; yes? then buf2 is our buffer. ;  |
+	ld	de, SDC_BUFSEC2		;  |
+					;  |
+.ready:					;  |
+	; At this point, DE points to one o|f our two buffers, the good one.
+	; Let's save it to SDC_BUFPTR      |
+	ld	(SDC_BUFPTR), de	;  |
+					;  |
+	pop	de			; <|
 
 	; We have to read a new sector, but first, let's write the current one
 	; if needed.
 	call	sdcWriteBlk
-	ret	nz		; error
-	; Let's read our new sector
-	ld	a, h
-	srl	a
-	jp	sdcReadBlk	; returns
+	jr	nz, .end	; error
+	; Let's read our new sector in DE
+	call	sdcReadBlk
+	jr	.end
 
 .buf1Ok:
-	ld	hl, SDC_BUFSEC1
-	ld	(SDC_BUFPTR), hl
-	pop	hl
-	ret
+	ld	de, SDC_BUFSEC1
+	ld	(SDC_BUFPTR), de
+	jr	.end
 
 .buf2Ok:
-	ld	hl, SDC_BUFSEC2
-	ld	(SDC_BUFPTR), hl
-	pop	hl
+	ld	de, SDC_BUFSEC2
+	ld	(SDC_BUFPTR), de
+	; to .end
+.end:
+	pop	de
 	ret
 
 ; *** shell cmds ***
@@ -539,12 +554,13 @@ sdcInitializeCmd:
 	; way, no need for special conditions.
 	; initialize variables
 	ld	hl, SDC_BUFSEC1
-	xor	a
 	ld	(SDC_BUFPTR), hl
+	ld	de, 0
 	call	sdcReadBlk		; read sector 0 in buf1
+	ret	nz
 	ld	hl, SDC_BUFSEC2
-	inc	a
 	ld	(SDC_BUFPTR), hl
+	inc	de
 	jp	sdcReadBlk		; read sector 1 in buf2, returns
 
 ; Flush the current SDC buffer if dirty
@@ -561,13 +577,17 @@ sdcFlushCmd:
 ; *** blkdev routines ***
 
 ; Make HL point to its proper place in SDC_BUF.
-; HL currently is an offset to read in the SD card. Load the proper sector in
-; memory and make HL point to the correct data in the memory buffer.
+; EHL currently is a 24-bit offset to read in the SD card. E=high byte,
+; HL=low word. Load the proper sector in memory and make HL point to the
+; correct data in the memory buffer.
 _sdcPlaceBuf:
 	call	sdcSync
 	ret	nz		; error
+	; At this point, we have the proper buffer in place and synced in
+	; (SDC_BUFPTR). Only the 9 low bits of HL are important.
 	push	de
 	ld	de, (SDC_BUFPTR)
+	inc	de		; sector LSB
 	inc	de		; dirty flag
 	inc	de		; contents
 	ld	a, h		; high byte
@@ -617,6 +637,7 @@ sdcPutC:
 	; Now, let's set the dirty flag
 	ld	a, 1
 	ld	hl, (SDC_BUFPTR)
+	inc	hl		; sector MSB
 	inc	hl		; point to dirty flag
 	ld	(hl), a		; set dirty flag
 	xor	a		; ensure Z

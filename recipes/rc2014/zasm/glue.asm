@@ -1,10 +1,10 @@
 ; classic RC2014 setup (8K ROM + 32K RAM) and a stock Serial I/O module
 ; The RAM module is selected on A15, so it has the range 0x8000-0xffff
 .equ	RAMSTART	0x8000
-; kernel RAM usage, because of SDC, is a bit high and bring us almost to 0x9c00
+; kernel RAM usage, because of SDC, is a bit high and bring us almost to 0x9e00
 ; We allocate at least 0x100 bytes for RAM, which is why we have this threshold.
 ; for the stack.
-.equ	RAMEND		0x9d00
+.equ	RAMEND		0xa000
 .equ	PGM_CODEADDR	RAMEND
 .equ	ACIA_CTL	0x80	; Control and status. RS off.
 .equ	ACIA_IO		0x81	; Transmit. RS on.
@@ -44,11 +44,12 @@ jp	aciaInt
 	jp	printHexPair
 	jp	sdcGetC
 	jp	sdcPutC
+	jp	blkGetC
 
 #include "err.h"
 #include "core.asm"
 #include "parse.asm"
-.equ	ACIA_RAMSTART	RAMSTART
+.equ	ACIA_RAMSTART		RAMSTART
 #include "acia.asm"
 .equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
 .equ	BLOCKDEV_COUNT		4

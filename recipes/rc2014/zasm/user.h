@@ -1,4 +1,4 @@
-.equ    USER_CODE       0x9d00
+.equ    USER_CODE       0xa000
 .equ    USER_RAMSTART   USER_CODE+0x1800
 .equ    FS_HANDLE_SIZE  6
 .equ    BLOCKDEV_SIZE   8
@@ -31,3 +31,4 @@
 .equ    printHexPair   0x4d
 .equ    sdcGetC        0x50
 .equ    sdcPutC        0x53
+.equ    blkGetC        0x56
