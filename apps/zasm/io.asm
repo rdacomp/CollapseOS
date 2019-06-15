@@ -152,6 +152,7 @@ ioPutC:
 	jp	_blkPutC
 .skip:
 	pop	af
+	cp	a		; ensure Z
 	ret
 
 ioSavePos:

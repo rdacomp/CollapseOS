@@ -823,10 +823,14 @@ parseInstruction:
 .loopWrite:
 	ld	a, (hl)
 	call	ioPutC
+	jr	nz, .ioError
 	inc	hl
 	djnz	.loopWrite
 	cp	a	; ensure Z
 	jr	.end
+.ioError:
+	ld	a, SHELL_ERR_IO_ERROR
+	jr	.error
 .overflow:
 	ld	a, ERR_OVFL
 	jr	.error

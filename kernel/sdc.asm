@@ -529,11 +529,13 @@ sdcSync:
 .buf1Ok:
 	ld	de, SDC_BUFSEC1
 	ld	(SDC_BUFPTR), de
+	; Z already set
 	jr	.end
 
 .buf2Ok:
 	ld	de, SDC_BUFSEC2
 	ld	(SDC_BUFPTR), de
+	; Z already set
 	; to .end
 .end:
 	pop	de

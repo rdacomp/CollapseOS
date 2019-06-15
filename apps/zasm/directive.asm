@@ -50,12 +50,16 @@ handleDB:
 	jr	nz, .overflow	; not zero? overflow
 	ld	a, l
 	call	ioPutC
+	jr	nz, .ioError
 .stopStrLit:
 	call	readComma
 	jr	z, .loop
 	cp	a		; ensure Z
 	pop	hl
 	ret
+.ioError:
+	ld	a, SHELL_ERR_IO_ERROR
+	jr	.error
 .badfmt:
 	ld	a, ERR_BAD_FMT
 	jr	.error
