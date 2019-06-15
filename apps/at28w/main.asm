@@ -22,13 +22,15 @@ at28wMain:
 	.db	0b111, 0b101, 0
 
 at28wInner:
-	ld	hl, (AT28W_MAXBYTES)
-	ld	b, h
-	ld	c, l
+	; Reminder: words in parseArgs aren't little endian. High byte is first.
+	ld	a, (AT28W_MAXBYTES)
+	ld	b, a
+	ld	a, (AT28W_MAXBYTES+1)
+	ld	c, a
 	ld	hl, AT28W_MEMSTART
 	call	at28wBCZero
 	jr	nz, .loop
-	; BC is zero, default to 0x2000 (8x, the size of the AT28)
+	; BC is zero, default to 0x2000 (8k, the size of the AT28)
 	ld	bc, 0x2000
 .loop:
 	call	blkGetC

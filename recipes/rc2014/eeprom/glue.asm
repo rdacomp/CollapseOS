@@ -64,10 +64,10 @@ init:
 a28wCmd:
 	.db	"a28w", 0b011, 0b001, 0
 	ld	a, (hl)
-	ld	(AT28W_MAXBYTES+1), a
+	ld	(AT28W_MAXBYTES), a
 	inc	hl
 	ld	a, (hl)
-	ld	(AT28W_MAXBYTES), a
+	ld	(AT28W_MAXBYTES+1), a
 	jp	at28wInner
 
 
