@@ -85,6 +85,8 @@ shellLoop:
 	jr	z, .do		; char is CR? do!
 	cp	ASCII_LF
 	jr	z, .do		; char is LF? do!
+	cp	ASCII_DEL
+	jr	z, .delchr
 
 	; Echo the received character right away so that we see what we type
 	call	stdioPutC
@@ -126,6 +128,28 @@ shellLoop:
 
 .prompt:
 	.db	"> ", 0
+
+.delchr:
+	ld	hl, SHELL_BUF
+	ld	a, (hl)
+	or	a		; cp 0
+	jr	z, shellLoop	; buffer empty? nothing to do
+	; buffer not empty, let's delete
+	xor	a		; look for null
+	call	findchar	; HL points to end of buf
+	dec	hl		; the char before it
+	xor	a
+	ld	(hl), a		; set to zero
+	; Char deleted in buffer, now send BS + space + BS for the terminal
+	; to clear its previous char
+	ld	a, ASCII_BS
+	call	stdioPutC
+	ld	a, ' '
+	call	stdioPutC
+	ld	a, ASCII_BS
+	call	stdioPutC
+	jr	shellLoop
+
 
 ; Parse command (null terminated) at HL and calls it
 shellParse:

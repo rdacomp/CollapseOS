@@ -4,8 +4,10 @@
 ; in your glue file.
 
 ; *** CONSTS ***
+.equ	ASCII_BS	0x08
 .equ	ASCII_CR	0x0d
 .equ	ASCII_LF	0x0a
+.equ	ASCII_DEL	0x7f
 
 ; *** DATA ***
 ; Useful data to point to, when a pointer is needed.
