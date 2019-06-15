@@ -104,6 +104,8 @@ ioGetC:
 	ret	z			; local pass? return EOF
 	; regular pass (first or second)? transparently get off include mode.
 	ld	(IO_IN_INCLUDE), a	; A already 0
+	ld	(IO_INC_LINENO), a
+	ld	(IO_INC_LINENO+1), a
 	; continue on to "normal" reading. We don't want to return our zero
 .normalmode:
 	; normal mode, read from IN stream
@@ -155,6 +157,10 @@ ioPutC:
 
 ioSavePos:
 	ld	hl, (IO_LINENO)
+	call	ioInInclude
+	jr	z, .skip
+	ld	hl, (IO_INC_LINENO)
+.skip:
 	ld	(IO_SAVED_LINENO), hl
 	call	_ioTell
 	ld	(IO_SAVED_POS), hl
@@ -162,7 +168,13 @@ ioSavePos:
 
 ioRecallPos:
 	ld	hl, (IO_SAVED_LINENO)
+	call	ioInInclude
+	jr	nz, .include
 	ld	(IO_LINENO), hl
+	jr	.recallpos
+.include:
+	ld	(IO_INC_LINENO), hl
+.recallpos:
 	ld	hl, (IO_SAVED_POS)
 	jr	_ioSeek
 
@@ -202,6 +214,7 @@ _ioTell:
 	jp	_blkTell	; returns
 
 ; Sets Z according to whether we're inside an include
+; Z is set when we're *not* in includes. A bit weird, I know...
 ioInInclude:
 	ld	a, (IO_IN_INCLUDE)
 	or	a		; cp 0
