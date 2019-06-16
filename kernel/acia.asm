@@ -77,17 +77,19 @@ aciaInt:
 	cp	l
 	jr	z, .end		; Equal? buffer is full
 
-	; Alrighty, buffer not full. let's write.
-	ld	de, ACIA_BUF
-	; A already contains our write index, add it to DE
-	call	addDE
-	; increase our buf ptr while we still have it in A
-	call	aciaIncIndex
-	ld	(ACIA_BUFWRIDX), a
-
-	; And finally, fetch the value and write it.
-	in	a, (ACIA_IO)
-	ld	(de), a
+	push	de		; <|
+	; Alrighty, buffer not full|. let's write.
+	ld	de, ACIA_BUF	;  |
+	; A already contains our wr|ite index, add it to DE
+	call	addDE		;  |
+	; increase our buf ptr whil|e we still have it in A
+	call	aciaIncIndex	;  |
+	ld	(ACIA_BUFWRIDX), a ;
+				;  |
+	; And finally, fetch the va|lue and write it.
+	in	a, (ACIA_IO)	;  |
+	ld	(de), a		;  |
+	pop	de		; <|
 
 .end:
 	pop	hl
