@@ -295,22 +295,17 @@ shellMptr:
 	ret
 
 
-; peek byte where memory pointer points to any display its value. If the
-; optional numerical byte arg is supplied, this number of bytes will be printed
+; peek the number of bytes specified by argument where memory pointer points to
+; and display their value. If 0 is specified, 0x100 bytes are peeked.
 ;
 ; Example: peek 2 (will print 2 bytes)
 shellPeekCmd:
-	.db	"peek", 0b101, 0, 0
+	.db	"peek", 0b001, 0, 0
 shellPeek:
 	push	bc
-	push	de
 	push	hl
 
 	ld	a, (hl)
-	cp	0
-	jr	nz, .arg1isset	; if arg1 is set, no need for a default
-	ld	a, 1		; default for arg1
-.arg1isset:
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
 .loop:	ld	a, (hl)
@@ -321,26 +316,19 @@ shellPeek:
 
 .end:
 	pop	hl
-	pop	de
 	pop	bc
 	xor	a
 	ret
 
-; poke byte where memory pointer points and set them to bytes types through
-; stdioGetC. If the optional numerical byte arg is supplied, this number of
-; bytes will be expected from stdioGetC. Blocks until all bytes have been
-; fetched.
+; poke specified number of bytes where memory pointer points and set them to
+; bytes typed through stdioGetC. Blocks until all bytes have been fetched.
 shellPokeCmd:
-	.db	"poke", 0b101, 0, 0
+	.db	"poke", 0b001, 0, 0
 shellPoke:
 	push	bc
 	push	hl
 
 	ld	a, (hl)
-	or	a		; cp 0
-	jr	nz, .arg1isset	; if arg1 is set, no need for a default
-	ld	a, 1		; default for arg1
-.arg1isset:
 	ld	b, a
 	ld	hl, (SHELL_MEM_PTR)
 .loop:	call	stdioGetC
