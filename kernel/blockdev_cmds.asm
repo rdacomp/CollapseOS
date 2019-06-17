@@ -44,9 +44,10 @@ blkSeekCmd:
 	xor	a
 	ret
 
-; Load the specified number of bytes (max 0xff) from IO and write them in the
-; current memory pointer (which doesn't change). If the blkdev hits end of
-; stream before we reach our specified number of bytes, we stop loading.
+; Load the specified number of bytes (max 0x100, 0 means 0x100) from IO and
+; write them in the current memory pointer (which doesn't change). If the
+; blkdev hits end of stream before we reach our specified number of bytes, we
+; stop loading.
 ;
 ; Returns a SHELL_ERR_IO_ERROR only if we couldn't read any byte (if the first
 ; call to GetC failed)
@@ -63,11 +64,13 @@ blkLoad:
 	ld	hl, (SHELL_MEM_PTR)
 	call	blkGetC
 	jr	nz, .ioError
+	jr	.intoLoop	; properly dec B + check on first iteration.
 .loop:
 	ld	(hl), a
 	inc	hl
 	call	blkGetC
 	jr	nz, .loopend
+.intoLoop:
 	djnz	.loop
 .loopend:
 	; success
@@ -80,9 +83,9 @@ blkLoad:
 	pop	bc
 	ret
 
-; Load the specified number of bytes (max 0xff) from the current memory pointer
-; and write them to I/O. Memory pointer doesn't move. This puts chars to
-; blkPutC. Raises error if not all bytes could be written.
+; Load the specified number of bytes (max 0x100, 0 means 0x100) from the current
+; memory pointer and write them to I/O. Memory pointer doesn't move. This puts
+; chars to blkPutC. Raises error if not all bytes could be written.
 ;
 ; Example: save 42
 blkSaveCmd:
