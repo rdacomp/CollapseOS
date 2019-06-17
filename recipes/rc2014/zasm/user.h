@@ -1,5 +1,5 @@
-.equ    USER_CODE       0xa000
-.equ    USER_RAMSTART   USER_CODE+0x1800
+.equ    USER_CODE       0x8700
+.equ    USER_RAMSTART   USER_CODE+0x1900
 .equ    FS_HANDLE_SIZE  6
 .equ    BLOCKDEV_SIZE   8
 

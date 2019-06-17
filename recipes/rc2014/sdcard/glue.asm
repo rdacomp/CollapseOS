@@ -69,6 +69,7 @@ init:
 	ld	hl, aciaGetC
 	ld	de, aciaPutC
 	call	stdioInit
+	call	fsInit
 	call	shellInit
 	ld	hl, pgmShellHook
 	ld	(SHELL_CMDHOOK), hl
