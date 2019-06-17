@@ -589,7 +589,7 @@ _sdcPlaceBuf:
 	; (SDC_BUFPTR). Only the 9 low bits of HL are important.
 	push	de
 	ld	de, (SDC_BUFPTR)
-	inc	de		; sector LSB
+	inc	de		; sector MSB
 	inc	de		; dirty flag
 	inc	de		; contents
 	ld	a, h		; high byte

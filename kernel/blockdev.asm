@@ -28,7 +28,9 @@
 ;
 ; Unsuccessful writes generally mean that we're out of bounds for writing.
 ;
-; All routines are expected to preserve unused registers.
+; All routines are expected to preserve unused registers except IX which is
+; explicitly protected during GetC/PutC calls. This makes quick "handle+jump"
+; definitions possible.
 
 
 ; *** DEFINES ***
