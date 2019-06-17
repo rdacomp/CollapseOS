@@ -99,3 +99,13 @@ Now you can write this into your card and boot Collapse OS:
     > fopn 1 dest
     > zasm 1 2          # This takes a while. About 3 minutes.
     > sdcf              # success! sdcf flushes SD card buffers to the card.
+
+Now let's go verify that we assembled the right thing. Pop out the card and
+plug it in your "modern" computer. Pipe the device directly through `cfsunpack`
+to unpack the FS into a directory (it will stop reading when it stops seeing
+CFS blocks):
+
+    $ sudo cat /dev/sdX | ../../../tools/cfspack/cfsunpack cfsout
+    $ cmp cfsout/dest ../os.bin
+
+They're the same! Your RC2014 assembled a full Collapse OS kernel all by itself!
