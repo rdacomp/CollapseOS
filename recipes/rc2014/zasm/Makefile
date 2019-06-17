@@ -1,9 +1,4 @@
-# source files required to build os.bin. We copy them in cfsin so that we can
-# build the same kernel from within the RC2014.
-KERNEL_SRCS = err.h acia.asm blockdev.asm blockdev_cmds.asm core.asm fs.asm \
-	fs_cmds.asm mmap.asm parse.asm pgm.asm sdc.asm shell.asm stdio.asm
-
-CFSTARGETS = $(addprefix cfsin/, zasm sdct at28w user.h $(KERNEL_SRCS))
+CFSTARGETS = $(addprefix cfsin/, zasm sdct memt at28w user.h)
 BASE = ../../..
 TOOLS = $(BASE)/tools
 ZASM = $(TOOLS)/zasm.sh
@@ -29,14 +24,13 @@ cfsin/zasm: $(ZASMBIN)
 cfsin/sdct: $(ZASMBIN)
 	$(ZASM) $(APPS) user.h < $(APPS)/sdct/glue.asm > $@
 
+cfsin/memt: $(ZASMBIN)
+	$(ZASM) $(APPS) user.h < $(APPS)/memt/glue.asm > $@
+
 cfsin/at28w: $(ZASMBIN)
 	$(ZASM) $(APPS) $(KERNEL) user.h < $(APPS)/at28w/glue.asm > $@
 
 cfsin/user.h: user.h
-	cp $< $@
-cfsin/err.h: $(KERNEL)/err.h
-	cp $< $@
-cfsin/%.asm: $(KERNEL)/%.asm
 	cp $< $@
 
 .PHONY: clean
