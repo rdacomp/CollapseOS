@@ -64,13 +64,14 @@ blkLoad:
 	ld	hl, (SHELL_MEM_PTR)
 	call	blkGetC
 	jr	nz, .ioError
-	jr	.intoLoop	; properly dec B + check on first iteration.
+	jr	.intoLoop	; we'v already called blkGetC. don't call it
+				; again.
 .loop:
+	call	blkGetC
+.intoLoop:
 	ld	(hl), a
 	inc	hl
-	call	blkGetC
 	jr	nz, .loopend
-.intoLoop:
 	djnz	.loop
 .loopend:
 	; success
