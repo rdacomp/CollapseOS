@@ -142,37 +142,62 @@ sdcWaitReady:
 ; L: Arg 2
 ; D: Arg 3
 ; E: Arg 4 (LSB)
-; C: CRC
 ;
 ; Returns R1 response in A.
 ;
 ; This does *not* handle CS. You have to select/deselect the card outside this
 ; routine.
 sdcCmd:
+	push	bc
+
 	; Wait until ready to receive commands
 	push	af
 	call	sdcWaitResp
 	pop	af
 
+	ld	c, 0		; init CRC
+	call	.crc7
 	call	sdcSendRecv
 	; Arguments
 	ld	a, h
+	call	.crc7
 	call	sdcSendRecv
 	ld	a, l
+	call	.crc7
 	call	sdcSendRecv
 	ld	a, d
+	call	.crc7
 	call	sdcSendRecv
 	ld	a, e
+	call	.crc7
 	call	sdcSendRecv
 	; send CRC
 	ld	a, c
-	; Most of the time, we don't care about C, but in all cases, we want
-	; the last bit to be high. It's the stop bit.
-	or	0x01
+	or	0x01		; ensure stop bit is set
 	call	sdcSendRecv
 
 	; And now we just have to wait for a valid response...
-	jp	sdcWaitResp		; return
+	call	sdcWaitResp
+	pop	bc
+	ret
+
+; push A into C and compute CRC7 with 0x09 polynomial
+; Note that the result is "left aligned", that is, that 8th bit to the "right"
+; is insignificant (will be stop bit).
+.crc7:
+	push	af
+	xor	c
+	ld	b, 8
+.loop:
+	sla	a
+	jr	nc, .noCRC
+	; msb was set, apply polynomial
+	xor	0x12	; 0x09 << 1. We apply CRC on high 7 bits
+.noCRC:
+	djnz	.loop
+	ld	c, a
+	pop	af
+	ret
 
 ; Send a command that expects a R1 response, handling CS.
 sdcCmdR1:
@@ -191,17 +216,13 @@ sdcCmdR7:
 	; We have our R1 response in A. Let's try reading the next 4 bytes in
 	; case we have a R3.
 	push	af
-	ld	a, 0xff
-	call	sdcSendRecv
+	call	sdcIdle
 	ld	h, a
-	ld	a, 0xff
-	call	sdcSendRecv
+	call	sdcIdle
 	ld	l, a
-	ld	a, 0xff
-	call	sdcSendRecv
+	call	sdcIdle
 	ld	d, a
-	ld	a, 0xff
-	call	sdcSendRecv
+	call	sdcIdle
 	ld	e, a
 	pop	af
 
@@ -225,7 +246,6 @@ sdcInitialize:
 	ld	a, 0b01000000	; CMD0
 	ld	hl, 0
 	ld	de, 0
-	ld	c, 0x95
 	call	sdcCmdR1
 	cp	0x01
 	jp	z, .cmd0ok
@@ -239,7 +259,6 @@ sdcInitialize:
 	ld	a, 0b01001000	; CMD8
 	ld	hl, 0
 	ld	de, 0x01aa
-	ld	c, 0x87
 	call	sdcCmdR7
 	cp	0x01
 	jr	nz, .error
