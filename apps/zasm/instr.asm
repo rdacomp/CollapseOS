@@ -2,7 +2,7 @@
 ; Number of rows in the argspec table
 .equ	ARGSPEC_TBL_CNT		31
 ; Number of rows in the primary instructions table
-.equ	INSTR_TBL_CNT		152
+.equ	INSTR_TBL_CNT		154
 ; size in bytes of each row in the primary instructions table
 .equ	INSTR_TBL_ROWSIZE	6
 ; Instruction IDs They correspond to the index of the table in instrNames
@@ -61,9 +61,10 @@
 .equ	I_RRCA	0x34
 .equ	I_SBC	0x35
 .equ	I_SCF	0x36
-.equ	I_SRL	0x37
-.equ	I_SUB	0x38
-.equ	I_XOR	0x39
+.equ	I_SLA	0x37
+.equ	I_SRL	0x38
+.equ	I_SUB	0x39
+.equ	I_XOR	0x3a
 
 ; Checks whether A is 'N' or 'M'
 checkNOrM:
@@ -974,6 +975,7 @@ instrNames:
 	.db "RRCA"
 	.db "SBC", 0
 	.db "SCF", 0
+	.db "SLA", 0
 	.db "SRL", 0
 	.db "SUB", 0
 	.db "XOR", 0
@@ -1148,12 +1150,14 @@ instrTBl:
 	.db I_SBC, 'A', 0xb, 0,    0b10011000	, 0	; SBC A, r
 	.db I_SBC,'h',0x3,0x44,    0xed, 0b01000010	; SBC HL, ss
 	.db I_SCF, 0,   0,   0,    0x37		, 0	; SCF
+	.db I_SLA, 0xb, 0,0x40,    0xcb, 0b00100000	; SLA r
 	.db I_SRL, 0xb, 0,0x40,    0xcb, 0b00111000	; SRL r
 	.db I_SUB, 'l', 0,   0,    0x96		, 0	; SUB (HL)
 	.db I_SUB, 0xb, 0,   0,    0b10010000	, 0	; SUB r
 	.db I_SUB, 'n', 0,   0,    0xd6 	, 0	; SUB n
 	.db I_XOR, 'l', 0,   0,    0xae		, 0	; XOR (HL)
 	.db I_XOR, 0xb, 0,   0,    0b10101000	, 0	; XOR r
+	.db I_XOR, 'n', 0,   0,    0xee		, 0	; XOR n
 
 
 ; *** Variables ***
