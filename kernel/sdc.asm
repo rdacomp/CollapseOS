@@ -65,12 +65,19 @@
 .equ	SDC_BUFDIRTY1	SDC_BUFSEC1+2
 ; The contents of the buffer.
 .equ	SDC_BUF1	SDC_BUFDIRTY1+1
+; CRC bytes for the buffer. They're placed after the contents because that makes
+; things easier processing-wise. Because the SD card sends them right after the
+; contents, all we need to do is read SDC_BLKSIZE+2.
+; IMPORTANT NOTE: This is big endian. The SD card sends the MSB first, so we
+; keep it in memory this way.
+.equ	SDC_CRC1	SDC_BUF1+SDC_BLKSIZE
 
 ; second buffer has the same structure as the first.
-.equ	SDC_BUFSEC2	SDC_BUF1+SDC_BLKSIZE
+.equ	SDC_BUFSEC2	SDC_CRC1+2
 .equ	SDC_BUFDIRTY2	SDC_BUFSEC2+2
 .equ	SDC_BUF2	SDC_BUFDIRTY2+1
-.equ	SDC_RAMEND	SDC_BUF2+SDC_BLKSIZE
+.equ	SDC_CRC2	SDC_BUF2+SDC_BLKSIZE
+.equ	SDC_RAMEND	SDC_CRC2+2
 
 ; *** Code ***
 ; Wake the SD card up. After power up, a SD card has to receive at least 74
@@ -350,8 +357,8 @@ sdcReadBlk:
 	jr	.error		; timeout. error out
 .loop1end:
 	; We received our data token!
-	; Data packets follow immediately, we have 512 of them to read
-	ld	bc, SDC_BLKSIZE
+	; Data packets follow immediately, we have 512+CRC of them to read
+	ld	bc, SDC_BLKSIZE+2
 	ld	hl, (SDC_BUFPTR)	; HL --> active buffer's sector
 	; It sounds a bit wrong to set bufsec and dirty flag before we get our
 	; actual data, but at this point, we don't have any error conditions
@@ -372,9 +379,6 @@ sdcReadBlk:
 	cpi			; a trick to inc HL and dec BC at the same time.
 				; P/V indicates whether BC reached 0
 	jp	pe, .loop2	; BC is not zero, loop
-	; Read our 2 CRC bytes
-	call	sdcIdle
-	call	sdcIdle
 	; success! wait until card is ready
 	call	sdcWaitReady
 	xor	a		; success
@@ -430,7 +434,10 @@ sdcWriteBlk:
 	call	sdcSendRecv
 
 	; Sending our data token!
-	ld	bc, SDC_BLKSIZE
+	ld	bc, SDC_BLKSIZE+2	; +2 for CRC. (as of now, however, that
+					; CRC isn't properly updated. Because
+					; CMD59 isn't enabled, it doesn't
+					; matter)
 	ld	hl, (SDC_BUFPTR)
 	inc	hl		; sector MSB
 	inc	hl		; dirty flag
@@ -442,9 +449,6 @@ sdcWriteBlk:
 	cpi			; a trick to inc HL and dec BC at the same time.
 				; P/V indicates whether BC reached 0
 	jp	pe, .loop	; BC is not zero, loop
-	; Send our 2 CRC bytes. They can be anything
-	call	sdcIdle
-	call	sdcIdle
 	; Let's see what response we have
 	call	sdcWaitResp
 	and	0b00011111	; We ignore the first 3 bits of the response.
@@ -464,7 +468,6 @@ sdcWriteBlk:
 	; Before returning, wait until card is ready
 	call	sdcWaitReady
 	xor	a
-	; A is already 0
 	jr	.end
 .error:
 	; try to preserve error code
