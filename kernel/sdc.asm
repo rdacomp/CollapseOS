@@ -356,11 +356,9 @@ sdcReadBlk:
 	; actual data, but at this point, we don't have any error conditions
 	; left, success is guaranteed. To avoid needlesssly INCing hl, let's
 	; set sector and dirty along the way
-	ld	a, e			; sector number LSB
-	ld	(hl), a
-	inc	hl			; sector number MSB
-	ld	a, d
-	ld	(hl), a
+	ld	(hl), e			; sector number LSB
+	inc	hl
+	ld	(hl), d			; sector number MSB
 	inc	hl			; dirty flag
 	xor	a			; unset
 	ld	(hl), a
@@ -425,24 +423,23 @@ sdcWriteBlk:
 	ld	ix, (SDC_BUFPTR)	; HL points to sector LSB
 	xor	a
 	cp	(ix+2)			; dirty flag
-	jr	z, .dontWrite		; A is already 0
+	pop	ix
+	ret	z			; don't write if dirst flag is zero
 
 	push	bc
 	push	de
 	push	hl
 
 	call	sdcCRC		; DE -> new CRC. HL -> pointer to buf CRC
-	ld	a, d		; write computed CRC
-	ld	(hl), a
+	ld	(hl), d		; write computed CRC
 	inc	hl
-	ld	a, e
-	ld	(hl), a
+	ld	(hl), e
 
 	out	(SDC_PORT_CSLOW), a
-	ld	a, (ix)		; sector LSB
-	ld	e, a
-	ld	a, (ix+1)	; sector MSB
-	ld	d, a
+	ld	hl, (SDC_BUFPTR) ; sector LSB
+	ld	e, (hl)		; sector LSB
+	inc	hl
+	ld	d, (hl)		; sector MSB
 	ld	hl, 0		; high addr word always zero, DE already set
 	ld	a, 0b01011000	; CMD24
 	call	sdcCmd
@@ -503,8 +500,6 @@ sdcWriteBlk:
 	pop	hl
 	pop	de
 	pop	bc
-.dontWrite:
-	pop	ix
 	ret
 
 ; Considering the first 15 bits of EHL, select the most appropriate of our two
