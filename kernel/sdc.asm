@@ -54,13 +54,17 @@
 
 ; *** Consts ***
 .equ	SDC_BLKSIZE	512
+.equ	SDC_MAXTRIES	8
 
 ; *** Variables ***
 ; This is a pointer to the currently selected buffer. This points to the BUFSEC
 ; part, that is, two bytes before actual content begins.
 .equ	SDC_BUFPTR	SDC_RAMSTART
+; Count the number of times we tried a particular read or write operation. When
+; CRC check fail, we retry. After SDC_MAXTRIES failures, we stop.
+.equ	SDC_RETRYCNT	SDC_BUFPTR+2
 ; Sector number currently in SDC_BUF1. Little endian like any other z80 word.
-.equ	SDC_BUFSEC1	SDC_BUFPTR+2
+.equ	SDC_BUFSEC1	SDC_RETRYCNT+1
 ; Whether the buffer has been written to. 0 means clean. 1 means dirty.
 .equ	SDC_BUFDIRTY1	SDC_BUFSEC1+2
 ; The contents of the buffer.
@@ -329,10 +333,14 @@ sdcSetBlkSize:
 
 ; Read block index specified in DE and place the contents in buffer pointed to
 ; by (SDC_BUFPTR).
-; Doesn't check CRC. If the operation is a success, updates buffer's sector to
-; the value of DE.
+; If the operation is a success, updates buffer's sector to the value of DE.
+; After a block read, check that CRC given by the card matches the content. If
+; it doesn't, retries up to SDC_MAXTRIES times.
 ; Returns 0 in A if success, non-zero if error.
 sdcReadBlk:
+	xor	a
+	ld	(SDC_RETRYCNT), a
+.retry:
 	push	bc
 	push	hl
 
@@ -379,10 +387,39 @@ sdcReadBlk:
 	cpi			; a trick to inc HL and dec BC at the same time.
 				; P/V indicates whether BC reached 0
 	jp	pe, .loop2	; BC is not zero, loop
-	; success! wait until card is ready
-	call	sdcWaitReady
+	; Success! while the card is busy, let's get busy too: let's check and
+	; see if the CRC matches.
+	push	de		; <|
+	call	sdcCRC		;  |
+	; before we check the CRC r|esults, let's wait until card is ready
+	call	sdcWaitReady	;  |
+	; check CRC results        |
+	ld	a, (hl)		;  |
+	cp	d		;  |
+	jr	nz, .crcMismatch ; |
+	inc	hl		;  |
+	ld	a, (hl)		;  |
+	cp	e		;  |
+	jr	nz, .crcMismatch ; |
+	pop	de		; <|
+	; Everything is fine and dandy!
 	xor	a		; success
 	jr	.end
+.crcMismatch:
+	; CRC of the buffer's content doesn't match the CRC reported by the
+	; card. Let's retry.
+	pop	de		; from the push right before call sdcCRC
+	pop	hl		; Our main stack, pop it
+	pop	bc
+	ld	a, (SDC_RETRYCNT)
+	inc	a
+	ld	(SDC_RETRYCNT), a
+	cp	SDC_MAXTRIES
+	jr	nz, .retry
+	; don't continue to error/end: our stack is already popped. Let's just
+	; deselect the card and return
+	out	(SDC_PORT_CSHIGH), a
+	ret
 .error:
 	; try to preserve error code
 	or	a		; cp 0
@@ -561,6 +598,45 @@ sdcSync:
 	; to .end
 .end:
 	pop	de
+	ret
+
+; Computes the CRC-16, with polynomial 0x1021 of buffer at (SDC_BUFPTR) and
+; returns its value in DE. Also, make HL point to the first byte of the CRC
+; associated to (SDC_BUFPTR).
+sdcCRC:
+	push	af
+	push	bc
+	ld	hl, (SDC_BUFPTR)
+	inc	hl \ inc hl \ inc hl	; HL points to contents
+	ld	bc, SDC_BLKSIZE
+	ld	de, 0
+.loop:
+	push	bc		; <|
+	ld	b, 8		;  |
+	ld	a, (hl)		;  |
+	xor	d		;  |
+	ld	d, a		;  |
+.inner:				;  |
+	sla	e		;  | Sets Carry
+	rl	d		;  | Takes and sets carry
+	jr	nc, .noCRC	;  |
+	; msb was set, apply polyno|mial
+	ld	a, d		;  |
+	xor	0x10		;  |
+	ld	d, a		;  |
+	ld	a, e		;  |
+	xor	0x21		;  |
+	ld	e, a		;  |
+.noCRC:				;  |
+	djnz	.inner		;  |
+	pop	bc		; <|
+
+	cpi			; inc HL, dec BC, sets P/V on BC=0
+	jp	pe, .loop	; BC is not zero, loop
+	; At this point, HL points to the right place: the first byte of the
+	; recorded CRC.
+	pop	bc
+	pop	af
 	ret
 
 ; *** shell cmds ***
