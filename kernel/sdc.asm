@@ -315,22 +315,6 @@ sdcInitialize:
 	pop	hl
 	ret
 
-; Send a command to set block size to SDC_BLKSIZE to the SD card.
-; Returns zero in A if a success, non-zero otherwise
-sdcSetBlkSize:
-	push	hl
-	push	de
-
-	ld	a, 0b01010000	; CMD16
-	ld	hl, 0
-	ld	de, SDC_BLKSIZE
-	call	sdcCmdR1
-	; Since we're out of idle mode, we expect a 0 response
-	; We need no further processing: A is already the correct value.
-	pop	de
-	pop	hl
-	ret
-
 ; Read block index specified in DE and place the contents in buffer pointed to
 ; by (SDC_BUFPTR).
 ; If the operation is a success, updates buffer's sector to the value of DE.
@@ -433,28 +417,32 @@ sdcReadBlk:
 
 ; Write the contents of buffer where (SDC_BUFPTR) points to in sector associated
 ; to it. Unsets the the buffer's dirty flag on success.
+; Before writing the block, update the buffer's CRC field so that the correct
+; CRC is sent.
 ; A returns 0 in A on success (with Z set), non-zero (with Z unset) on error.
 sdcWriteBlk:
-	push	hl
-	ld	hl, (SDC_BUFPTR)	; HL points to sector LSB
-	inc	hl			; sector MSB
-	inc	hl			; now to dirty flag
+	push	ix
+	ld	ix, (SDC_BUFPTR)	; HL points to sector LSB
 	xor	a
-	cp	(hl)
+	cp	(ix+2)			; dirty flag
 	jr	z, .dontWrite		; A is already 0
-
-	; At this point, HL points to dirty flag of the proper buffer
 
 	push	bc
 	push	de
+	push	hl
+
+	call	sdcCRC		; DE -> new CRC. HL -> pointer to buf CRC
+	ld	a, d		; write computed CRC
+	ld	(hl), a
+	inc	hl
+	ld	a, e
+	ld	(hl), a
 
 	out	(SDC_PORT_CSLOW), a
-	dec	hl		; sector MSB
-	ld	a, (hl)
-	ld	d, a
-	dec	hl		; sector LSB
-	ld	a, (hl)
+	ld	a, (ix)		; sector LSB
 	ld	e, a
+	ld	a, (ix+1)	; sector MSB
+	ld	d, a
 	ld	hl, 0		; high addr word always zero, DE already set
 	ld	a, 0b01011000	; CMD24
 	call	sdcCmd
@@ -463,8 +451,7 @@ sdcWriteBlk:
 
 	; Before sending the data packet, we need to send at least one empty
 	; byte.
-	ld	a, 0xff
-	call	sdcSendRecv
+	call	sdcIdle
 
 	; data packet token for CMD24
 	ld	a, 0xfe
@@ -513,10 +500,11 @@ sdcWriteBlk:
 	inc	a		; zero, adjust
 .end:
 	out	(SDC_PORT_CSHIGH), a
+	pop	hl
 	pop	de
 	pop	bc
 .dontWrite:
-	pop	hl
+	pop	ix
 	ret
 
 ; Considering the first 15 bits of EHL, select the most appropriate of our two
@@ -645,7 +633,9 @@ sdcInitializeCmd:
 	.db	"sdci", 0, 0, 0
 	call	sdcInitialize
 	ret	nz
-	call	sdcSetBlkSize
+	call	.setBlkSize
+	ret	nz
+	call	.enableCRC
 	ret	nz
 	; At this point, our buffers are unnitialized. We could have some logic
 	; that determines whether a buffer is initialized in appropriate SDC
@@ -662,6 +652,35 @@ sdcInitializeCmd:
 	ld	(SDC_BUFPTR), hl
 	inc	de
 	jp	sdcReadBlk		; read sector 1 in buf2, returns
+
+; Send a command to set block size to SDC_BLKSIZE to the SD card.
+; Returns zero in A if a success, non-zero otherwise
+.setBlkSize:
+	push	hl
+	push	de
+
+	ld	a, 0b01010000	; CMD16
+	ld	hl, 0
+	ld	de, SDC_BLKSIZE
+	call	sdcCmdR1
+	; Since we're out of idle mode, we expect a 0 response
+	; We need no further processing: A is already the correct value.
+	pop	de
+	pop	hl
+	ret
+
+; Enable CRC checks through CMD59
+.enableCRC:
+	push	hl
+	push	de
+
+	ld	a, 0b01111011	; CMD59
+	ld	hl, 0
+	ld	de, 1		; 1 means CRC enabled
+	call	sdcCmdR1
+	pop	de
+	pop	hl
+	ret
 
 ; Flush the current SDC buffer if dirty
 sdcFlushCmd:
