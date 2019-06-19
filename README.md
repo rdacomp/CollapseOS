@@ -42,6 +42,19 @@ The project unfinished but is progressing well! Highlights:
 * From a GNU environment, can be built with minimal tooling: only
   [libz80][libz80], make and a C compiler are needed.
 
+## Organisation of this repository
+
+* `kernel`: Pieces of code to be assembled by the user into a kernel.
+* `apps`: Pieces of code to be assembled into "userspace" application.
+* `recipes`: collection of recipes that assemble parts together on a specific
+             machine.
+* `doc`: User guide for when you've successfully installed Collapse OS.
+* `tools`: Tools for working with Collapse OS from "modern" environments. Mostly
+           development tools, but also contains emulated zasm, which is
+           necessary to build Collapse OS from a non-Collapse OS machine.
+
+Each folder has a README with more details.
+
 ## More information
 
 Go to [Collapse OS' website](https://collapseos.org) for more information on the
