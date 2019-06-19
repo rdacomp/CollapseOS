@@ -53,11 +53,15 @@ zasmMain:
 	call	symInit
 
 	; First pass
+	ld	hl, .sFirstPass
+	call	ioPrintLN
 	ld	a, 1
 	ld	(ZASM_FIRST_PASS), a
 	call	zasmParseFile
 	jr	nz, .end
 	; Second pass
+	ld	hl, .sSecondPass
+	call	ioPrintLN
 	xor	a
 	ld	(ZASM_FIRST_PASS), a
 	call	zasmParseFile
@@ -66,6 +70,10 @@ zasmMain:
 
 .argspecs:
 	.db	0b001, 0b001, 0
+.sFirstPass:
+	.db	"First pass", 0
+.sSecondPass:
+	.db	"Second pass", 0
 
 ; Sets Z according to whether we're in first pass.
 zasmIsFirstPass:

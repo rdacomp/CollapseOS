@@ -26,3 +26,4 @@
 .equ    _blkPutC       0x3c
 .equ    _blkSeek       0x3f
 .equ    _blkTell       0x42
+.equ    printstr       0x45

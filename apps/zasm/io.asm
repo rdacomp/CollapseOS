@@ -223,6 +223,7 @@ ioInInclude:
 ; Open include file name specified in (HL).
 ; Sets Z on success, unset on error.
 ioOpenInclude:
+	call	ioPrintLN
 	call	fsFindFN
 	ret	nz
 	ld	ix, IO_INCLUDE_HDL
@@ -257,3 +258,13 @@ _ioIncGetC:
 _ioIncBlk:
 	.dw	_ioIncGetC, unsetZ
 
+; call printstr followed by newline
+ioPrintLN:
+	push	hl
+	call	printstr
+	ld	hl, .sCRLF
+	call	printstr
+	pop	hl
+	ret
+.sCRLF:
+	.db	0x0a, 0x0d, 0

@@ -31,6 +31,7 @@ jp	_blkGetC
 jp	_blkPutC
 jp	_blkSeek
 jp	_blkTell
+jp	printstr
 
 #include "core.asm"
 #include "err.h"
@@ -43,7 +44,10 @@ jp	_blkTell
 .dw	unsetZ, emulPutC
 .dw	fsdevGetC, fsdevPutC
 
-.equ	FS_RAMSTART	BLOCKDEV_RAMEND
+.equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
+#include "stdio.asm"
+
+.equ	FS_RAMSTART	STDIO_RAMEND
 .equ	FS_HANDLE_COUNT	0
 #include "fs.asm"
 
@@ -51,6 +55,9 @@ init:
 	di
 	ld	hl, 0xffff
 	ld	sp, hl
+	ld	hl, unsetZ
+	ld	de, stderrPutC
+	call	stdioInit
 	ld	a, 2	; select fsdev
 	ld	de, BLOCKDEV_SEL
 	call	blkSel
@@ -82,6 +89,11 @@ emulGetC:
 
 emulPutC:
 	out	(STDIO_PORT), a
+	cp	a		; ensure Z
+	ret
+
+stderrPutC:
+	out	(STDERR_PORT), a
 	cp	a		; ensure Z
 	ret
 

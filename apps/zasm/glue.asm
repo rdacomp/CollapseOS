@@ -18,7 +18,6 @@
 ; during the first pass so forward references are not allowed.
 ;
 ; *** Requirements ***
-; blockdev
 ; strncmp
 ; addDE
 ; addHL
@@ -41,6 +40,7 @@
 ; _blkPutC
 ; _blkSeek
 ; _blkTell
+; printstr
 ; FS_HANDLE_SIZE
 ; BLOCKDEV_SIZE
 

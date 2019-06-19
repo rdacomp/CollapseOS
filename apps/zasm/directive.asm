@@ -80,6 +80,7 @@ handleDB:
 	jr	z, .stopStrLit	; be our closing quote. Stop.
 	; Normal character, output
 	call	ioPutC
+	jr	nz, .ioError
 	jr	.stringLiteral
 
 handleDW:
@@ -93,13 +94,18 @@ handleDW:
 	push	ix \ pop hl
 	ld	a, l
 	call	ioPutC
+	jr	nz, .ioError
 	ld	a, h
 	call	ioPutC
+	jr	nz, .ioError
 	call	readComma
 	jr	z, .loop
 	cp	a		; ensure Z
 	pop	hl
 	ret
+.ioError:
+	ld	a, SHELL_ERR_IO_ERROR
+	jr	.error
 .badfmt:
 	ld	a, ERR_BAD_FMT
 	jr	.error
@@ -181,10 +187,14 @@ handleFIL:
 	ld	b, c
 .loop:
 	call	ioPutC
+	jr	nz, .ioError
 	djnz	.loop
 	cp	a		; ensure Z
 	pop	bc
 	ret
+.ioError:
+	ld	a, SHELL_ERR_IO_ERROR
+	jr	.error
 .badfmt:
 	ld	a, ERR_BAD_FMT
 	jr	.error

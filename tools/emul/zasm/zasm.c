@@ -40,6 +40,9 @@
 // When defined, we dump memory instead of dumping expected stdout
 //#define MEMDUMP
 //#define DEBUG
+// By default, we don't spit what zasm prints. Too noisy. Define VERBOSE if
+// you want to spit this content to stderr.
+//#define VERBOSE
 
 static Z80Context cpu;
 static uint8_t mem[0x10000];
@@ -132,7 +135,9 @@ static void io_write(int unused, uint16_t addr, uint8_t val)
 #endif
         }
     } else if (addr == STDERR_PORT) {
+#ifdef VERBOSE
         fputc(val, stderr);
+#endif
     } else {
         fprintf(stderr, "Out of bounds I/O write: %d / %d (0x%x)\n", addr, val, val);
     }
