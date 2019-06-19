@@ -324,11 +324,12 @@ sdcInitialize:
 sdcReadBlk:
 	xor	a
 	ld	(SDC_RETRYCNT), a
-.retry:
+
 	push	bc
 	push	hl
 
 	out	(SDC_PORT_CSLOW), a
+.retry:
 	ld	hl, 0
 	; DE already has the correct value
 	ld	a, 0b01010001	; CMD17
@@ -391,17 +392,15 @@ sdcReadBlk:
 	; CRC of the buffer's content doesn't match the CRC reported by the
 	; card. Let's retry.
 	pop	de		; from the push right before call sdcCRC
-	pop	hl		; Our main stack, pop it
-	pop	bc
 	ld	a, (SDC_RETRYCNT)
 	inc	a
 	ld	(SDC_RETRYCNT), a
 	cp	SDC_MAXTRIES
-	jr	nz, .retry
-	; don't continue to error/end: our stack is already popped. Let's just
-	; deselect the card and return
-	out	(SDC_PORT_CSHIGH), a
-	ret
+	jr	nz, .retry	; we jump inside our main stack push. No need
+				; to pop it.
+	; Continue to error condition. Even if we went through many retries,
+	; our stack is still the same as it was at the first call. We can return
+	; normally (but in error condition).
 .error:
 	; try to preserve error code
 	or	a		; cp 0
@@ -424,7 +423,7 @@ sdcWriteBlk:
 	xor	a
 	cp	(ix+2)			; dirty flag
 	pop	ix
-	ret	z			; don't write if dirst flag is zero
+	ret	z			; don't write if dirty flag is zero
 
 	push	bc
 	push	de
