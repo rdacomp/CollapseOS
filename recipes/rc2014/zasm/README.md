@@ -79,11 +79,9 @@ the `/kernel/` directory to it.
 
     $ cp ../../../kernel/*.{h,asm} cfsin
 
-You'll also need your glue file (at this time, the RC2014 can't assemble the
-kernel of this very recipe, I'm not sure why. It can, however, assemble the
-simpler kernel of the base RC2014 recipe. We'll use this one):
+You'll also need your glue file:
 
-    $ cp ../glue.asm cfsin
+    $ cp glue.asm cfsin
 
 You're now ready to re-make your CFS:
 
@@ -97,7 +95,7 @@ Now you can write this into your card and boot Collapse OS:
     > fopn 0 glue.asm
     > fnew 10 dest
     > fopn 1 dest
-    > zasm 1 2          # This takes a while. About 3 minutes.
+    > zasm 1 2          # This takes a while. About 7 minutes.
     > sdcf              # success! sdcf flushes SD card buffers to the card.
 
 Now let's go verify that we assembled the right thing. Pop out the card and
