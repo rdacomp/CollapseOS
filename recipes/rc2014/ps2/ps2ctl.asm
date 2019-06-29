@@ -45,8 +45,8 @@
 ; *** Sending to the 595 ***
 ;
 ; Whenever a scan code is read from the 595, CE goes low and triggers a PCINT
-; on PB4. When we get it, we clear the R2 flag to indicate that we're ready to
-; send a new scan code to the 595.
+; on PB4. When we get it, we clear the GPIOR0/1 flag to indicate that we're
+; ready to send a new scan code to the 595.
 ;
 ; Because that CE flip/flop is real fast (375ns), it requires us to run at 8MHz.
 ;
@@ -60,8 +60,13 @@
 
 ; *** Register Usage ***
 ;
-; R2: When set, indicate that the 595 holds a value that hasn't been read by the
-;     z80 yet.
+; GPIOR0 flags:
+;	0 - when set, indicates that the DATA pin was high when we received a
+;           bit through INT0. When we receive a bit, we set flag T to indicate
+;           it.
+;	1 - When set, indicate that the 595 holds a value that hasn't been read
+;           by the z80 yet.
+;
 ; R16: tmp stuff
 ; R17: recv buffer. Whenever we receive a bit, we push it in there.
 ; R18: recv step:
@@ -70,8 +75,6 @@
 ;      - 2: awaiting parity bit
 ;      - 3: awaiting stop bit
 ;      it reaches 11, we know we're finished with the frame.
-; R19: when set, indicates that the DATA pin was high when we received a bit
-;      through INT0. When we receive a bit, we set flag T to indicate it.
 ; R20: data being sent to the 595
 ; Y: pointer to the memory location where the next scan code from ps/2 will be
 ;    written.
@@ -89,21 +92,22 @@
 	rjmp	hdlINT0
 	rjmp	hdlPCINT
 
-; Read DATA and set R19 if high. Then, set flag T.
+; Read DATA and set GPIOR0/0 if high. Then, set flag T.
 ; no SREG fiddling because no SREG-modifying instruction
 hdlINT0:
 	sbic	PINB, DATA	; DATA clear? skip next
-	ser	r19
+	sbi	GPIOR0, 0
 	set
 	reti
 
 ; Only PB4 is hooked to PCINT and we don't bother checking the value of the PB4
 ; pin: things go too fast for this.
+; no SREG fiddling because no SREG-modifying instruction
 hdlPCINT:
 	; SRCLR has been triggered. Let's trigger RCLK too.
 	sbi	PORTB, RCLK
 	cbi	PORTB, RCLK
-	clr	r2		; 595 is now free
+	cbi	GPIOR0, 1	; 595 is now free
 	reti
 
 main:
@@ -120,9 +124,9 @@ main:
 
 
 	; init variables
-	clr	r2
-	clr	r19
 	clr	r18
+	out	GPIOR0, r18
+
 
 	; Setup int0/PCINT
 	; INT0, falling edge
@@ -156,8 +160,9 @@ loop:
 
 ; Process the data bit received in INT0 handler.
 processbit:
-	mov	r16, r19	; backup r19 before we reset T
-	clr	r19
+	in	r16, GPIOR0	; backup GPIOR0 before we reset T
+	andi	r16, 0x1	; only keep the first flag
+	cbi	GPIOR0, 0
 	clt			; ready to receive another bit
 
 	; Which step are we at?
@@ -210,8 +215,8 @@ processbits2:
 
 ; send next scan code in buffer to 595, MSB.
 sendTo595:
-	tst	r2
-	brne	loop		; non-zero? 595 is "busy". Don't send.
+	sbic	GPIOR0, 1
+	rjmp	loop		; flag 1 set? 595 is "busy". Don't send.
 	; We disable any interrupt handling during this routine. Whatever it
 	; is, it has no meaning to us at this point in time and processing it
 	; might mess things up.
@@ -246,8 +251,8 @@ sendTo595Loop:
 	; release PS/2
 	cbi	DDRB, DATA
 
-	; Set R2 to "595 is busy"
-	inc	r2
+	; Set GPIOR0/1 to "595 is busy"
+	sbi	GPIOR0, 1
 
 	; toggle RCLK
 	sbi	PORTB, RCLK
