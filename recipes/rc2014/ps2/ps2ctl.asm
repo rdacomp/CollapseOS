@@ -33,9 +33,10 @@
 
 ; *** Buffering scan codes ***
 ;
-; The whole SRAM (from SRAM_START to RAMEND) is used as a scan code buffer, with
-; Z chasing Y. When Y == Z, the buffer is empty. When RAMEND is reached, we go
-; back to SRAM_START.
+; The buffer starts at SRAM and stops at 0x100. It leaves space for the stack
+; and makes overflow check easy. Also, we don't need a very big buffer. In this
+; address space, Z chasing Y. When Y == Z, the buffer is empty. When 0x100 is
+; reached, we go back to SRAM_START.
 ;
 ; Whenever a new scan code is received, we place it in Y and increase it.
 ; Whenever we send a scan code to the 595 (which can't be done when Z == Y
@@ -59,7 +60,6 @@
 
 ; *** Register Usage ***
 ;
-; R1: when set, indicates that value in R17 is valid
 ; R2: When set, indicate that the 595 holds a value that hasn't been read by the
 ;     z80 yet.
 ; R16: tmp stuff
@@ -75,7 +75,7 @@
 ; R20: data being sent to the 595
 ; Y: pointer to the memory location where the next scan code from ps/2 will be
 ;    written.
-; Z: pointer to last scan code pushed to the 595
+; Z: pointer to the next scan code to push to the 595
 ;
 ; *** Constants ***
 ;
@@ -104,6 +104,7 @@ hdlPCINT:
 	sbi	PORTB, RCLK
 	cbi	PORTB, RCLK
 	clr	r2		; 595 is now free
+	reti
 
 main:
         ldi     r16, low(RAMEND)
@@ -119,7 +120,6 @@ main:
 
 
 	; init variables
-	clr	r1
 	clr	r2
 	clr	r19
 	clr	r18
@@ -135,6 +135,12 @@ main:
 	ldi	r16, (1<<PCINT4)
 	out	PCMSK, r16
 
+	; Setup buffer
+	clr	YH
+	ldi	YL, low(SRAM_START)
+	clr	ZH
+	ldi	ZL, low(SRAM_START)
+
 	; init DDRB
 	sbi	DDRB, SRCLK
 	cbi	PORTB, RCLK	; RCLK is generally kept low
@@ -144,8 +150,8 @@ main:
 
 loop:
 	brts	processbit	; flag T set? we have a bit to process
-	tst	r1
-	brne	sendTo595	; r1 is non-zero? char is ready to send
+	cp	YL, ZL		; if YL == ZL, buffer is empty
+	brne	sendTo595	; YL != ZL? our buffer has data
 	rjmp	loop
 
 ; Process the data bit received in INT0 handler.
@@ -165,8 +171,10 @@ processbit:
 	clr	r18		; happens in all cases
 	; DATA has to be set
 	tst	r16		; Was DATA set?
-	breq	loop		; not set? error, don't inc R1
-	inc	r1		; indicate that value in r17 is good
+	breq	loop		; not set? error, don't push to buffer
+	; push r17 to the buffer
+	st	Y+, r17
+	rcall	checkBoundsY
 	rjmp	loop
 processbits0:
 	; step 0 - start bit
@@ -177,7 +185,6 @@ processbits0:
 	; DATA is cleared. prepare r17 and r18 for step 1
 	inc	r18
 	ldi	r17, 0x80
-	clr	r1
 	rjmp	loop
 
 processbits1:
@@ -201,20 +208,18 @@ processbits2:
 	inc	r18
 	rjmp	loop
 
-; send R17 to 595, MSB.
+; send next scan code in buffer to 595, MSB.
 sendTo595:
 	tst	r2
 	brne	loop		; non-zero? 595 is "busy". Don't send.
-				; TODO: implement buffering. At this moment, the
-				; scan code is lost.
 	; We disable any interrupt handling during this routine. Whatever it
 	; is, it has no meaning to us at this point in time and processing it
 	; might mess things up.
 	cli
 	sbi	DDRB, DATA
 
-	mov	r20, r17
-	clr	r1
+	ld	r20, Z+
+	rcall	checkBoundsZ
 	ldi	r16, 8
 
 sendTo595Loop:
@@ -239,3 +244,23 @@ sendTo595Loop:
 	inc	r2
 	sei
 	rjmp	loop
+
+; Check that Y is within bounds, reset to SRAM_START if not.
+checkBoundsY:
+	tst	YL
+	breq	PC+2
+	ret			; not zero, nothing to do
+	; YL is zero. Reset Y
+	clr	YH
+	ldi	YL, low(SRAM_START)
+	ret
+
+; Check that Z is within bounds, reset to SRAM_START if not.
+checkBoundsZ:
+	tst	ZL
+	breq	PC+2
+	ret			; not zero, nothing to do
+	; ZL is zero. Reset Z
+	clr	ZH
+	ldi	ZL, low(SRAM_START)
+	ret
