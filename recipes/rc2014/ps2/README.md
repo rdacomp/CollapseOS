@@ -36,16 +36,15 @@ address selection + `IORQ` + `RO`
 
 ## Using the PS/2 interface
 
-As of now, the interface is incomplete and can only be queried through the
-shell's `iord`. I've set my device up for addr `8` (that is, I wired `A3`
-through the inverter, the rest through diodes, and hooked this pudding to `OE`).
+After having built and flashed the `glue.asm` supplied with this recipe, you end
+up with a shell driven by the PS/2 keyboard (but it still outputs to ACIA).
 
-When doing `iord 8` in the shell, I get the scan code of the last key I pressed,
-unless the 595 was "busy" with another code. For example, if I press `A`, my
-next `iord 8` will yield `1C` (the "make" code for "A" in the PS/2 protocol).
+You will see, by typing on the keyboard, that it kinda works, but in a very
+basic and glitchy way. You will get double letters sometimes, and at some point,
+communications are likely to become "corrupted" (you reliably get the wrong
+letters). That's because parity checks, timeouts and reset procedures aren't
+implemented yet.
 
-Doing a second `iord 8` right after a first will yield `0`, indicating that the
-device properly detect the first reading attempt and properly flushes the value
-from the 595.
+But still, it kinda works!
 
 [avra]: https://github.com/hsoft/avra

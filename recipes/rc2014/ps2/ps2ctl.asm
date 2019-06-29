@@ -233,16 +233,27 @@ sendTo595Loop:
 	dec	r16
 	brne	sendTo595Loop	; not zero yet? loop
 
-	; toggle RCLK
-	sbi	PORTB, RCLK
-	cbi	PORTB, RCLK
+	; We're finished sending our data to the 595 and we're ready to go back
+	; to business as usual. However, timing is important here. The z80 is
+	; very fast and constantly hammers our 595 with polls. While this
+	; routine was running, it was getting zeroes, which is fine, but as soon
+	; as we trigger RCLK, the z80 is going to fetch that value. What we want
+	; to do is to enable back the interrupts as soon as RCLK is triggered
+	; so that the z80 doesn't have enough time to poll twice. If it did, we
+	; would return a double character. This is why RCLK triggering is the
+	; last operation.
 
 	; release PS/2
 	cbi	DDRB, DATA
 
 	; Set R2 to "595 is busy"
 	inc	r2
+
+	; toggle RCLK
+	sbi	PORTB, RCLK
+	cbi	PORTB, RCLK
 	sei
+
 	rjmp	loop
 
 ; Check that Y is within bounds, reset to SRAM_START if not.

@@ -1,2 +1,4 @@
 *.bin
 *.cfs
+*.hex
+*.obj
