@@ -75,7 +75,7 @@
 ;      - 2: awaiting parity bit
 ;      - 3: awaiting stop bit
 ;      it reaches 11, we know we're finished with the frame.
-; R19: Register used for parity computations
+; R19: Register used for parity computations and tmp value in some other places
 ; R20: data being sent to the 595
 ; Y: pointer to the memory location where the next scan code from ps/2 will be
 ;    written.
@@ -174,14 +174,13 @@ loop:
 
 ; Process the data bit received in INT0 handler.
 processbit:
-	in	r16, GPIOR0	; backup GPIOR0 before we reset T
-	andi	r16, 0x1	; only keep the first flag
+	in	r19, GPIOR0	; backup GPIOR0 before we reset T
+	andi	r19, 0x1	; only keep the first flag
 	cbi	GPIOR0, 0
 	clt			; ready to receive another bit
 
 	; We've received a bit. reset timer
-	ldi	r19, TIMER_INITVAL
-	out	TCNT0, r19
+	rcall	resetTimer
 
 	; Which step are we at?
 	tst	r18
@@ -193,7 +192,7 @@ processbit:
 	; step 3: stop bit
 	clr	r18		; happens in all cases
 	; DATA has to be set
-	tst	r16		; Was DATA set?
+	tst	r19		; Was DATA set?
 	breq	loop		; not set? error, don't push to buffer
 	; push r17 to the buffer
 	st	Y+, r17
@@ -203,7 +202,7 @@ processbit:
 processbits0:
 	; step 0 - start bit
 	; DATA has to be cleared
-	tst	r16		; Was DATA set?
+	tst	r19		; Was DATA set?
 	brne	loop		; Set? error. no need to do anything. keep r18
 				; as-is.
 	; DATA is cleared. prepare r17 and r18 for step 1
@@ -216,7 +215,7 @@ processbits1:
 	; We're about to rotate the carry flag into r17. Let's set it first
 	; depending on whether DATA is set.
 	clc
-	sbrc	r16, 0		; skip if DATA cleared.
+	sbrc	r19, 0		; skip if DATA cleared.
 	sec
 	; Carry flag is set
 	ror	r17
@@ -228,21 +227,23 @@ processbits1:
 	rjmp	loop
 processbits2:
 	; step 2 - parity bit
-	mov	r1, r16
+	mov	r1, r19
 	mov	r19, r17
 	rcall	checkParity	; --> r16
 	cp	r1, r16
-	; TODO: implement "resend requests" on parity check failure
-	brne	processbitReset	; r1 != r16? wrong parity
+	brne	processbitError	; r1 != r16? wrong parity
 	inc	r18
+	rjmp	loop
+
+processbitError:
+	clr	r18
+	ldi	r19, 0xfe
+	rcall	sendToPS2
 	rjmp	loop
 
 processbitReset:
 	clr	r18
-	ldi	r16, TIMER_INITVAL
-	out	TCNT0, r16
-	ldi	r16, (1<<TOV0)
-	out	TIFR, r16
+	rcall	resetTimer
 	rjmp	loop
 
 ; send next scan code in buffer to 595, MSB.
@@ -292,6 +293,105 @@ sendTo595Loop:
 	sei
 
 	rjmp	loop
+
+resetTimer:
+	ldi	r16, TIMER_INITVAL
+	out	TCNT0, r16
+	ldi	r16, (1<<TOV0)
+	out	TIFR, r16
+	ret
+
+; Send the value of r19 to the PS/2 keyboard
+sendToPS2:
+	; We don't use the general INT0 mechanism here. However, we still want
+	; to listen to PCINT, so we don't disable interrupts entirely, just
+	; INT0.
+	ldi	r16, (1<<PCIE)
+	out	GIMSK, r16
+
+	; First, indicate our request to send by holding both Clock low for
+	; 100us, then pull Data low
+	; lines low for 100us.
+	cbi	PORTB, CLK
+	sbi	DDRB, CLK
+	rcall	resetTimer
+
+	; Wait until the timer overflows
+	in	r16, TIFR
+	sbrs	r16, TOV0
+	rjmp	PC-2
+	; Good, 100us passed.
+
+	; Pull Data low, that's our start bit.
+	cbi	PORTB, DATA
+	sbi	DDRB, DATA
+
+	; Now, let's release the clock. At the next raising edge, we'll be
+	; expected to have set up our first bit (LSB). We set up when CLK is
+	; low.
+	cbi	DDRB, CLK	; Should be starting high now.
+
+	; We will do the next loop 8 times
+	ldi	r16, 8
+	; Let's remember initial r19 for parity
+	mov	r1, r19
+
+sendToPS2Loop:
+	; Wait for CLK to go low
+	sbic	PINB, CLK
+	rjmp	PC-1
+
+	; set up DATA
+	cbi	PORTB, DATA
+	sbrc	r19, 0		; skip if LSB is clear
+	sbi	PORTB, DATA
+	lsr	r19
+
+	; Wait for CLK to go high
+	sbis	PINB, CLK
+	rjmp	PC-1
+
+	dec	r16
+	brne	sendToPS2Loop	; not zero? loop
+
+	; Data was sent, CLK is high. Let's send parity
+	mov	r19, r1		; recall saved value
+	rcall	checkParity	; --> r16
+
+	; Wait for CLK to go low
+	sbic	PINB, CLK
+	rjmp	PC-1
+
+	; set parity bit
+	cbi	PORTB, DATA
+	sbrc	r16, 0		; parity bit in r16
+	sbi	PORTB, DATA
+
+	; Wait for CLK to go high
+	sbis	PINB, CLK
+	rjmp	PC-1
+
+	; Wait for CLK to go low
+	sbic	PINB, CLK
+	rjmp	PC-1
+
+	; We can now release the DATA line
+	cbi	DDRB, DATA
+
+	; Wait for DATA to go low. That's our ACK
+	sbic	PINB, DATA
+	rjmp	PC-1
+
+	; Wait for CLK to go low
+	sbic	PINB, CLK
+	rjmp	PC-1
+
+	; We're finished! Enable INT0, reset timer, everything back to normal!
+	rcall	resetTimer
+	clt			; also, make sure T isn't mistakely set.
+	ldi	r16, (1<<INT0)|(1<<PCIE)
+	out	GIMSK, r16
+	ret
 
 ; Check that Y is within bounds, reset to SRAM_START if not.
 checkBoundsY:
