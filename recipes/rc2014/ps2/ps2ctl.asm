@@ -75,6 +75,7 @@
 ;      - 2: awaiting parity bit
 ;      - 3: awaiting stop bit
 ;      it reaches 11, we know we're finished with the frame.
+; R19: Register used for parity computations
 ; R20: data being sent to the 595
 ; Y: pointer to the memory location where the next scan code from ps/2 will be
 ;    written.
@@ -87,6 +88,9 @@
 .equ	SRCLK = PINB3
 .equ	CE = PINB4
 .equ	RCLK = PINB0
+
+; init value for TCNT0 so that overflow occurs in 100us
+.equ	TIMER_INITVAL = 0x100-100
 
 	rjmp	main
 	rjmp	hdlINT0
@@ -145,6 +149,13 @@ main:
 	clr	ZH
 	ldi	ZL, low(SRAM_START)
 
+	; Setup timer. We use the timer to clear up "processbit" registers after
+	; 100us without a clock. This allows us to start the next frame in a
+	; fresh state. at 8MHZ, setting the counter's prescaler to 8 gives us
+	; a nice 1us for each TCNT0.
+	ldi	r16, (1<<CS01)	; clk/8 prescaler
+	out	TCCR0B, r16
+
 	; init DDRB
 	sbi	DDRB, SRCLK
 	cbi	PORTB, RCLK	; RCLK is generally kept low
@@ -156,6 +167,9 @@ loop:
 	brts	processbit	; flag T set? we have a bit to process
 	cp	YL, ZL		; if YL == ZL, buffer is empty
 	brne	sendTo595	; YL != ZL? our buffer has data
+	in	r16, TIFR
+	sbrc	r16, TOV0
+	rjmp	processbitReset	; Timer0 overflow? reset processbit
 	rjmp	loop
 
 ; Process the data bit received in INT0 handler.
@@ -164,6 +178,10 @@ processbit:
 	andi	r16, 0x1	; only keep the first flag
 	cbi	GPIOR0, 0
 	clt			; ready to receive another bit
+
+	; We've received a bit. reset timer
+	ldi	r19, TIMER_INITVAL
+	out	TCNT0, r19
 
 	; Which step are we at?
 	tst	r18
@@ -181,6 +199,7 @@ processbit:
 	st	Y+, r17
 	rcall	checkBoundsY
 	rjmp	loop
+
 processbits0:
 	; step 0 - start bit
 	; DATA has to be cleared
@@ -209,8 +228,21 @@ processbits1:
 	rjmp	loop
 processbits2:
 	; step 2 - parity bit
-	; TODO: check parity
+	mov	r1, r16
+	mov	r19, r17
+	rcall	checkParity	; --> r16
+	cp	r1, r16
+	; TODO: implement "resend requests" on parity check failure
+	brne	processbitReset	; r1 != r16? wrong parity
 	inc	r18
+	rjmp	loop
+
+processbitReset:
+	clr	r18
+	ldi	r16, TIMER_INITVAL
+	out	TCNT0, r16
+	ldi	r16, (1<<TOV0)
+	out	TIFR, r16
 	rjmp	loop
 
 ; send next scan code in buffer to 595, MSB.
@@ -280,3 +312,16 @@ checkBoundsZ:
 	clr	ZH
 	ldi	ZL, low(SRAM_START)
 	ret
+
+; Counts the number of 1s in r19 and set r16 to 1 if there's an even number of
+; 1s, 0 if they're odd.
+checkParity:
+	ldi	r16, 1
+	lsr	r19
+	brcc	PC+2		; Carry unset? skip next
+	inc	r16		; Carry set? We had a 1
+	tst	r19		; is r19 zero yet?
+	brne	checkParity+1	; no? loop and skip first LDI
+	andi	r16, 0x1	; Sets Z accordingly
+	ret
+
