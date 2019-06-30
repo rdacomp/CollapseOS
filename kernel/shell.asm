@@ -87,6 +87,8 @@ shellLoop:
 	jr	z, .do		; char is LF? do!
 	cp	ASCII_DEL
 	jr	z, .delchr
+	cp	ASCII_BS
+	jr	z, .delchr
 
 	; Echo the received character right away so that we see what we type
 	call	stdioPutC
@@ -98,8 +100,9 @@ shellLoop:
 	xor	a		; look for null
 	call	findchar	; HL points to where we need to write
 				; A is the number of chars in the buf
-	cp	SHELL_BUFSIZE
-	jr	z, .do		; A == bufsize? then our buffer is full. do!
+	cp	SHELL_BUFSIZE-1 ; -1 is because we always want to keep our
+				; last char at zero.
+	jr	z, .do		; end of buffer reached? buffer is full. do!
 
 	; bring the char back in A
 	ex	af, af'
@@ -124,7 +127,6 @@ shellLoop:
 	ld	hl, .prompt
 	call	printstr
 	jr	shellLoop
-	; no ret because we never return
 
 .prompt:
 	.db	"> ", 0
