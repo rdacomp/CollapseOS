@@ -39,12 +39,7 @@ address selection + `IORQ` + `RO`
 After having built and flashed the `glue.asm` supplied with this recipe, you end
 up with a shell driven by the PS/2 keyboard (but it still outputs to ACIA).
 
-You will see, by typing on the keyboard, that it kinda works, but in a very
-basic and glitchy way. You will get double letters sometimes, and at some point,
-communications are likely to become "corrupted" (you reliably get the wrong
-letters). That's because parity checks, timeouts and reset procedures aren't
-implemented yet.
-
-But still, it kinda works!
+There are still a few glitches, especially at initialization or at connect and
+disconnect, but it otherwise works rather well!
 
 [avra]: https://github.com/hsoft/avra

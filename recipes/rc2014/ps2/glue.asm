@@ -6,10 +6,6 @@
 
 jp	init
 
-; interrupt hook
-.fill	0x38-$
-jp	aciaInt
-
 #include "err.h"
 #include "core.asm"
 #include "parse.asm"
@@ -31,12 +27,11 @@ init:
 	; setup stack
 	ld	hl, RAMEND
 	ld	sp, hl
-	im 1
 
 	call	aciaInit
+	call	kbdInit
 	ld	hl, kbdGetC
 	ld	de, aciaPutC
 	call	stdioInit
 	call	shellInit
-	ei
 	jp	shellLoop
