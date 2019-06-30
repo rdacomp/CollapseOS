@@ -17,8 +17,9 @@ kbdInit:
 
 kbdGetC:
 	in	a, (KBD_PORT)
-	or	a		; cp 0
-	ret	z
+	or	a
+	jr	z, .nothing
+
 	; scan code not zero, maybe we have something.
 	; Do we need to skip it?
 	push	af		;  <|
@@ -35,7 +36,7 @@ kbdGetC:
 	call	addHL		;  |
 	ld	a, (hl)		;  |
 	pop	hl		; <|
-	or	a		; cp 0
+	or	a
 	jp	z, unsetZ	; no code. Keep A at 0, but unset Z
 	; We have something!
 	cp	a		; ensure Z
@@ -57,6 +58,18 @@ kbdGetC:
 	pop	af		; equilibrate stack
 	xor	a
 	ld	(KBD_SKIP_NEXT), a
+	jp	unsetZ
+.nothing:
+	; We have nothing. Before we go further, we'll wait a bit to give our
+	; device the time to "breathe". When we're in a "nothing" loop, the z80
+	; hammers the device really fast and continuously generates interrupts
+	; on it and it interferes with its other task of reading the keyboard.
+	push	bc
+	ld	b, 0
+.wait:
+	nop
+	djnz	.wait
+	pop	bc
 	jp	unsetZ
 
 ; A list of the value associated with the 0x80 possible scan codes of the set
