@@ -28,7 +28,9 @@ The binary produced by the Makefile here has been tested on a Genesis +
 [Everdrive MD][everdrive] (I haven't built myself a writable cartridge yet).
 
 It is an adaptation of Maxim's (from SMS power) hello world. I converted it to
-ZASM. For now, all it does is show "Hello World".
+ZASM. It shows a letter in the range of "a" to "i" depending of which button on
+controller A is pressed (only detects one button at once). All buttons of the
+genesis controller are supported. Shows "i" when no button is pressed.
 
 I've also added the mandatory "TMR SEGA" header at the end of the binary.
 

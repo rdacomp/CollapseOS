@@ -50,34 +50,73 @@ main:
 	or	c
 	jr	nz, .loop2
 
-	xor	a
-	out	(0xbf), a
-	ld	a, 0x78
-	out	(0xbf), a
-
-	ld	hl, Message
-	ld	bc, MessageEnd-Message
-.loop3:
-	ld	a, (hl)
-	out	(0xbe), a
-	inc	hl
-	dec	bc
-	ld	a, b
-	or	c
-	jr	nz, .loop3
-
 	ld	a, 0b11000000
 
 	out	(0xbf), a
 	ld	a, 0x81
 	out	(0xbf), a
 
-.loop4:
-	jr	.loop4
+	ld	b, 0x41
+	jr	updateLetter
 
-Message:
-.dw 0x28,0x45,0x4c,0x4c,0x4f,0x00,0x37,0x4f,0x52,0x4c,0x44,0x01
-MessageEnd:
+mainloop:
+	; What we do here is simple. We go though all bits of port A controller
+	; increasing B each time. As soon as we get a hit, we display that
+	; letter. Pressed buttons go low.
+	; This logic below is for the Genesis controller, which is modal. TH is
+	; an output pin that swiches the meaning of TL and TR. When TH is high
+	; (unselected), TL = Button B and TR = Button C. When TH is low
+	; (selected), TL = Button A and TR = Start.
+	ld	a, 0b11111101	; TH output, unselected
+	out	(0x3f), a
+	ld	b, 0x41		; a
+	in	a, (0xdc)	; I/O port
+	and	0b00100000	; Port A Button C pressed
+	jr	z, updateLetter
+	inc	b		; b
+	in	a, (0xdc)
+	and	0b00010000	; Port A Button B pressed
+	jr	z, updateLetter
+	inc	b		; c
+	in	a, (0xdc)
+	and	0b00001000	; Port A Right pressed
+	jr	z, updateLetter
+	inc	b		; d
+	in	a, (0xdc)
+	and	0b00000100	; Port A Left pressed
+	jr	z, updateLetter
+	inc	b		; e
+	in	a, (0xdc)
+	and	0b00000010	; Port A Down pressed
+	jr	z, updateLetter
+	inc	b		; f
+	in	a, (0xdc)
+	and	0b00000001	; Port A Up pressed
+	jr	z, updateLetter
+	ld	a, 0b11011101	; TH output, unselected
+	out	(0x3f), a
+	inc	b		; g
+	in	a, (0xdc)
+	and	0b00100000	; Port A Start pressed
+	jr	z, updateLetter
+	inc	b		; h
+	in	a, (0xdc)
+	and	0b00010000	; Port A Button A pressed
+	jr	z, updateLetter
+	inc	b		; i
+	; no button pressed on port A, continue to updateLetter
+
+; Prints letter in B
+updateLetter:
+	xor	a
+	out	(0xbf), a
+	ld	a, 0x78
+	out	(0xbf), a
+
+	ld	a, b
+	out	(0xbe), a
+	jr	mainloop
+
 
 PaletteData:
 .db 0x00,0x3f
