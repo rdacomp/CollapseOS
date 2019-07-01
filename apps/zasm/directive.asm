@@ -183,12 +183,16 @@ handleFIL:
 	jr	nz, .badarg
 	push	bc
 	push	ix \ pop bc
-	xor	a
-	ld	b, c
 .loop:
+	ld	a, b
+	or	c
+	jr	z, .loopend
+	xor	a
 	call	ioPutC
 	jr	nz, .ioError
-	djnz	.loop
+	dec	bc
+	jr	.loop
+.loopend:
 	cp	a		; ensure Z
 	pop	bc
 	ret
