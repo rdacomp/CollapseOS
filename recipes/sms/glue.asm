@@ -56,9 +56,6 @@ main:
 	ld	a, 0x81
 	out	(0xbf), a
 
-	ld	b, 0x41
-	jr	updateLetter
-
 mainloop:
 	; What we do here is simple. We go though all bits of port A controller
 	; increasing B each time. As soon as we get a hit, we display that
@@ -97,13 +94,12 @@ mainloop:
 	out	(0x3f), a
 	inc	b		; g
 	in	a, (0xdc)
-	and	0b00100000	; Port A Start pressed
+	and	0b00010000	; Port A Button A pressed
 	jr	z, updateLetter
 	inc	b		; h
 	in	a, (0xdc)
-	and	0b00010000	; Port A Button A pressed
-	jr	z, updateLetter
-	inc	b		; i
+	and	0b00100000	; Port A Start pressed
+	jr	z, allLetters	; when start is pressed, print all letters
 	; no button pressed on port A, continue to updateLetter
 
 ; Prints letter in B
@@ -115,8 +111,24 @@ updateLetter:
 
 	ld	a, b
 	out	(0xbe), a
-	jr	mainloop
+	jp	mainloop
 
+
+; print all letters (reverse order)
+allLetters:
+	xor	a
+	out	(0xbf), a
+	ld	a, 0x78
+	out	(0xbf), a
+
+	ld	b, 0x5e
+.loop:
+	ld	a, b
+	out	(0xbe), a
+	xor	a
+	out	(0xbe), a
+	djnz	.loop
+	jp	mainloop
 
 PaletteData:
 .db 0x00,0x3f
