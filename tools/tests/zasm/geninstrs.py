@@ -128,7 +128,7 @@ def main():
             # we don't test the displacements for IX/IY because there can't be
             # any.
             args1 = args1[:1]
-        if n == 'BIT':
+        if n in {'BIT', 'SET', 'RES'}:
             # we only want to keep 1, 2, 4
             args1 = args1[:3]
         if n == 'IM':

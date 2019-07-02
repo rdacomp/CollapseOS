@@ -1,8 +1,8 @@
 ; *** Consts ***
 ; Number of rows in the argspec table
-.equ	ARGSPEC_TBL_CNT		31
+.equ	ARGSPEC_TBL_CNT		33
 ; Number of rows in the primary instructions table
-.equ	INSTR_TBL_CNT		154
+.equ	INSTR_TBL_CNT		162
 ; size in bytes of each row in the primary instructions table
 .equ	INSTR_TBL_ROWSIZE	6
 ; Instruction IDs They correspond to the index of the table in instrNames
@@ -48,23 +48,25 @@
 .equ	I_OUT	0x27
 .equ	I_POP	0x28
 .equ	I_PUSH	0x29
-.equ	I_RET	0x2a
-.equ	I_RETI	0x2b
-.equ	I_RETN	0x2c
-.equ	I_RL	0x2d
-.equ	I_RLA	0x2e
-.equ	I_RLC	0x2f
-.equ	I_RLCA	0x30
-.equ	I_RR	0x31
-.equ	I_RRA	0x32
-.equ	I_RRC	0x33
-.equ	I_RRCA	0x34
-.equ	I_SBC	0x35
-.equ	I_SCF	0x36
-.equ	I_SLA	0x37
-.equ	I_SRL	0x38
-.equ	I_SUB	0x39
-.equ	I_XOR	0x3a
+.equ	I_RES	0x2a
+.equ	I_RET	0x2b
+.equ	I_RETI	0x2c
+.equ	I_RETN	0x2d
+.equ	I_RL	0x2e
+.equ	I_RLA	0x2f
+.equ	I_RLC	0x30
+.equ	I_RLCA	0x31
+.equ	I_RR	0x32
+.equ	I_RRA	0x33
+.equ	I_RRC	0x34
+.equ	I_RRCA	0x35
+.equ	I_SBC	0x36
+.equ	I_SCF	0x37
+.equ	I_SET	0x38
+.equ	I_SLA	0x39
+.equ	I_SRL	0x3a
+.equ	I_SUB	0x3b
+.equ	I_XOR	0x3c
 
 ; Checks whether A is 'N' or 'M'
 checkNOrM:
@@ -412,28 +414,54 @@ handleBIT:
 	ret
 .error:
 	ld	c, 0
-	call	unsetZ
-	ret
+	jp	unsetZ
 
 handleBITHL:
+	ld	b, 0b01000110
+	jr	_handleBITHL
+handleSETHL:
+	ld	b, 0b11000110
+	jr	_handleBITHL
+handleRESHL:
+	ld	b, 0b10000110
+_handleBITHL:
 	call	handleBIT
 	ret	nz		; error
 	ld	a, 0xcb		; first upcode
 	ld	(instrUpcode), a
 	ld	a, (curArg1+1)	; 0-7
-	ld	b, 3		; displacement
-	call	rlaX
-	or	0b01000110	; 2nd upcode
+	rla
+	rla
+	rla
+	or	b		; 2nd upcode
 	ld	(instrUpcode+1), a
 	ld	c, 2
 	ret
 
 handleBITIX:
 	ld	a, 0xdd
-	jr	handleBITIXY
+	ld	b, 0b01000110
+	jr	_handleBITIXY
 handleBITIY:
 	ld	a, 0xfd
-handleBITIXY:
+	ld	b, 0b01000110
+	jr	_handleBITIXY
+handleSETIX:
+	ld	a, 0xdd
+	ld	b, 0b11000110
+	jr	_handleBITIXY
+handleSETIY:
+	ld	a, 0xfd
+	ld	b, 0b11000110
+	jr	_handleBITIXY
+handleRESIX:
+	ld	a, 0xdd
+	ld	b, 0b10000110
+	jr	_handleBITIXY
+handleRESIY:
+	ld	a, 0xfd
+	ld	b, 0b10000110
+_handleBITIXY:
 	ld	(instrUpcode), a	; first upcode
 	call	handleBIT
 	ret	nz		; error
@@ -442,14 +470,23 @@ handleBITIXY:
 	ld	a, (curArg2+1)	; IXY displacement
 	ld	(instrUpcode+2), a
 	ld	a, (curArg1+1)	; 0-7
-	ld	b, 3		; displacement
-	call	rlaX
-	or	0b01000110	; 4th upcode
+	rla
+	rla
+	rla
+	or	b		; 4th upcode
 	ld	(instrUpcode+3), a
 	ld	c, 4
 	ret
 
 handleBITR:
+	ld	b, 0b01000000
+	jr	_handleBITR
+handleSETR:
+	ld	b, 0b11000000
+	jr	_handleBITR
+handleRESR:
+	ld	b, 0b10000000
+_handleBITR:
 	call	handleBIT
 	ret	nz		; error
 	; get group value
@@ -460,13 +497,13 @@ handleBITR:
 	ld	(instrUpcode), a
 	; get bit value
 	ld	a, (curArg1+1)	; 0-7
-	ld	b, 3		; displacement
-	call	rlaX
+	rla
+	rla
+	rla
 	; Now we have group value in stack, bit value in A (properly shifted)
 	; and we want to OR them together
 	or	c		; Now we have our ORed value
-	or	0b01000000	; and with the constant value for that byte...
-				; we're good!
+	or	b		; and with our "base" value and we're good!
 	ld	(instrUpcode+1), a
 	ld	c, 2
 	ret
@@ -962,6 +999,7 @@ instrNames:
 	.db "OUT", 0
 	.db "POP", 0
 	.db "PUSH"
+	.db "RES", 0
 	.db "RET", 0
 	.db "RETI"
 	.db "RETN"
@@ -975,6 +1013,7 @@ instrNames:
 	.db "RRCA"
 	.db "SBC", 0
 	.db "SCF", 0
+	.db "SET", 0
 	.db "SLA", 0
 	.db "SRL", 0
 	.db "SUB", 0
@@ -1134,6 +1173,10 @@ instrTBl:
 	.db I_PUSH,'X', 0,   0,    0xdd, 0xe5		; PUSH IX
 	.db I_PUSH,'Y', 0,   0,    0xfd, 0xe5		; PUSH IY
 	.db I_PUSH,0x1, 0,   4,    0b11000101	, 0	; PUSH qq
+	.db I_RES, 'n', 'l', 0x20 \ .dw handleRESHL	; RES b, (HL)
+	.db I_RES, 'n', 'x', 0x20 \ .dw handleRESIX	; RES b, (IX+d)
+	.db I_RES, 'n', 'y', 0x20 \ .dw handleRESIY	; RES b, (IY+d)
+	.db I_RES, 'n', 0xb, 0x20 \ .dw handleRESR	; RES b, r
 	.db I_RET, 0,   0,   0,    0xc9		, 0	; RET
 	.db I_RET, 0xa, 0,   3,    0b11000000	, 0	; RET cc
 	.db I_RETI,0,   0,   0,    0xed, 0x4d		; RETI
@@ -1150,6 +1193,10 @@ instrTBl:
 	.db I_SBC, 'A', 0xb, 0,    0b10011000	, 0	; SBC A, r
 	.db I_SBC,'h',0x3,0x44,    0xed, 0b01000010	; SBC HL, ss
 	.db I_SCF, 0,   0,   0,    0x37		, 0	; SCF
+	.db I_SET, 'n', 'l', 0x20 \ .dw handleSETHL	; SET b, (HL)
+	.db I_SET, 'n', 'x', 0x20 \ .dw handleSETIX	; SET b, (IX+d)
+	.db I_SET, 'n', 'y', 0x20 \ .dw handleSETIY	; SET b, (IY+d)
+	.db I_SET, 'n', 0xb, 0x20 \ .dw handleSETR	; SET b, r
 	.db I_SLA, 0xb, 0,0x40,    0xcb, 0b00100000	; SLA r
 	.db I_SRL, 0xb, 0,0x40,    0xcb, 0b00111000	; SRL r
 	.db I_SUB, 'l', 0,   0,    0x96		, 0	; SUB (HL)
