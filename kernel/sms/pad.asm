@@ -31,10 +31,8 @@
 .equ	PAD_SELSTAT	PAD_RAMSTART
 ; Button status of last padGetC call.
 .equ	PAD_GETCSTAT	PAD_SELSTAT+1
-; Current selection "class". 0 = lowcase, 1 = upcase, 2 = num, 3 = symbols
-.equ	PAD_SELCLASS	PAD_GETCSTAT+1
 ; Current selected character
-.equ	PAD_SELCHR	PAD_SELCLASS+1
+.equ	PAD_SELCHR	PAD_GETCSTAT+1
 ; When non-zero, will be the next char returned in GetC. So far, only used for
 ; LF that is feeded when Start is pressed.
 .equ	PAD_NEXTCHR	PAD_SELCHR+1
@@ -47,7 +45,6 @@ padInit:
 	ld	(PAD_SELSTAT), a
 	ld	(PAD_GETCSTAT), a
 	xor	a
-	ld	(PAD_SELCLASS), a
 	ld	(PAD_NEXTCHR), a
 	ld	a, 'a'
 	ld	(PAD_SELCHR), a
@@ -98,6 +95,8 @@ padUpdateSel:
 	jr	z, .left
 	bit	PAD_RIGHT, a
 	jr	z, .right
+	bit	PAD_BUTB, a
+	jr	z, .nextclass
 	jr	.nothing
 .up:
 	ld	a, (PAD_SELCHR)
@@ -115,7 +114,45 @@ padUpdateSel:
 	ld	a, (PAD_SELCHR)
 	inc	a \ inc a \ inc a \ inc a \ inc a
 	jr	.setchr
+.nextclass:
+	; Go to the beginning of the next "class" of characters
+	push	bc
+	ld	a, (PAD_SELCHR)
+	ld	b, '0'
+	cp	b
+	jr	c, .setclass	; A < '0'
+	ld	b, ':'
+	cp	b
+	jr	c, .setclass
+	ld	b, 'A'
+	cp	b
+	jr	c, .setclass
+	ld	b, '['
+	cp	b
+	jr	c, .setclass
+	ld	b, 'a'
+	cp	b
+	jr	c, .setclass
+	ld	b, ' '
+	; continue to .setclass
+.setclass:
+	ld	a, b
+	pop	bc
+	; continue to .setchr
 .setchr:
+	; check range first
+	cp	0x7f
+	jr	nc, .tooHigh
+	cp	0x20
+	jr	nc, .setchrEnd	; not too low
+	; too low, probably because we overdecreased. Let's roll over
+	ld	a, '~'
+	jr	.setchrEnd
+.tooHigh:
+	; too high, probably because we overincreased. Let's roll over
+	ld	a, ' '
+	; continue to .setchrEnd
+.setchrEnd:
 	ld	(PAD_SELCHR), a
 	jp	unsetZ
 .nothing:
