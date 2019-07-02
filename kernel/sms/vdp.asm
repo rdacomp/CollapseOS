@@ -16,9 +16,14 @@
 
 ; *** Variables ***
 ;
+; Row of cursor
 .equ	VDP_ROW		VDP_RAMSTART
+; Line of cursor
 .equ	VDP_LINE	VDP_ROW+1
-.equ	VDP_RAMEND	VDP_LINE+1
+; Returns, in A, the currently selected char. Sets Z if unchanged, unset if
+; changed.
+.equ	VDP_CHRSELHOOK	VDP_LINE+1
+.equ	VDP_RAMEND	VDP_CHRSELHOOK+2
 
 ; *** Code ***
 
@@ -26,6 +31,8 @@ vdpInit:
 	xor	a
 	ld	(VDP_ROW), a
 	ld	(VDP_LINE), a
+	ld	hl, noop
+	ld	(VDP_CHRSELHOOK), hl
 
 	ld	hl, vdpInitData
 	ld	b, vdpInitDataEnd-vdpInitData
@@ -75,18 +82,10 @@ vdpInit:
 	out	(VDP_CTLPORT), a
 	ret
 
-vdpPutC:
-	; First, let's place our cursor. We need to first send our LSB, whose
-	; 6 low bits contain our row*2 (each tile is 2 bytes wide) and high
-	; 2 bits are the two low bits of our line
-	; special case: line feed, carriage return
-	cp	ASCII_LF
-	jr	z, vdpLF
-	cp	ASCII_CR
-	jr	z, vdpCR
-	; ... but first, let's convert it.
-	call	vdpConv
-	; ... and store it away
+; Spits char set in A at current cursor position. Doesn't move the cursor.
+; A is a "sega" char
+vdpSpitC:
+	; store A away
 	ex	af, af'
 	push	bc
 	ld	b, 0		; we push rotated bits from VDP_LINE into B so
@@ -113,6 +112,25 @@ vdpPutC:
 	; We're ready to send our data now. Let's go
 	ex	af, af'
 	out	(VDP_DATAPORT), a
+	ret
+
+vdpPutC:
+	; First, let's place our cursor. We need to first send our LSB, whose
+	; 6 low bits contain our row*2 (each tile is 2 bytes wide) and high
+	; 2 bits are the two low bits of our line
+	; special case: line feed, carriage return, back space
+	cp	ASCII_LF
+	jr	z, vdpLF
+	cp	ASCII_CR
+	jr	z, vdpCR
+	cp	ASCII_BS
+	jr	z, vdpBS
+
+	; ... but first, let's convert it.
+	call	vdpConv
+
+	; and spit it on screen
+	call	vdpSpitC
 
 	; Move cursor. The screen is 32x24
 	ex	af, af'
@@ -150,6 +168,31 @@ vdpLF:
 	pop	af
 	ret
 
+vdpBS:
+	push	af
+	ld	a, (VDP_ROW)
+	or	a
+	jr	z, .lineup
+	dec	a
+	ld	(VDP_ROW), a
+	pop	af
+	ret
+.lineup:
+	; end of line
+	ld	a, 31
+	ld	(VDP_ROW), a
+	; we have to go one line up
+	ld	a, (VDP_LINE)
+	or	a
+	jr	z, .nowrap
+	; We have to wrap to the bottom of the screen
+	ld	a, 24
+.nowrap:
+	dec	a
+	ld	(VDP_LINE), a
+	pop	af
+	ret
+
 ; Convert ASCII char in A into a tile index corresponding to that character.
 ; When a character is unknown, returns 0x5e (a '~' char).
 vdpConv:
@@ -159,6 +202,22 @@ vdpConv:
 	cp	0x5f
 	ret	c		; A < 0x5f, good
 	ld	a, 0x5e
+	ret
+
+; During the shell loop, updates the currently selected char, if appropriate
+vdpShellLoopHook:
+	push	af
+	push	ix
+	xor	a
+	ld	ix, (VDP_CHRSELHOOK)
+	call	callIX
+	jr	z, .noChange
+	; selection changed
+	call	vdpConv
+	call	vdpSpitC
+.noChange:
+	pop	ix
+	pop	af
 	ret
 
 vdpPaletteData:
