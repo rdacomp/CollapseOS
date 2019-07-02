@@ -1,11 +1,14 @@
-	di
-	im	1
 	jp	main
 
 .fill 0x66-$
 	retn
 
+#include "sms/pad.asm"
+
 main:
+	di
+	im	1
+
 	ld	sp, 0xdff0
 
 	ld	hl, VdpData
@@ -60,45 +63,30 @@ mainloop:
 	; What we do here is simple. We go though all bits of port A controller
 	; increasing B each time. As soon as we get a hit, we display that
 	; letter. Pressed buttons go low.
-	; This logic below is for the Genesis controller, which is modal. TH is
-	; an output pin that swiches the meaning of TL and TR. When TH is high
-	; (unselected), TL = Button B and TR = Button C. When TH is low
-	; (selected), TL = Button A and TR = Start.
-	ld	a, 0b11111101	; TH output, unselected
-	out	(0x3f), a
+	call	padStatusA
 	ld	b, 0x41		; a
-	in	a, (0xdc)	; I/O port
-	and	0b00100000	; Port A Button C pressed
+	bit	5, a		; Port A Button C pressed
 	jr	z, updateLetter
 	inc	b		; b
-	in	a, (0xdc)
-	and	0b00010000	; Port A Button B pressed
+	bit	4, a		; Port A Button B pressed
 	jr	z, updateLetter
 	inc	b		; c
-	in	a, (0xdc)
-	and	0b00001000	; Port A Right pressed
+	bit	3, a		; Port A Right pressed
 	jr	z, updateLetter
 	inc	b		; d
-	in	a, (0xdc)
-	and	0b00000100	; Port A Left pressed
+	bit	2, a		; Port A Left pressed
 	jr	z, updateLetter
 	inc	b		; e
-	in	a, (0xdc)
-	and	0b00000010	; Port A Down pressed
+	bit	1, a		; Port A Down pressed
 	jr	z, updateLetter
 	inc	b		; f
-	in	a, (0xdc)
-	and	0b00000001	; Port A Up pressed
+	bit	0, a		; Port A Up pressed
 	jr	z, updateLetter
-	ld	a, 0b11011101	; TH output, unselected
-	out	(0x3f), a
 	inc	b		; g
-	in	a, (0xdc)
-	and	0b00010000	; Port A Button A pressed
+	bit	6, a		; Port A Button A pressed
 	jr	z, updateLetter
 	inc	b		; h
-	in	a, (0xdc)
-	and	0b00100000	; Port A Start pressed
+	bit	7, a		; Port A Start pressed
 	jr	z, allLetters	; when start is pressed, print all letters
 	; no button pressed on port A, continue to updateLetter
 
