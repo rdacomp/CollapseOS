@@ -133,6 +133,8 @@ vdpPutC:
 	cp	ASCII_BS
 	jr	z, vdpBS
 
+	push	af
+
 	; ... but first, let's convert it.
 	call	vdpConv
 
@@ -140,20 +142,21 @@ vdpPutC:
 	call	vdpSpitC
 
 	; Move cursor. The screen is 32x24
-	ex	af, af'
 	ld	a, (VDP_ROW)
 	cp	31
 	jr	z, .incline
 	; We just need to increase row
 	inc	a
 	ld	(VDP_ROW), a
-	ex	af, af'		; bring back orig A
+
+	pop	af
 	ret
 .incline:
 	; increase line and start anew
-	ex	af, af'		; bring back orig A
 	call	vdpCR
-	jr	vdpLF
+	call	vdpLF
+	pop	af
+	ret
 
 vdpCR:
 	call	vdpClrPos
