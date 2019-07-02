@@ -79,6 +79,11 @@ vdpPutC:
 	; First, let's place our cursor. We need to first send our LSB, whose
 	; 6 low bits contain our row*2 (each tile is 2 bytes wide) and high
 	; 2 bits are the two low bits of our line
+	; special case: line feed, carriage return
+	cp	ASCII_LF
+	jr	z, vdpLF
+	cp	ASCII_CR
+	jr	z, vdpCR
 	; ... but first, let's convert it.
 	call	vdpConv
 	; ... and store it away
@@ -121,8 +126,19 @@ vdpPutC:
 	ret
 .incline:
 	; increase line and start anew
+	ex	af, af'		; bring back orig A
+	call	vdpCR
+	jr	vdpLF
+
+vdpCR:
+	push	af
 	xor	a
 	ld	(VDP_ROW), a
+	pop	af
+	ret
+
+vdpLF:
+	push	af
 	ld	a, (VDP_LINE)
 	inc	a
 	cp	24
@@ -131,7 +147,7 @@ vdpPutC:
 	xor	a
 .norollover:
 	ld	(VDP_LINE), a
-	ex	af, af'		; bring back orig A
+	pop	af
 	ret
 
 ; Convert ASCII char in A into a tile index corresponding to that character.
