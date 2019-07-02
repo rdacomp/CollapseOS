@@ -20,10 +20,10 @@
 .equ	VDP_ROW		VDP_RAMSTART
 ; Line of cursor
 .equ	VDP_LINE	VDP_ROW+1
-; Returns, in A, the currently selected char. Sets Z if unchanged, unset if
-; changed.
+; Returns, in A, the currently selected char in a "pad char selection" scheme.
 .equ	VDP_CHRSELHOOK	VDP_LINE+1
-.equ	VDP_RAMEND	VDP_CHRSELHOOK+2
+.equ	VDP_LASTSEL	VDP_CHRSELHOOK+2
+.equ	VDP_RAMEND	VDP_LASTSEL+1
 
 ; *** Code ***
 
@@ -31,6 +31,7 @@ vdpInit:
 	xor	a
 	ld	(VDP_ROW), a
 	ld	(VDP_LINE), a
+	ld	(VDP_LASTSEL), a
 	ld	hl, noop
 	ld	(VDP_CHRSELHOOK), hl
 
@@ -115,7 +116,13 @@ vdpSpitC:
 	ret
 
 vdpPutC:
-	; First, let's place our cursor. We need to first send our LSB, whose
+	; First, let's invalidate last sel
+	ex	af, af'
+	xor	a
+	ld	(VDP_LASTSEL), a
+	ex	af, af'
+
+	; Then, let's place our cursor. We need to first send our LSB, whose
 	; 6 low bits contain our row*2 (each tile is 2 bytes wide) and high
 	; 2 bits are the two low bits of our line
 	; special case: line feed, carriage return, back space
@@ -149,6 +156,7 @@ vdpPutC:
 	jr	vdpLF
 
 vdpCR:
+	call	vdpClrPos
 	push	af
 	xor	a
 	ld	(VDP_ROW), a
@@ -156,6 +164,9 @@ vdpCR:
 	ret
 
 vdpLF:
+	; we don't call vdpClrPos on LF because we expect it to be preceded by
+	; a CR, which already cleared the pos. If we cleared it now, we would
+	; clear the first char of the line.
 	push	af
 	ld	a, (VDP_LINE)
 	inc	a
@@ -169,6 +180,7 @@ vdpLF:
 	ret
 
 vdpBS:
+	call	vdpClrPos
 	push	af
 	ld	a, (VDP_ROW)
 	or	a
@@ -193,6 +205,14 @@ vdpBS:
 	pop	af
 	ret
 
+; Clear tile under cursor
+vdpClrPos:
+	push	af
+	xor	a		; space
+	call	vdpSpitC
+	pop	af
+	ret
+
 ; Convert ASCII char in A into a tile index corresponding to that character.
 ; When a character is unknown, returns 0x5e (a '~' char).
 vdpConv:
@@ -208,14 +228,18 @@ vdpConv:
 vdpShellLoopHook:
 	push	af
 	push	ix
+	push	hl
 	xor	a
 	ld	ix, (VDP_CHRSELHOOK)
 	call	callIX
+	ld	hl, VDP_LASTSEL
+	cp	(hl)
 	jr	z, .noChange
 	; selection changed
 	call	vdpConv
 	call	vdpSpitC
 .noChange:
+	pop	hl
 	pop	ix
 	pop	af
 	ret
