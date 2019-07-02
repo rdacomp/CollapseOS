@@ -35,11 +35,10 @@
 .equ	PAD_SELCLASS	PAD_GETCSTAT+1
 ; Current selected character
 .equ	PAD_SELCHR	PAD_SELCLASS+1
-; Whether current sel is "new", that is, that its value has never been fetched
-; though padUpdateSel. This flag is set when "avancing" in GetC and also on
-; module init.
-.equ	PAD_SELNEW	PAD_SELCHR+1
-.equ	PAD_RAMEND	PAD_SELNEW+1
+; When non-zero, will be the next char returned in GetC. So far, only used for
+; LF that is feeded when Start is pressed.
+.equ	PAD_NEXTCHR	PAD_SELCHR+1
+.equ	PAD_RAMEND	PAD_NEXTCHR+1
 
 ; *** Code ***
 
@@ -47,9 +46,9 @@ padInit:
 	ld	a, 0xff
 	ld	(PAD_SELSTAT), a
 	ld	(PAD_GETCSTAT), a
-	ld	(PAD_SELNEW), a
 	xor	a
 	ld	(PAD_SELCLASS), a
+	ld	(PAD_NEXTCHR), a
 	ld	a, 'a'
 	ld	(PAD_SELCHR), a
 	ret
@@ -84,17 +83,6 @@ padStatus:
 ; From a pad status in A, update current char selection and return it.
 ; Returns the same Z as padStatus: set if unchanged, unset if changed
 padUpdateSel:
-	; special case: when selnew is set, always return current sel and
-	; disable selnew
-	ld	a, (PAD_SELNEW)
-	or	a
-	jr	z, .notnew
-	; selection is new, return it
-	xor	a
-	ld	(PAD_SELNEW), a
-	ld	a, (PAD_SELCHR)
-	jp	unsetZ
-.notnew:
 	call	padStatus
 	push	hl
 	ld	hl, PAD_SELSTAT
@@ -136,6 +124,9 @@ padUpdateSel:
 	ret
 
 padGetC:
+	ld	a, (PAD_NEXTCHR)
+	or	a
+	jr	nz, .nextchr
 	call	padStatus
 	push	hl
 	ld	hl, PAD_GETCSTAT
@@ -150,9 +141,11 @@ padGetC:
 	bit	PAD_START, a
 	jr	z, .return
 	jp	unsetZ
+.return:
+	ld	a, ASCII_LF
+	ld	(PAD_NEXTCHR), a
+	; continue to .advance
 .advance:
-	ld	a, 1
-	ld	(PAD_SELNEW), a
 	ld	a, (PAD_SELCHR)
 	cp	a
 	ret
@@ -160,7 +153,11 @@ padGetC:
 	ld	a, ASCII_BS
 	cp	a
 	ret
-.return:
-	ld	a, ASCII_LF
-	cp	a
+.nextchr:
+	; We have a "next char", return it and clear it.
+	cp	a		; ensure Z
+	push	af
+	xor	a
+	ld	(PAD_NEXTCHR), a
+	pop	af
 	ret
