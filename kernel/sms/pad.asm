@@ -18,12 +18,23 @@
 
 ; *** Variables ***
 ;
+; Previous result of padStatusA
+.equ	PAD_PREVSTAT_A	PAD_RAMSTART
+.equ	PAD_RAMEND	PAD_PREVSTAT_A+1
+
 ; *** Code ***
+
+padInit:
+	ld	a, 0xff
+	ld	(PAD_PREVSTAT_A), a
+	ret
 
 ; Put status for port A in register A. Bits, from MSB to LSB:
 ; Start - A - C - B - Right - Left - Down - Up
 ; Each bit is high when button is unpressed and low if button is pressed. For
 ; example, when no button is pressed, 0xff is returned.
+; Moreover, sets Z according to whether the status changed since the last call.
+; Z is set if status is the same, unset if different.
 padStatusA:
 	; This logic below is for the Genesis controller, which is modal. TH is
 	; an output pin that swiches the meaning of TL and TR. When TH is high
@@ -44,6 +55,13 @@ padStatusA:
 	sla	a
 	sla	a
 	or	b
-	; we're good now!
 	pop	bc
+
+	; set Z according to whether status has change. Also, update saved
+	; status.
+	push	hl
+	ld	hl, PAD_PREVSTAT_A
+	cp	(hl)		; Sets Z to proper value
+	ld	(hl), a
+	pop	hl
 	ret
