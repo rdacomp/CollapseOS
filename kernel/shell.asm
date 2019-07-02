@@ -56,7 +56,9 @@
 ; Pointer to a hook to call when a cmd name isn't found
 .equ	SHELL_CMDHOOK	SHELL_BUF+SHELL_BUFSIZE
 
-.equ	SHELL_RAMEND	SHELL_CMDHOOK+2
+; Pointer to a routine to call at each shell loop interation
+.equ	SHELL_LOOPHOOK	SHELL_CMDHOOK+2
+.equ	SHELL_RAMEND	SHELL_LOOPHOOK+2
 
 ; *** CODE ***
 shellInit:
@@ -66,6 +68,7 @@ shellInit:
 	ld	(SHELL_BUF), a
 	ld	hl, noop
 	ld	(SHELL_CMDHOOK), hl
+	ld	(SHELL_LOOPHOOK), hl
 
 	; print welcome
 	ld	hl, .welcome
@@ -77,7 +80,10 @@ shellInit:
 ; Inifite loop that processes input. Because it's infinite, you should jump
 ; to it rather than call it. Saves two precious bytes in the stack.
 shellLoop:
-	; First, let's wait until something is typed.
+	; First, call the loop hook
+	ld	ix, (SHELL_LOOPHOOK)
+	call	callIX
+	; Then, let's wait until something is typed.
 	call	stdioGetC
 	jr	nz, shellLoop	; nothing typed? loop
 	; got it. Now, is it a CR or LF?
