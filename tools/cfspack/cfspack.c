@@ -1,8 +1,8 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <dirent.h>
 #include <string.h>
 #include <fnmatch.h>
+#include <libgen.h>
 #include <sys/stat.h>
 
 #define BLKSIZE 0x100
@@ -106,7 +106,7 @@ int spitdir(char *path, char *prefix, char *pattern)
             }
         } else {
             if (pattern) {
-                if (fnmatch(pattern, ep->d_name, FNM_EXTMATCH) != 0) {
+                if (fnmatch(pattern, ep->d_name, 0) != 0) {
                     continue;
                 }
             }

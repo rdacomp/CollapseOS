@@ -26,11 +26,11 @@ $(TARGETS):
 	$(CC) $< libz80/libz80.o -o $@
 
 libz80/libz80.o: libz80/z80.c
-	make -C libz80/codegen opcodes
+	$(MAKE) -C libz80/codegen opcodes
 	$(CC) -Wall -ansi -g -c -o libz80/libz80.o libz80/z80.c
 
 $(CFSPACK):
-	make -C ../cfspack
+	$(MAKE) -C ../cfspack
 
 $(SHELLAPPS): $(ZASMBIN)
 	$(ZASMSH) $(KERNEL) $(APPS) shell/user.h < $(APPS)/$(notdir $@)/glue.asm > $@

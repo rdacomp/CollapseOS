@@ -52,11 +52,11 @@ static uint8_t io_read(int unused, uint16_t addr)
 {
     addr &= 0xff;
     if (addr == STDIO_PORT) {
-        uint8_t c = getchar();
+        int c = getchar();
         if (c == EOF) {
             running = 0;
         }
-        return c;
+        return (uint8_t)c;
     } else if (addr == FS_DATA_PORT) {
         if (fsdev_addr_lvl != 0) {
             fprintf(stderr, "Reading FSDEV in the middle of an addr op (%d)\n", fsdev_ptr);
