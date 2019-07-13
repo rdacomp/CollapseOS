@@ -89,6 +89,11 @@ shellLoop:
 
 ; Parse command (null terminated) at HL and calls it
 shellParse:
+	; first thing: is command empty?
+	ld	a, (hl)
+	or	a
+	ret	z	; empty, nthing to do
+
 	push	af
 	push	bc
 	push	de
