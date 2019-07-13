@@ -19,23 +19,39 @@
 ; memory usage.
 ;
 ; So here's what we do. First, we have two scratchpads. The first one is the
-; file being read itself. The second one is is memory, for modifications we
+; file being read itself. The second one is memory, for modifications we
 ; make to the file. When reading the file, we note the offset at which it ends.
 ; All offsets under this limit refer to the first scratchpad. Other offsets
 ; refer to the second.
 ;
-; Then, our line list if just an array of 16-bit offsets. This means that we
+; Then, our line list is just an array of 16-bit offsets. This means that we
 ; don't have an easy access to line length and we have to move a lot of memory
 ; around whenever we add or delete lines. Hopefully, "LDIR" will be our friend
 ; here...
 ;
+; *** Usage ***
+;
+; ed takes no argument. It reads from the currently selected blkdev and writes
+; to it. It repeatedly presents a prompt, waits for a command, execute the
+; command. 'q' to quit.
+;
 ; *** Requirements ***
+; BLOCKDEV_SIZE
+; blkGetC
+; blkSeek
 ; printstr
 ; printcrlf
 ; stdioReadC
 ; stdioGetLine
 
 edMain:
+	; Dummy test. Read first line of file
+	ld	hl, 0
+	call	ioGetLine
+	call	printstr
+	call	printcrlf
+	; Continue to loop
+
 edLoop:
 	ld	hl, .prompt
 	call	printstr
@@ -45,7 +61,7 @@ edLoop:
 	; We're done. Process line.
 	call	printcrlf
 	call	stdioGetLine
-	call	edProcessLine
+	call	.processLine
 	ret	z
 	jr	edLoop
 
@@ -53,7 +69,7 @@ edLoop:
 	.db	":", 0
 
 ; Sets Z if we need to quit
-edProcessLine:
+.processLine:
 	call	printstr
 	ld	a, (hl)
 	cp	'q'

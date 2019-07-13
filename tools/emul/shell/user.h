@@ -30,3 +30,5 @@
 .equ	printcrlf		0x48
 .equ	stdioReadC		0x4b
 .equ	stdioGetLine	0x4e
+.equ	blkGetC			0x51
+.equ	blkSeek			0x54

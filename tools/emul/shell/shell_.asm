@@ -37,6 +37,8 @@
 	jp	printcrlf
 	jp	stdioReadC
 	jp	stdioGetLine
+	jp	blkGetC
+	jp	blkSeek
 
 #include "core.asm"
 #include "err.h"
