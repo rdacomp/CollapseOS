@@ -4,7 +4,7 @@ KERNEL = ../../kernel
 APPS = ../../apps
 ZASMBIN = zasm/zasm
 ZASMSH = ../zasm.sh
-SHELLAPPS = $(addprefix cfsin/, zasm)
+SHELLAPPS = $(addprefix cfsin/, zasm ed)
 CFSIN_CONTENTS = $(SHELLAPPS) cfsin/user.h
 
 .PHONY: all

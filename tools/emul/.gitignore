@@ -3,4 +3,5 @@
 /runbin/runbin
 /*/*-bin.h
 /cfsin/zasm
+/cfsin/ed
 /cfsin/user.h

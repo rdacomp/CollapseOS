@@ -34,6 +34,9 @@
 	jp	_blkPutC
 	jp	_blkSeek
 	jp	_blkTell
+	jp	printcrlf
+	jp	stdioReadC
+	jp	stdioGetLine
 
 #include "core.asm"
 #include "err.h"
