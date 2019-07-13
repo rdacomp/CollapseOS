@@ -35,6 +35,11 @@
 ; to it. It repeatedly presents a prompt, waits for a command, execute the
 ; command. 'q' to quit.
 ;
+; Enter a number to print this line's number. For ed, we break with Collapse
+; OS's tradition of using hex representation. It would be needlessly confusing
+; when combined with commands (p, c, d, a, i). All numbers in ed are
+; represented in decimals.
+;
 ; *** Requirements ***
 ; BLOCKDEV_SIZE
 ; blkGetC
@@ -43,6 +48,7 @@
 ; printcrlf
 ; stdioReadC
 ; stdioGetLine
+; unsetZ
 
 edMain:
 	; Dummy test. Read first line of file
@@ -70,9 +76,22 @@ edLoop:
 
 ; Sets Z if we need to quit
 .processLine:
-	call	printstr
 	ld	a, (hl)
 	cp	'q'
 	ret	z
+	call	parseDecimal
+	jr	z, .processNumber
+	; nothing
+	jr	.processEnd
+.processNumber:
+	; number is in IX
+	; Because we don't have a line buffer yet, let's simply print seek
+	; offsets.
+	push	ix \ pop	hl
+	call	ioGetLine
+	call	printstr
+	call	printcrlf
+	; continue to end
+.processEnd:
 	call	printcrlf
 	jp	unsetZ

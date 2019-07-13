@@ -58,6 +58,7 @@ jp	zasmMain
 #include "zasm/io.asm"
 .equ	TOK_RAMSTART	IO_RAMEND
 #include "zasm/tok.asm"
+#include "lib/parse.asm"
 #include "zasm/parse.asm"
 #include "zasm/expr.asm"
 #include "zasm/instr.asm"
