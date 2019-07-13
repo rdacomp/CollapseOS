@@ -35,10 +35,12 @@
 	jp	_blkSeek
 	jp	_blkTell
 	jp	printcrlf
+	jp	stdioPutC
 	jp	stdioReadC
 	jp	stdioGetLine
 	jp	blkGetC
 	jp	blkSeek
+	jp	blkTell
 
 #include "core.asm"
 #include "err.h"

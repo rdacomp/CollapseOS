@@ -40,27 +40,38 @@
 ; when combined with commands (p, c, d, a, i). All numbers in ed are
 ; represented in decimals.
 ;
+; Like in ed, line indexing is one-based. This is only in the interface,
+; however. In the code, line indexes are zero-based.
+;
 ; *** Requirements ***
 ; BLOCKDEV_SIZE
+; addHL
 ; blkGetC
 ; blkSeek
+; blkTell
+; cpHLDE
+; intoHL
 ; printstr
 ; printcrlf
-; stdioReadC
 ; stdioGetLine
+; stdioPutC
+; stdioReadC
 ; unsetZ
 
 edMain:
-	; Dummy test. Read first line of file
-	ld	hl, 0
+	; Fill line buffer
+.loop:
+	call	blkTell		; --> HL
+	call	blkGetC
+	jr	nz, edLoop
+	call	bufAddLine
 	call	ioGetLine
-	call	printstr
-	call	printcrlf
+	jr	.loop
 	; Continue to loop
 
 edLoop:
-	ld	hl, .prompt
-	call	printstr
+	ld	a, ':'
+	call	stdioPutC
 .inner:
 	call	stdioReadC
 	jr	nz, .inner	; not done? loop
@@ -71,9 +82,6 @@ edLoop:
 	ret	z
 	jr	edLoop
 
-.prompt:
-	.db	":", 0
-
 ; Sets Z if we need to quit
 .processLine:
 	ld	a, (hl)
@@ -81,17 +89,24 @@ edLoop:
 	ret	z
 	call	parseDecimal
 	jr	z, .processNumber
-	; nothing
-	jr	.processEnd
+	jr	.error
 .processNumber:
 	; number is in IX
 	; Because we don't have a line buffer yet, let's simply print seek
 	; offsets.
 	push	ix \ pop	hl
-	call	ioGetLine
+	dec	hl		; from 1-based to zero-based
+	call	bufGetLine
+	jr	nz, .error
 	call	printstr
 	call	printcrlf
 	; continue to end
 .processEnd:
 	call	printcrlf
 	jp	unsetZ
+.error:
+	ld	a, '?'
+	call	stdioPutC
+	call	printcrlf
+	jp	unsetZ
+

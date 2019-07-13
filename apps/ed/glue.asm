@@ -7,5 +7,7 @@
 #include "lib/parse.asm"
 .equ	IO_RAMSTART	USER_RAMSTART
 #include "ed/io.asm"
+.equ	BUF_RAMSTART	IO_RAMEND
+#include "ed/buf.asm"
 #include "ed/main.asm"
 

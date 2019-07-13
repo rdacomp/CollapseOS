@@ -28,7 +28,9 @@
 .equ	_blkSeek		0x42
 .equ	_blkTell		0x45
 .equ	printcrlf		0x48
-.equ	stdioReadC		0x4b
-.equ	stdioGetLine	0x4e
-.equ	blkGetC			0x51
-.equ	blkSeek			0x54
+.equ	stdioPutC		0x4b
+.equ	stdioReadC		0x4e
+.equ	stdioGetLine	0x51
+.equ	blkGetC			0x54
+.equ	blkSeek			0x57
+.equ	blkTell			0x5a
