@@ -59,12 +59,10 @@ printstr:
 	pop	af
 	ret
 
-; print A characters from string that HL points to
+; print B characters from string that HL points to
 printnstr:
 	push	bc
 	push	hl
-
-	ld	b, a
 .loop:
 	ld	a, (hl)		; load character to send
 	call	stdioPutC
@@ -77,22 +75,24 @@ printnstr:
 	ret
 
 printcrlf:
+	push	af
 	ld	a, ASCII_CR
 	call	stdioPutC
 	ld	a, ASCII_LF
 	call	stdioPutC
+	pop	af
 	ret
 
 ; Print the hex char in A
 printHex:
-	push	af
+	push	bc
 	push	hl
 	ld	hl, STDIO_HEX_FMT
 	call	fmtHexPair
-	ld	a, 2
+	ld	b, 2
 	call	printnstr
 	pop	hl
-	pop	af
+	pop	bc
 	ret
 
 ; Print the hex pair in HL
