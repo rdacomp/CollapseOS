@@ -124,13 +124,56 @@ edMain:
 ; Parse the string at (HL) and sets its corresponding address in DE, properly
 ; considering implicit values (current address when nothing is specified).
 ; advances HL to the char next to the last parsed char.
+; It handles "+" and "-" addresses such as "+3", "-2", "+", "-".
 ; Sets Z on success, unset on error. Line out of bounds isn't an error. Only
 ; overflows.
 edReadAddr:
 	ld	a, (hl)
+	cp	'+'
+	jr	z, .plusOrMinus
+	cp	'-'
+	jr	z, .plusOrMinus
 	call	parseDecimalDigit
-	jr	c, .NaN
+	jr	c, .notHandled
+	; straight number
+	call	.parseDecimalM	; Z has proper value
+	dec	de	; from 1-based to 0-base. 16bit doesn't affect flags.
+	ret
+.notHandled:
+	; something else. Something we don't handle. Our addr is therefore
+	; (ED_CURLINE).
+	push	hl
+	ld	hl, (ED_CURLINE)
+	ex	de, hl
+	pop	hl
+	cp	a		; ensure Z
+	ret
+.plusOrMinus:
+	push	af		; preserve that + or -
+	inc	hl		; advance cmd cursor
+	ld	a, (hl)
+	ld	de, 1		; if .pmNoSuffix
+	call	parseDecimalDigit
+	jr	c, .pmNoSuffix
+	call	.parseDecimalM	; --> DE
+.pmNoSuffix:
+	pop	af		; bring back that +/-
+	push	hl
+	ld	hl, (ED_CURLINE)
+	cp	'-'
+	jr	z, .pmIsMinus
+	add	hl, de
+	jr	.pmEnd
+.pmIsMinus:
+	sbc	hl, de
+.pmEnd:
+	ex	de, hl
+	pop	hl
+	cp	a		; ensure Z
+	ret
 
+; call parseDecimal and set HL to the character following the last digit
+.parseDecimalM:
 	push	bc
 	push	ix
 	push	hl
@@ -155,15 +198,6 @@ edReadAddr:
 	ex	de, hl	; put end of string back from DE to HL
 	; Put addr in its final register, DE
 	push	ix \ pop de
-	dec	de	; from 1-based to 0-base. 16bit doesn't affect flags.
 	pop	ix
 	pop	bc
-	ret
-.NaN:
-	; Not a number, return current line
-	push	hl
-	ld	hl, (ED_CURLINE)
-	ex	de, hl
-	pop	hl
-	cp	a		; ensure Z
 	ret
