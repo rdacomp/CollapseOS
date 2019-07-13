@@ -1,20 +1,36 @@
 ; stdio
 ;
-; Allows other modules to print to "standard out", and get data from "stamdard
+; Allows other modules to print to "standard out", and get data from "standard
 ; in", that is, the console through which the user is connected in a decoupled
 ; manner.
 ;
-; *** VARIABLES ***
+; *** Consts ***
+; Size of the readline buffer. If a typed line reaches this size, the line is
+; flushed immediately (same as pressing return).
+.equ	STDIO_BUFSIZE		0x20
+
+; *** Variables ***
 ; Used to store formatted hex values just before printing it.
 .equ	STDIO_HEX_FMT	STDIO_RAMSTART
 .equ	STDIO_GETC	STDIO_HEX_FMT+2
 .equ	STDIO_PUTC	STDIO_GETC+2
-.equ	STDIO_RAMEND	STDIO_PUTC+2
+
+; Line buffer. We read types chars into this buffer until return is pressed
+; This buffer is null-terminated and we don't keep an index around: we look
+; for the null-termination every time we write to it. Simpler that way.
+.equ	STDIO_BUF	STDIO_PUTC+2
+
+; Index where the next char will go in stdioGetC.
+.equ	STDIO_BUFIDX	STDIO_BUF+STDIO_BUFSIZE
+.equ	STDIO_RAMEND	STDIO_BUFIDX+1
 
 ; Sets GetC to the routine where HL points to and PutC to DE.
 stdioInit:
 	ld	(STDIO_GETC), hl
 	ld	(STDIO_PUTC), de
+	xor	a
+	ld	(STDIO_BUF), a
+	ld	(STDIO_BUFIDX), a
 	ret
 
 stdioGetC:
@@ -87,4 +103,93 @@ printHexPair:
 	ld	a, l
 	call	printHex
 	pop	af
+	ret
+
+; Call stdioGetC and put the result in the buffer. Sets Z according to whether
+; the buffer is "complete", that is, whether CR or LF have been pressed or if
+; the the buffer is full. Z is set if the line is "complete", unset if not.
+; The next call to stdioReadC after a completed line will start a new line.
+;
+; This routine also takes care of echoing received characters back to the TTY.
+;
+; Note that this routine doesn't bother returning the typed character.
+stdioReadC:
+	; Let's wait until something is typed.
+	call	stdioGetC
+	jr	nz, stdioReadC	; nothing typed? loop
+	; got it. Now, is it a CR or LF?
+	cp	ASCII_CR
+	jr	z, .complete	; char is CR? buffer complete!
+	cp	ASCII_LF
+	jr	z, .complete
+	cp	ASCII_DEL
+	jr	z, .delchr
+	cp	ASCII_BS
+	jr	z, .delchr
+
+	; Echo the received character right away so that we see what we type
+	call	stdioPutC
+
+	; Ok, gotta add it do the buffer
+	; save char for later
+	ex	af, af'
+	ld	a, (STDIO_BUFIDX)
+	push	hl			;<|
+	ld	hl, STDIO_BUF		; |
+	; make HL point to dest spot	  |
+	call	addHL			; |
+	; Write our char down		  |
+	ex	af, af'			; |
+	ld	(hl), a			; |
+	; follow up with a null char	  |
+	inc	hl			; |
+	xor	a			; |
+	ld	(hl), a			; |
+	pop	hl			;<|
+	; inc idx, which still is in AF'
+	ex	af, af'
+	inc	a
+	cp	STDIO_BUFSIZE-1 ; -1 is because we always want to keep our
+				; last char at zero.
+	jr	z, .complete	; end of buffer reached? buffer is full.
+
+	; not complete. save idx back
+	ld	(STDIO_BUFIDX), a
+	; Z already unset
+	ret
+
+.complete:
+	; The line in our buffer is complete.
+	xor	a		; sets Z
+	ld	(STDIO_BUFIDX), a
+	ret
+
+.delchr:
+	ld	a, (STDIO_BUFIDX)
+	or	a
+	jp	z, unsetZ	; buf empty? nothing to do
+	; buffer not empty, let's go back one char and set a null char there.
+	dec	a
+	ld	(STDIO_BUFIDX), a
+	push	hl			;<|
+	ld	hl, STDIO_BUF		; |
+	; make HL point to dest spot	  |
+	call	addHL			; |
+	xor	a			; |
+	ld	(hl), a			; |
+	pop	hl			;<|
+	; Char deleted in buffer, now send BS + space + BS for the terminal
+	; to clear its previous char
+	ld	a, ASCII_BS
+	call	stdioPutC
+	ld	a, ' '
+	call	stdioPutC
+	ld	a, ASCII_BS
+	call	stdioPutC
+	jp	unsetZ
+
+
+; Make HL point to the line buffer. It is always null terminated.
+stdioGetLine:
+	ld	hl, STDIO_BUF
 	ret

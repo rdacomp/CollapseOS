@@ -35,10 +35,6 @@
 ; number of entries in shellCmdTbl
 .equ	SHELL_CMD_COUNT		6+SHELL_EXTRA_CMD_COUNT
 
-; Size of the shell command buffer. If a typed command reaches this size, the
-; command is flushed immediately (same as pressing return).
-.equ	SHELL_BUFSIZE		0x20
-
 ; *** VARIABLES ***
 ; Memory address that the shell is currently "pointing at" for peek, load, call
 ; operations. Set with mptr.
@@ -48,13 +44,8 @@
 ; written to after parsing.
 .equ	SHELL_CMD_ARGS	SHELL_MEM_PTR+2
 
-; Command buffer. We read types chars into this buffer until return is pressed
-; This buffer is null-terminated and we don't keep an index around: we look
-; for the null-termination every time we write to it. Simpler that way.
-.equ	SHELL_BUF	SHELL_CMD_ARGS+PARSE_ARG_MAXCOUNT
-
 ; Pointer to a hook to call when a cmd name isn't found
-.equ	SHELL_CMDHOOK	SHELL_BUF+SHELL_BUFSIZE
+.equ	SHELL_CMDHOOK	SHELL_CMD_ARGS+PARSE_ARG_MAXCOUNT
 
 ; Pointer to a routine to call at each shell loop interation
 .equ	SHELL_LOOPHOOK	SHELL_CMDHOOK+2
@@ -65,14 +56,13 @@ shellInit:
 	xor	a
 	ld	(SHELL_MEM_PTR), a
 	ld	(SHELL_MEM_PTR+1), a
-	ld	(SHELL_BUF), a
 	ld	hl, noop
 	ld	(SHELL_CMDHOOK), hl
 	ld	(SHELL_LOOPHOOK), hl
 
 	; print welcome
 	ld	hl, .welcome
-	jp	printstr		; returns
+	jp	printstr
 
 .welcome:
 	.db	"Collapse OS", ASCII_CR, ASCII_LF, "> ", 0
@@ -84,80 +74,18 @@ shellLoop:
 	ld	ix, (SHELL_LOOPHOOK)
 	call	callIX
 	; Then, let's wait until something is typed.
-	call	stdioGetC
-	jr	nz, shellLoop	; nothing typed? loop
-	; got it. Now, is it a CR or LF?
-	cp	ASCII_CR
-	jr	z, .do		; char is CR? do!
-	cp	ASCII_LF
-	jr	z, .do		; char is LF? do!
-	cp	ASCII_DEL
-	jr	z, .delchr
-	cp	ASCII_BS
-	jr	z, .delchr
-
-	; Echo the received character right away so that we see what we type
-	call	stdioPutC
-
-	; Ok, gotta add it do the buffer
-	; save char for later
-	ex	af, af'
-	ld	hl, SHELL_BUF
-	xor	a		; look for null
-	call	findchar	; HL points to where we need to write
-				; A is the number of chars in the buf
-	cp	SHELL_BUFSIZE-1 ; -1 is because we always want to keep our
-				; last char at zero.
-	jr	z, .do		; end of buffer reached? buffer is full. do!
-
-	; bring the char back in A
-	ex	af, af'
-	; Buffer not full, not CR or LF. Let's put that char in our buffer and
-	; read again.
-	ld	(hl), a
-	; Now, write a zero to the next byte to properly terminate our string.
-	inc	hl
-	xor	a
-	ld	(hl), a
-
-	jr	shellLoop
-
-.do:
+	call	stdioReadC
+	jr	nz, shellLoop	; not done? loop
+	; We're done. Process line.
 	call	printcrlf
-	ld	hl, SHELL_BUF
+	call	stdioGetLine
 	call	shellParse
-	; empty our buffer by writing a zero to its first char
-	xor	a
-	ld	(hl), a
-
 	ld	hl, .prompt
 	call	printstr
 	jr	shellLoop
 
 .prompt:
 	.db	"> ", 0
-
-.delchr:
-	ld	hl, SHELL_BUF
-	ld	a, (hl)
-	or	a		; cp 0
-	jr	z, shellLoop	; buffer empty? nothing to do
-	; buffer not empty, let's delete
-	xor	a		; look for null
-	call	findchar	; HL points to end of buf
-	dec	hl		; the char before it
-	xor	a
-	ld	(hl), a		; set to zero
-	; Char deleted in buffer, now send BS + space + BS for the terminal
-	; to clear its previous char
-	ld	a, ASCII_BS
-	call	stdioPutC
-	ld	a, ' '
-	call	stdioPutC
-	ld	a, ASCII_BS
-	call	stdioPutC
-	jr	shellLoop
-
 
 ; Parse command (null terminated) at HL and calls it
 shellParse:
