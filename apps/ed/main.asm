@@ -57,19 +57,27 @@
 ; stdioPutC
 ; stdioReadC
 ; unsetZ
+;
+; *** Variables ***
+;
+.equ	ED_CURLINE	ED_RAMSTART
+.equ	ED_RAMEND	ED_CURLINE+2
 
 edMain:
+	; diverge from UNIX: start at first line
+	ld	hl, 0
+	ld	(ED_CURLINE), hl
+
 	; Fill line buffer
-.loop:
+.fillLoop:
 	call	blkTell		; --> HL
 	call	blkGetC
-	jr	nz, edLoop
+	jr	nz, .mainLoop
 	call	bufAddLine
 	call	ioGetLine
-	jr	.loop
-	; Continue to loop
+	jr	.fillLoop
 
-edLoop:
+.mainLoop:
 	ld	a, ':'
 	call	stdioPutC
 .inner:
@@ -80,33 +88,82 @@ edLoop:
 	call	stdioGetLine
 	call	.processLine
 	ret	z
-	jr	edLoop
+	jr	.mainLoop
 
 ; Sets Z if we need to quit
 .processLine:
 	ld	a, (hl)
 	cp	'q'
 	ret	z
-	call	parseDecimal
+	call	edReadAddr
 	jr	z, .processNumber
-	jr	.error
+	jr	.processError
 .processNumber:
-	; number is in IX
-	; Because we don't have a line buffer yet, let's simply print seek
-	; offsets.
-	push	ix \ pop	hl
-	dec	hl		; from 1-based to zero-based
+	; number is in DE
+	; We expect HL (rest of the cmdline) to be a null char, otherwise it's
+	; garbage
+	ld	a, (hl)
+	or	a
+	jr	nz, .processError
+	ex	de, hl
+	ld	(ED_CURLINE), hl
 	call	bufGetLine
-	jr	nz, .error
+	jr	nz, .processError
 	call	printstr
 	call	printcrlf
 	; continue to end
 .processEnd:
 	call	printcrlf
 	jp	unsetZ
-.error:
+.processError:
 	ld	a, '?'
 	call	stdioPutC
 	call	printcrlf
 	jp	unsetZ
 
+; Parse the string at (HL) and sets its corresponding address in DE, properly
+; considering implicit values (current address when nothing is specified).
+; advances HL to the char next to the last parsed char.
+; Sets Z on success, unset on error. Line out of bounds isn't an error. Only
+; overflows.
+edReadAddr:
+	ld	a, (hl)
+	call	parseDecimalDigit
+	jr	c, .NaN
+
+	push	bc
+	push	ix
+	push	hl
+.loop:
+	inc	hl
+	ld	a, (hl)
+	call	parseDecimalDigit
+	jr	nc, .loop
+	; We're at the first non-digit char. Let's save it because we're going
+	; to temporarily replace it with a null.
+	ld	b, a
+	xor	a
+	ld	(hl), a
+	; Now, let's go back to the beginning of the string and parse it.
+	; but before we do this, let's save the end of string in DE
+	ex	de, hl
+	pop	hl
+	call	parseDecimal
+	; Z is set properly at this point. nothing touches Z below.
+	ld	a, b
+	ld	(de), a
+	ex	de, hl	; put end of string back from DE to HL
+	; Put addr in its final register, DE
+	push	ix \ pop de
+	dec	de	; from 1-based to 0-base. 16bit doesn't affect flags.
+	pop	ix
+	pop	bc
+	ret
+.NaN:
+	; Not a number, return current line
+	push	hl
+	ld	hl, (ED_CURLINE)
+	ex	de, hl
+	pop	hl
+	cp	a		; ensure Z
+	ret

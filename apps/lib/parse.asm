@@ -19,10 +19,10 @@ parseDecimalDigit:
 
 ; Parse string at (HL) as a decimal value and return value in IX under the
 ; same conditions as parseLiteral.
+; Sets Z on success, unset on error.
 parseDecimal:
 	push	hl
 	push	de
-	push	bc
 
 	ld	ix, 0
 .loop:
@@ -52,10 +52,11 @@ parseDecimal:
 	inc	hl
 	jr	.loop
 
+	cp	a	; ensure Z
+	jr	.end
 .error:
 	call	unsetZ
 .end:
-	pop	bc
 	pop	de
 	pop	hl
 	ret

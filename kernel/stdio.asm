@@ -160,6 +160,15 @@ stdioReadC:
 
 .complete:
 	; The line in our buffer is complete.
+	; But before we do that, let's take care of a special case: the empty
+	; line. If we didn't add any character since the last "complete", then
+	; our buffer's content is the content from the last time. Let's set this
+	; to an empty string.
+	ld	a, (STDIO_BUFIDX)
+	or	a
+	jr	nz, .completeSkip
+	ld	(STDIO_BUF), a
+.completeSkip:
 	xor	a		; sets Z
 	ld	(STDIO_BUFIDX), a
 	ret
