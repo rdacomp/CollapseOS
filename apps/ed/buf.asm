@@ -89,26 +89,28 @@ bufGetLine:
 ; WARNING: no bounds check. The only consumer of this routine already does
 ; bounds check.
 bufDelLines:
-	ex	de, hl
+	; Let's start with setting up BC, which is (CNT-DE) * 2
 	push	hl	; --> lvl 1
-	scf \ ccf
-	sbc	hl, de	; HL now has delcount -1
-	inc	hl	; adjust for actual delcount
-	; We have the number of lines to delete in HL. We're going to move this
-	; to BC for a LDIR, but before we do, there's two things we need to do:
-	; adjust buffer line count and multiply by 2 (we move words, not bytes).
-	push	de	; --> lvl 2
-	ex	de, hl	; del cnt now in DE
 	ld	hl, (BUF_LINECNT)
 	scf \ ccf
-	sbc	hl, de	; HL now has adjusted line cnt
+	sbc	hl, de
+	; mult by 2 and we're done
+	sla	l \ rl h
+	push	hl \ pop bc
+	pop	hl	; <-- lvl 1
+	; Good! BC done. Now, let's adjust BUF_LINECNT by DE-HL
+	push	hl	; --> lvl 1
+	scf \ ccf
+	sbc	hl, de	; HL -> nb of lines to delete, negative
+	push	de	; --> lvl 2
+	ld	de, (BUF_LINECNT)
+	add	hl, de	; adding DE to negative HL
 	ld	(BUF_LINECNT), hl
-	; Good! one less thing to think about. Now, let's prepare moving DE
-	; (delcnt) to BC. But first, we'll multiply by 2.
-	sla	e \ rl d
-	push	hl \ pop bc	; BC: delcount * 2
 	pop	de	; <-- lvl 2
 	pop	hl	; <-- lvl 1
+	; Line count updated!
+	; let's have invert HL and DE to match LDIR's signature
+	ex	de, hl
 	; At this point we have higher index in HL, lower index in DE and number
 	; of bytes to delete in BC. It's convenient because it's rather close
 	; to LDIR's signature! The only thing we need to do now is to translate
