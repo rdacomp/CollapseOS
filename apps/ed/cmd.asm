@@ -26,9 +26,41 @@ cmdParse:
 	ld	a, (hl)
 	cp	'q'
 	jr	z, .quit
-	ld	(CMD_TYPE), a
 	ld	ix, CMD_ADDR1
-	jp	.readAddr
+	call	.readAddr
+	ret	nz
+	; Before we check for the existence of a second addr, let's set that
+	; second addr to the same value as the first. That's going to be its
+	; value if we have to ",".
+	ld	a, (ix)
+	ld	(CMD_ADDR2), a
+	ld	a, (ix+1)
+	ld	(CMD_ADDR2+1), a
+	ld	a, (ix+2)
+	ld	(CMD_ADDR2+2), a
+	ld	a, (hl)
+	cp	','
+	jr	nz, .noaddr2
+	inc	hl
+	ld	ix, CMD_ADDR2
+	call	.readAddr
+	ret	nz
+.noaddr2:
+	; We expect HL (rest of the cmdline) to be a null char or an accepted
+	; cmd, otherwise it's garbage
+	ld	a, (hl)
+	or	a
+	jr	z, .nullCmd
+	cp	'p'
+	jr	z, .okCmd
+	; unsupported cmd
+	ret			; Z unset
+.nullCmd:
+	ld	a, 'p'
+.okCmd:
+	ld	(CMD_TYPE), a
+	ret			; Z already set
+
 .quit:
 	; Z already set
 	ld	(CMD_TYPE), a
@@ -84,14 +116,10 @@ cmdParse:
 	ex	de, hl
 	pop	hl
 .end:
-	; We expect HL (rest of the cmdline) to be a null char, otherwise it's
-	; garbage
-	ld	a, (hl)
-	or	a
-	ret	nz
 	; we still have to save DE in memory
 	ld	(ix+1), e
 	ld	(ix+2), d
+	cp	a		; ensure Z
 	ret
 
 ; call parseDecimal and set HL to the character following the last digit
@@ -106,7 +134,8 @@ cmdParse:
 	jr	nc, .loop
 	; We're at the first non-digit char. Let's save it because we're going
 	; to temporarily replace it with a null.
-	ld	b, a
+	ld	b, (hl)		; refetch (HL), A has been mucked with in
+				; parseDecimalDigit
 	xor	a
 	ld	(hl), a
 	; Now, let's go back to the beginning of the string and parse it.
@@ -127,6 +156,11 @@ cmdParse:
 ; Make (IX) point to addr 1
 cmdAddr1:
 	ld	ix, CMD_ADDR1
+	ret
+
+; Make (IX) point to addr 2
+cmdAddr2:
+	ld	ix, CMD_ADDR2
 	ret
 
 ; Set A to CMD_TYPE

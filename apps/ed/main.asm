@@ -96,12 +96,25 @@ edMain:
 .doPrint:
 	call	cmdAddr1
 	call	edResolveAddr
+	ex	de, hl		; DE: addr1
+	call	cmdAddr2
+	call	edResolveAddr
 	ld	(ED_CURLINE), hl
+	ex	de, hl		; HL: addr1, DE: addr2
+	call	cpHLDE
+	jr	z, .doPrintLoop	; DE == HL, ok
+	jr	nc, .error	; DE < HL, not good
+.doPrintLoop:
+	push	hl
 	call	bufGetLine
 	jr	nz, .error
 	call	printstr
 	call	printcrlf
-	jr	.mainLoop
+	pop	hl
+	call	cpHLDE
+	jr	nc, .mainLoop
+	inc	hl
+	jr	.doPrintLoop
 .error:
 	ld	a, '?'
 	call	stdioPutC
@@ -116,13 +129,14 @@ edResolveAddr:
 	jr	z, .relative
 	; absolute
 	ld	l, (ix+1)
-	ld	a, l
 	ld	h, (ix+2)
 	ret
 .relative:
 	ld	hl, (ED_CURLINE)
+	push	de
 	ld	e, (ix+1)
 	ld	d, (ix+2)
 	add	hl, de
+	pop	de
 	ret
 
