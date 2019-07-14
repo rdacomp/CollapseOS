@@ -153,17 +153,3 @@ cmdParse:
 	pop	bc
 	ret
 
-; Make (IX) point to addr 1
-cmdAddr1:
-	ld	ix, CMD_ADDR1
-	ret
-
-; Make (IX) point to addr 2
-cmdAddr2:
-	ld	ix, CMD_ADDR2
-	ret
-
-; Set A to CMD_TYPE
-cmdType:
-	ld	a, (CMD_TYPE)
-	ret

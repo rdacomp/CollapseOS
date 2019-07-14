@@ -88,22 +88,17 @@ edMain:
 	call	stdioGetLine
 	call	cmdParse
 	jr	nz, .error
-	call	cmdType
+	ld	a, (CMD_TYPE)
 	cp	'q'
-	ret	z
+	jr	z, .doQuit
 	jr	.doPrint
 
+.doQuit:
+	xor	a
+	ret
 .doPrint:
-	call	cmdAddr1
-	call	edResolveAddr
-	ex	de, hl		; DE: addr1
-	call	cmdAddr2
-	call	edResolveAddr
-	ld	(ED_CURLINE), hl
-	ex	de, hl		; HL: addr1, DE: addr2
-	call	cpHLDE
-	jr	z, .doPrintLoop	; DE == HL, ok
-	jr	nc, .error	; DE < HL, not good
+	call	edReadAddrs
+	jr	nz, .error
 .doPrintLoop:
 	push	hl
 	call	bufGetLine
@@ -112,9 +107,12 @@ edMain:
 	call	printcrlf
 	pop	hl
 	call	cpHLDE
-	jr	nc, .mainLoop
+	jr	z, .doPrintEnd
 	inc	hl
 	jr	.doPrintLoop
+.doPrintEnd:
+	ld	(ED_CURLINE), hl
+	jr	.mainLoop
 .error:
 	ld	a, '?'
 	call	stdioPutC
@@ -138,5 +136,25 @@ edResolveAddr:
 	ld	d, (ix+2)
 	add	hl, de
 	pop	de
+	ret
+
+; Read absolute addr1 in HL and addr2 in DE. Also, check bounds and set Z if
+; both addresses are within bounds, unset if not.
+edReadAddrs:
+	ld	ix, CMD_ADDR2
+	call	edResolveAddr
+	ex	de, hl
+	ld	hl, (BUF_LINECNT)
+	ex	de, hl		; HL: addr2 DE: cnt
+	call	cpHLDE
+	jp	nc, unsetZ	; HL (addr2) >= DE (cnt). no good
+	ex	de, hl		; DE: addr2
+	ld	ix, CMD_ADDR1
+	call	edResolveAddr
+	ex	de, hl		; HL: addr2, DE: addr1
+	call	cpHLDE
+	jp	c, unsetZ	; HL (addr2) < DE (addr1). no good
+	ex	de, hl		; HL: addr1, DE: addr2
+	cp	a		; ensure Z
 	ret
 
