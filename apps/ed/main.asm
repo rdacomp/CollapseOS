@@ -29,20 +29,6 @@
 ; around whenever we add or delete lines. Hopefully, "LDIR" will be our friend
 ; here...
 ;
-; *** Usage ***
-;
-; ed takes no argument. It reads from the currently selected blkdev and writes
-; to it. It repeatedly presents a prompt, waits for a command, execute the
-; command. 'q' to quit.
-;
-; Enter a number to print this line's number. For ed, we break with Collapse
-; OS's tradition of using hex representation. It would be needlessly confusing
-; when combined with commands (p, c, d, a, i). All numbers in ed are
-; represented in decimals.
-;
-; Like in ed, line indexing is one-based. This is only in the interface,
-; however. In the code, line indexes are zero-based.
-;
 ; *** Requirements ***
 ; BLOCKDEV_SIZE
 ; addHL
