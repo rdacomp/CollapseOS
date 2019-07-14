@@ -54,14 +54,7 @@ edMain:
 	ld	hl, 0
 	ld	(ED_CURLINE), hl
 
-	; Fill line buffer
-.fillLoop:
-	call	blkTell		; --> HL
-	call	blkGetC
-	jr	nz, .mainLoop
-	call	bufAddLine
-	call	ioGetLine
-	jr	.fillLoop
+	call	bufInit
 
 .mainLoop:
 	ld	a, ':'

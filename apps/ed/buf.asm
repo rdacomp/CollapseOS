@@ -7,43 +7,47 @@
 ;
 ; Maximum number of lines allowed in the buffer.
 .equ	BUF_MAXLINES	0x800
+; Size of our scratchpad
+.equ	BUF_PADMAXLEN	0x1000
 
 ; *** Variables ***
 ; Number of lines currently in the buffer
 .equ	BUF_LINECNT	BUF_RAMSTART
 ; List of words pointing to scratchpad offsets
 .equ	BUF_LINES	BUF_LINECNT+2
-.equ	BUF_RAMEND	BUF_LINES+BUF_MAXLINES*2
+; size of file we read in bufInit. That offset is the beginning of our
+; in-memory scratchpad.
+.equ	BUF_FSIZE	BUF_LINES+BUF_MAXLINES*2
+; The in-memory scratchpad
+.equ	BUF_PADLEN	BUF_FSIZE+2
+.equ	BUF_PAD		BUF_PADLEN+2
+
+.equ	BUF_RAMEND	BUF_PAD+BUF_PADMAXLEN
 
 ; *** Code ***
 
+; On initialization, we read the whole contents of target blkdev and add lines
+; as we go.
 bufInit:
-	xor	a
-	ld	(BUF_LINECNT), a
-	ret
-
-; Add a new line with offset HL to the buffer
-bufAddLine:
-	push	de
-	push	hl
-	ld	hl, BUF_LINES
-	ld	de, (BUF_LINECNT)
-	add	hl, de
-	add	hl, de	; twice, because two bytes per line
-	; HL now points to the specified line offset in memory
-	pop	de	; what used to be in HL ends up in DE
-	; line offset popped back in HL
-	ld	(hl), e
-	inc	hl
-	ld	(hl), d
-	; increase line count
-	ld	hl, (BUF_LINECNT)
-	inc	hl
-	ld	(BUF_LINECNT), hl
-	; our initial HL is in DE. Before we pop DE back, let's swap these
-	; two so that all registers are preserved.
-	ex	de, hl
-	pop	de
+	ld	hl, 0
+	ld	(BUF_PADLEN), hl
+	ld	ix, BUF_LINES
+	ld	bc, 0		; line count
+.loop:
+	call	blkTell		; --> HL
+	call	blkGetC
+	jr	nz, .loopend
+	ld	(ix), l
+	inc	ix
+	ld	(ix), h
+	inc	ix
+	inc	bc
+	call	ioGetLine
+	jr	.loop
+.loopend:
+	; HL currently has the result of the last blkTell
+	ld	(BUF_FSIZE), hl
+	ld	(BUF_LINECNT), bc
 	ret
 
 ; transform line index HL into its corresponding memory address in BUF_LINES
