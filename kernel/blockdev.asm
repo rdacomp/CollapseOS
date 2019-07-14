@@ -125,7 +125,11 @@ _blkInc:
 ; Sets Z according to whether read was successful: Set if successful, unset
 ; if not.
 blkGetC:
+	push	ix
 	ld	ix, BLOCKDEV_SEL
+	call	_blkGetC
+	pop	ix
+	ret
 _blkGetC:
 	push	hl
 	push	de
@@ -138,7 +142,11 @@ _blkGetC:
 ; Writes character in A in current position in the selected device. Sets Z
 ; according to whether the operation was successful.
 blkPutC:
+	push	ix
 	ld	ix, BLOCKDEV_SEL
+	call	_blkPutC
+	pop	ix
+	ret
 _blkPutC:
 	push	ix
 	push	hl
@@ -155,7 +163,11 @@ _blkPutC:
 ; Reads B chars from blkGetC and copy them in (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkRead:
+	push	ix
 	ld	ix, BLOCKDEV_SEL
+	call	_blkRead
+	pop	ix
+	ret
 _blkRead:
 	push	hl
 	push	bc
@@ -174,7 +186,11 @@ _blkRead:
 ; Writes B chars to blkPutC from (HL).
 ; Sets Z if successful, unset Z if there was an error.
 blkWrite:
+	push	ix
 	ld	ix, BLOCKDEV_SEL
+	call	_blkWrite
+	pop	ix
+	ret
 _blkWrite:
 	push	hl
 	push	bc
@@ -207,7 +223,11 @@ _blkWrite:
 ; If the device is "growable", it's possible that seeking to end when calling
 ; PutC doesn't necessarily result in a failure.
 blkSeek:
+	push	ix
 	ld	ix, BLOCKDEV_SEL
+	call	_blkSeek
+	pop	ix
+	ret
 _blkSeek:
 	cp	BLOCKDEV_SEEK_FORWARD
 	jr	z, .forward
@@ -275,7 +295,11 @@ _blkSeek:
 
 ; Returns the current position of the selected device in HL (low) and DE (high).
 blkTell:
+	push	ix
 	ld	ix, BLOCKDEV_SEL
+	call	_blkTell
+	pop	ix
+	ret
 _blkTell:
 	ld	e, (ix+4)
 	ld	d, (ix+5)
