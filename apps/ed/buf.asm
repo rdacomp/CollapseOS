@@ -46,6 +46,17 @@ bufAddLine:
 	pop	de
 	ret
 
+; transform line index HL into its corresponding memory address in BUF_LINES
+; array.
+bufLineAddr:
+	push	de
+	ex	de, hl
+	ld	hl, BUF_LINES
+	add	hl, de
+	add	hl, de	; twice, because two bytes per line
+	pop	de
+	ret
+
 ; Read line number specified in HL and loads the I/O buffer with it.
 ; Like ioGetLine, sets HL to line buffer pointer.
 ; Sets Z on success, unset if out of bounds.
@@ -54,10 +65,7 @@ bufGetLine:
 	ld	de, (BUF_LINECNT)
 	call	cpHLDE
 	jr	nc, .outOfBounds	; HL > (BUF_LINECNT)
-	ex	de, hl
-	ld	hl, BUF_LINES
-	add	hl, de
-	add	hl, de	; twice, because two bytes per line
+	call	bufLineAddr
 	; HL now points to seek offset in memory
 	ld	e, (hl)
 	inc	hl
@@ -71,3 +79,43 @@ bufGetLine:
 .outOfBounds:
 	pop	de
 	jp	unsetZ
+
+; Given line indexes in HL and DE where HL < DE < CNT, move all lines between
+; DE and CNT by an offset of DE-HL. Also, adjust BUF_LINECNT by DE-HL.
+; WARNING: no bounds check. The only consumer of this routine already does
+; bounds check.
+bufDelLines:
+	ex	de, hl
+	push	hl	; --> lvl 1
+	scf \ ccf
+	sbc	hl, de	; HL now has delcount -1
+	inc	hl	; adjust for actual delcount
+	; We have the number of lines to delete in HL. We're going to move this
+	; to BC for a LDIR, but before we do, there's two things we need to do:
+	; adjust buffer line count and multiply by 2 (we move words, not bytes).
+	push	de	; --> lvl 2
+	ex	de, hl	; del cnt now in DE
+	ld	hl, (BUF_LINECNT)
+	scf \ ccf
+	sbc	hl, de	; HL now has adjusted line cnt
+	ld	(BUF_LINECNT), hl
+	; Good! one less thing to think about. Now, let's prepare moving DE
+	; (delcnt) to BC. But first, we'll multiply by 2.
+	sla	e \ rl d
+	push	hl \ pop bc	; BC: delcount * 2
+	pop	de	; <-- lvl 2
+	pop	hl	; <-- lvl 1
+	; At this point we have higher index in HL, lower index in DE and number
+	; of bytes to delete in BC. It's convenient because it's rather close
+	; to LDIR's signature! The only thing we need to do now is to translate
+	; those HL and DE indexes in memory addresses, that is, multiply by 2
+	; and add BUF_LINES
+	push	hl	; --> lvl 1
+	ex	de, hl
+	call	bufLineAddr
+	ex	de, hl
+	pop	hl	; <-- lvl 1
+	call	bufLineAddr
+	; Both HL and DE are translated. Go!
+	ldir
+	ret

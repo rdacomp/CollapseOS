@@ -91,11 +91,21 @@ edMain:
 	ld	a, (CMD_TYPE)
 	cp	'q'
 	jr	z, .doQuit
+	cp	'd'
+	jr	z, .doDel
 	jr	.doPrint
 
 .doQuit:
 	xor	a
 	ret
+
+.doDel:
+	call	edReadAddrs
+	jr	nz, .error
+	; bufDelLines expects an exclusive upper bound, which is why we inc DE.
+	inc	de
+	call	bufDelLines
+	jr	.mainLoop
 .doPrint:
 	call	edReadAddrs
 	jr	nz, .error
