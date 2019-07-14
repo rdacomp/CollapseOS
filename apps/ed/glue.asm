@@ -9,6 +9,8 @@
 #include "ed/io.asm"
 .equ	BUF_RAMSTART	IO_RAMEND
 #include "ed/buf.asm"
-.equ	ED_RAMSTART	BUF_RAMEND
+.equ	CMD_RAMSTART	BUF_RAMEND
+#include "ed/cmd.asm"
+.equ	ED_RAMSTART	CMD_RAMEND
 #include "ed/main.asm"
 

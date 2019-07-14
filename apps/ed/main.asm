@@ -86,118 +86,43 @@ edMain:
 	; We're done. Process line.
 	call	printcrlf
 	call	stdioGetLine
-	call	.processLine
-	ret	z
-	jr	.mainLoop
-
-; Sets Z if we need to quit
-.processLine:
-	ld	a, (hl)
+	call	cmdParse
+	jr	nz, .error
+	call	cmdType
 	cp	'q'
 	ret	z
-	call	edReadAddr
-	jr	z, .processNumber
-	jr	.processError
-.processNumber:
-	; number is in DE
-	; We expect HL (rest of the cmdline) to be a null char, otherwise it's
-	; garbage
-	ld	a, (hl)
-	or	a
-	jr	nz, .processError
-	ex	de, hl
+	jr	.doPrint
+
+.doPrint:
+	call	cmdAddr1
+	call	edResolveAddr
 	ld	(ED_CURLINE), hl
 	call	bufGetLine
-	jr	nz, .processError
+	jr	nz, .error
 	call	printstr
 	call	printcrlf
-	; continue to end
-.processEnd:
-	call	printcrlf
-	jp	unsetZ
-.processError:
+	jr	.mainLoop
+.error:
 	ld	a, '?'
 	call	stdioPutC
 	call	printcrlf
-	jp	unsetZ
+	jr	.mainLoop
 
-; Parse the string at (HL) and sets its corresponding address in DE, properly
-; considering implicit values (current address when nothing is specified).
-; advances HL to the char next to the last parsed char.
-; It handles "+" and "-" addresses such as "+3", "-2", "+", "-".
-; Sets Z on success, unset on error. Line out of bounds isn't an error. Only
-; overflows.
-edReadAddr:
-	ld	a, (hl)
-	cp	'+'
-	jr	z, .plusOrMinus
-	cp	'-'
-	jr	z, .plusOrMinus
-	call	parseDecimalDigit
-	jr	c, .notHandled
-	; straight number
-	call	.parseDecimalM	; Z has proper value
-	dec	de	; from 1-based to 0-base. 16bit doesn't affect flags.
+
+; Transform an address "cmd" in IX into an absolute address in HL.
+edResolveAddr:
+	ld	a, (ix)
+	cp	RELATIVE
+	jr	z, .relative
+	; absolute
+	ld	l, (ix+1)
+	ld	a, l
+	ld	h, (ix+2)
 	ret
-.notHandled:
-	; something else. Something we don't handle. Our addr is therefore
-	; (ED_CURLINE).
-	push	hl
+.relative:
 	ld	hl, (ED_CURLINE)
-	ex	de, hl
-	pop	hl
-	cp	a		; ensure Z
-	ret
-.plusOrMinus:
-	push	af		; preserve that + or -
-	inc	hl		; advance cmd cursor
-	ld	a, (hl)
-	ld	de, 1		; if .pmNoSuffix
-	call	parseDecimalDigit
-	jr	c, .pmNoSuffix
-	call	.parseDecimalM	; --> DE
-.pmNoSuffix:
-	pop	af		; bring back that +/-
-	push	hl
-	ld	hl, (ED_CURLINE)
-	cp	'-'
-	jr	z, .pmIsMinus
+	ld	e, (ix+1)
+	ld	d, (ix+2)
 	add	hl, de
-	jr	.pmEnd
-.pmIsMinus:
-	sbc	hl, de
-.pmEnd:
-	ex	de, hl
-	pop	hl
-	cp	a		; ensure Z
 	ret
 
-; call parseDecimal and set HL to the character following the last digit
-.parseDecimalM:
-	push	bc
-	push	ix
-	push	hl
-.loop:
-	inc	hl
-	ld	a, (hl)
-	call	parseDecimalDigit
-	jr	nc, .loop
-	; We're at the first non-digit char. Let's save it because we're going
-	; to temporarily replace it with a null.
-	ld	b, a
-	xor	a
-	ld	(hl), a
-	; Now, let's go back to the beginning of the string and parse it.
-	; but before we do this, let's save the end of string in DE
-	ex	de, hl
-	pop	hl
-	call	parseDecimal
-	; Z is set properly at this point. nothing touches Z below.
-	ld	a, b
-	ld	(de), a
-	ex	de, hl	; put end of string back from DE to HL
-	; Put addr in its final register, DE
-	push	ix \ pop de
-	pop	ix
-	pop	bc
-	ret
