@@ -4,6 +4,7 @@
 
 	jp	edMain
 
+#include "lib/util.asm"
 #include "lib/parse.asm"
 .equ	IO_RAMSTART	USER_RAMSTART
 #include "ed/io.asm"

@@ -53,6 +53,7 @@
 jp	zasmMain
 
 #include "zasm/const.asm"
+#include "lib/util.asm"
 #include "zasm/util.asm"
 .equ	IO_RAMSTART	USER_RAMSTART
 #include "zasm/io.asm"

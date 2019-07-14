@@ -55,6 +55,10 @@ cmdParse:
 	jr	z, .okCmd
 	cp	'd'
 	jr	z, .okCmd
+	cp	'a'
+	jr	z, .okCmd
+	cp	'i'
+	jr	z, .okCmd
 	; unsupported cmd
 	ret			; Z unset
 .nullCmd:

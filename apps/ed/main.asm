@@ -39,9 +39,8 @@
 ; intoHL
 ; printstr
 ; printcrlf
-; stdioGetLine
+; stdioReadLine
 ; stdioPutC
-; stdioReadC
 ; unsetZ
 ;
 ; *** Variables ***
@@ -59,19 +58,24 @@ edMain:
 .mainLoop:
 	ld	a, ':'
 	call	stdioPutC
-.inner:
-	call	stdioReadC
-	jr	nz, .inner	; not done? loop
-	; We're done. Process line.
+	call	stdioReadLine	; --> HL
+	; Now, process line.
 	call	printcrlf
-	call	stdioGetLine
 	call	cmdParse
 	jr	nz, .error
 	ld	a, (CMD_TYPE)
 	cp	'q'
 	jr	z, .doQuit
+	; The rest of the commands need an address
+	call	edReadAddrs
+	jr	nz, .error
+	ld	a, (CMD_TYPE)
 	cp	'd'
 	jr	z, .doDel
+	cp	'a'
+	jr	z, .doAppend
+	cp	'i'
+	jr	z, .doInsert
 	jr	.doPrint
 
 .doQuit:
@@ -79,16 +83,22 @@ edMain:
 	ret
 
 .doDel:
-	call	edReadAddrs
-	jr	nz, .error
 	; bufDelLines expects an exclusive upper bound, which is why we inc DE.
 	inc	de
 	call	bufDelLines
 	jr	.mainLoop
+.doAppend:
+	inc	de
+.doInsert:
+	call	stdioReadLine	; --> HL
+	call	bufScratchpadAdd	; --> HL
+	; insert index in DE, line offset in HL. We want the opposite.
+	ex	de, hl
+	call	bufInsertLine
+	call	printcrlf
+	jr	.mainLoop
+
 .doPrint:
-	call	edReadAddrs
-	jr	nz, .error
-.doPrintLoop:
 	push	hl
 	call	bufGetLine
 	jr	nz, .error
@@ -98,7 +108,7 @@ edMain:
 	call	cpHLDE
 	jr	z, .doPrintEnd
 	inc	hl
-	jr	.doPrintLoop
+	jr	.doPrint
 .doPrintEnd:
 	ld	(ED_CURLINE), hl
 	jr	.mainLoop

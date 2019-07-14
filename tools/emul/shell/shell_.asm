@@ -36,8 +36,7 @@
 	jp	_blkTell
 	jp	printcrlf
 	jp	stdioPutC
-	jp	stdioReadC
-	jp	stdioGetLine
+	jp	stdioReadLine
 	jp	blkGetC
 	jp	blkSeek
 	jp	blkTell

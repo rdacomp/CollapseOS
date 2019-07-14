@@ -3,24 +3,30 @@
 ; Lines in edited file aren't loaded in memory, their offsets is referenced to
 ; in this buffer.
 ;
+; About scratchpad and offsets. There are two scratchpads: file and memory.
+; The file one is the contents of the active blkdev. The second one is
+; in-memory, for edits. We differentiate between the two with a
+; "scatchpad mask". When the high bits of the offset match the mask, then we
+; know that this offset is from the scratchpad.
+;
 ; *** Consts ***
 ;
 ; Maximum number of lines allowed in the buffer.
 .equ	BUF_MAXLINES	0x800
 ; Size of our scratchpad
 .equ	BUF_PADMAXLEN	0x1000
+; Scratchpad mask (only applies on high byte)
+.equ	BUF_SCRATCHPAD_MASK	0b11110000
 
 ; *** Variables ***
 ; Number of lines currently in the buffer
 .equ	BUF_LINECNT	BUF_RAMSTART
 ; List of words pointing to scratchpad offsets
 .equ	BUF_LINES	BUF_LINECNT+2
-; size of file we read in bufInit. That offset is the beginning of our
-; in-memory scratchpad.
-.equ	BUF_FSIZE	BUF_LINES+BUF_MAXLINES*2
+; Points to the end of the scratchpad
+.equ	BUF_PADEND	BUF_LINES+BUF_MAXLINES*2
 ; The in-memory scratchpad
-.equ	BUF_PADLEN	BUF_FSIZE+2
-.equ	BUF_PAD		BUF_PADLEN+2
+.equ	BUF_PAD		BUF_PADEND+2
 
 .equ	BUF_RAMEND	BUF_PAD+BUF_PADMAXLEN
 
@@ -29,8 +35,8 @@
 ; On initialization, we read the whole contents of target blkdev and add lines
 ; as we go.
 bufInit:
-	ld	hl, 0
-	ld	(BUF_PADLEN), hl
+	ld	hl, BUF_PAD
+	ld	(BUF_PADEND), hl
 	ld	ix, BUF_LINES
 	ld	bc, 0		; line count
 .loop:
@@ -45,8 +51,6 @@ bufInit:
 	call	ioGetLine
 	jr	.loop
 .loopend:
-	; HL currently has the result of the last blkTell
-	ld	(BUF_FSIZE), hl
 	ld	(BUF_LINECNT), bc
 	ret
 
@@ -76,10 +80,27 @@ bufGetLine:
 	ld	d, (hl)
 	; DE has seek offset
 	ex	de, hl
-	; and now HL has it. We're ready to call ioGetLine!
 	pop	de
+	; is it a scratchpad offset?
+	ld	a, h
+	and	BUF_SCRATCHPAD_MASK
+	cp	BUF_SCRATCHPAD_MASK
+	jr	z, .fromScratchpad
+	; not from scratchpad
 	cp	a	; ensure Z
 	jp	ioGetLine	; preserves AF
+.fromScratchpad:
+	; remove scratchpad mask
+	ld	a, BUF_SCRATCHPAD_MASK
+	xor	0xff
+	and	h
+	ld	h, a
+	; HL is now a mask-less offset to BUF_PAD
+	push	de	; --> lvl 1
+	ld	de, BUF_PAD
+	add	hl, de
+	pop	de	; <-- lvl 1
+	ret
 .outOfBounds:
 	pop	de
 	jp	unsetZ
@@ -124,4 +145,64 @@ bufDelLines:
 	call	bufLineAddr
 	; Both HL and DE are translated. Go!
 	ldir
+	ret
+
+; Insert string where DE points to memory scratchpad, then insert that line
+; at index HL, offsetting all lines by 2 bytes.
+bufInsertLine:
+	push	de	; --> lvl 1, scratchpad offset
+	push	hl	; --> lvl 2, insert index
+	; The logic below is mostly copy-pasted from bufDelLines, but with a
+	; LDDR logic (to avoid overwriting). I learned, with some pain involved,
+	; that generalizing this code wasn't working very well. I don't repeat
+	; the comments, refer to bufDelLines
+	ex	de, hl	; line index now in DE
+	ld	hl, (BUF_LINECNT)
+	scf \ ccf
+	sbc	hl, de
+	; mult by 2 and we're done
+	sla	l \ rl h
+	push	hl \ pop bc
+	; From this point, we don't need our line index in DE any more because
+	; LDDR will start from BUF_LINECNT-1 with count BC. We'll only need it
+	; when it's time to insert the line in the space we make.
+	ld	hl, (BUF_LINECNT)
+	call	bufLineAddr
+	push	hl \ pop	de
+	dec	hl
+	dec	hl
+	; HL = BUF_LINECNT-1, DE = BUF_LINECNT, BC is set. We're good!
+	lddr
+	; We still need to increase BUF_LINECNT
+	ld	hl, (BUF_LINECNT)
+	inc	hl
+	ld	(BUF_LINECNT), hl
+	; A space has been opened at line index HL. Let's fill it with our
+	; inserted line.
+	pop	hl		; <-- lvl 2, insert index
+	call	bufLineAddr
+	pop	de		; <-- lvl 1, scratchpad offset
+	ld	(hl), e
+	inc	hl
+	ld	(hl), d
+	ret
+
+; copy string that HL points to to scratchpad and return its seek offset, in HL.
+bufScratchpadAdd:
+	push	de
+	ld	de, (BUF_PADEND)
+	push	de	; --> lvl 1
+	call	strcpyM
+	ld	(BUF_PADEND), de
+	pop	hl	; <-- lvl 1
+	; we have a memory offset in HL, but it's not what we want! we want a
+	; seek offset stamped with the "scratchpad mask"
+	ld	de, BUF_PAD
+	scf \ ccf
+	sbc	hl, de
+	ld	a, h
+	or	BUF_SCRATCHPAD_MASK
+	ld	h, a
+	; now we're good...
+	pop	de
 	ret

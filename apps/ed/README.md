@@ -10,11 +10,15 @@ mostly a repeat of `Ued`'s man page.
 ## Differences
 
 There are a couple of differences with `Ued` that are intentional. Differences
-not listed here are either bugs or simply arent implemented yet.
+not listed here are either bugs or simply aren't implemented yet.
 
 * Always has a prompt, `:`.
 * No size printing on load
 * Initial line is the first one
+* Line input is for one line at once. Less scriptable for `Ued`, but we can't
+  script `ed` in Collapse OS anyway...
+* For the sake of code simplicity, some commands that make no sense are
+  accepted. For example, `1,2a` is the same as `2a`.
 
 ## Usage
 
@@ -32,6 +36,8 @@ range is out of bounds.
 * `(addrs)p`: Print lines specified in `addrs` range. This is the default
   command. If only `(addrs)` is specified, it has the same effect.
 * `(addrs)d`: Delete lines specified in `addrs` range.
+* `(addr)a`: Appends a line after `addr`.
+* `(addr)i`: Insert a line before `addr`.
 * `q`: quit `ed`
 
 ### Current line
@@ -41,7 +47,7 @@ to it and makes the app much more usable. The current line starts at `1` and
 every command changes the current line to the last line that the command
 affects. For example, `42p` changes the current line to `42`, `3,7d`, to 7.
 
-### Address ranges
+### Addresses
 
 An "address" is a line number. The first line is `1`. An address range is a
 start line and a stop line, expressed as `start,stop`. For example, `2,4` refer

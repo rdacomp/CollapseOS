@@ -202,3 +202,12 @@ stdioReadC:
 stdioGetLine:
 	ld	hl, STDIO_BUF
 	ret
+
+; Repeatedly call stdioReadC until Z is set, then make HL point to the read
+; buffer.
+stdioReadLine:
+	call	stdioReadC
+	jr	nz, stdioReadLine
+	ld	hl, STDIO_BUF
+	ret
+
