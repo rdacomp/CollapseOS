@@ -12,6 +12,13 @@ platform and this is where most of my information comes from.
 This platform is tight on RAM. It has 8k of it. However, if you have extra RAM,
 you can put it on your cartridge.
 
+## Related recipes
+
+This recipe is for installing a minimal Collapse OS system on the SMS. There
+are other recipes related to the SMS:
+
+* [Interfacing a PS/2 keyboard](kbd/README.md)
+
 ## Gathering parts
 
 * [zasm][zasm]
@@ -47,7 +54,8 @@ D-Pad is used as follow:
 * Start button is like pressing Return.
 
 Of course, that's not a fun way to enter text, but using the D-Pad is the
-easiest way to get started. I'm working on a PS/2 keyboard adapter for the SMS.
+easiest way to get started which doesn't require soldering. Your next step after
+that would be to [build a PS/2 keyboard adapter!](kbd/README.md)
 
 [smspower]: http://www.smspower.org
 [everdrive]: https://krikzz.com

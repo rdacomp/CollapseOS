@@ -1,13 +1,17 @@
 ; kbd - implement GetC for PS/2 keyboard
 ;
-; Status: Work in progress. See recipes/rc2014/ps2
+; It reads raw key codes from a FetchKC routine and returns, if appropriate,
+; a proper ASCII char to type. See recipes rc2014/ps2 and sms/kbd.
 ;
 ; *** Defines ***
-; The port of the device where we read scan codes. See recipe rc2014/ps2.
-; KBD_PORT
+; Pointer to a routine that fetches the last typed keyword in A. Should return
+; 0 when nothing was typed.
+; KBD_FETCHKC
 
 ; *** Variables ***
 .equ	KBD_SKIP_NEXT	KBD_RAMSTART
+; Pointer to a routine that fetches the last typed keyword in A. Should return
+; 0 when nothing was typed.
 .equ	KBD_RAMEND	KBD_SKIP_NEXT+1
 
 kbdInit:
@@ -16,7 +20,7 @@ kbdInit:
 	ret
 
 kbdGetC:
-	in	a, (KBD_PORT)
+	call	KBD_FETCHKC
 	or	a
 	jr	z, .nothing
 

@@ -35,3 +35,8 @@ init:
 	call	stdioInit
 	call	shellInit
 	jp	shellLoop
+
+KBD_FETCHKC:
+	in	a, (KBD_PORT)
+	ret
+
