@@ -134,18 +134,18 @@ stdioReadC:
 	; save char for later
 	ex	af, af'
 	ld	a, (STDIO_BUFIDX)
-	push	hl			;<|
-	ld	hl, STDIO_BUF		; |
-	; make HL point to dest spot	  |
-	call	addHL			; |
-	; Write our char down		  |
-	ex	af, af'			; |
-	ld	(hl), a			; |
-	; follow up with a null char	  |
-	inc	hl			; |
-	xor	a			; |
-	ld	(hl), a			; |
-	pop	hl			;<|
+	push	hl			; --> lvl 1
+	ld	hl, STDIO_BUF
+	; make HL point to dest spot
+	call	addHL
+	; Write our char down
+	ex	af, af'
+	ld	(hl), a
+	; follow up with a null char
+	inc	hl
+	xor	a
+	ld	(hl), a
+	pop	hl			; <-- lvl 1
 	; inc idx, which still is in AF'
 	ex	af, af'
 	inc	a

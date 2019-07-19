@@ -2,7 +2,9 @@ jp	test
 
 #include "core.asm"
 #include "parse.asm"
+#include "lib/util.asm"
 #include "zasm/util.asm"
+#include "lib/parse.asm"
 #include "zasm/parse.asm"
 
 ; mocks. aren't used in tests

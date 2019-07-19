@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # Generate almost all possible combination for instructions from instruction
 # tables
 

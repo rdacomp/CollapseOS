@@ -2,6 +2,7 @@
 jp	test
 
 #include "core.asm"
+#include "lib/util.asm"
 #include "zasm/util.asm"
 #include "zasm/const.asm"
 .equ	SYM_RAMSTART	RAMSTART

@@ -30,11 +30,13 @@
 
 #include "err.h"
 #include "zasm/const.asm"
+#include "lib/util.asm"
 #include "zasm/util.asm"
 .equ	IO_RAMSTART	USER_RAMSTART
 #include "zasm/io.asm"
 .equ	SYM_RAMSTART	IO_RAMEND
 #include "zasm/symbol.asm"
+#include "lib/parse.asm"
 #include "zasm/parse.asm"
 .equ	TOK_RAMSTART	SYM_RAMEND
 #include "zasm/tok.asm"

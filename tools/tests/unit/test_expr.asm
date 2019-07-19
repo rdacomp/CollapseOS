@@ -3,8 +3,10 @@ jp	test
 
 #include "core.asm"
 #include "parse.asm"
+#include "lib/util.asm"
 #include "zasm/util.asm"
 #include "zasm/const.asm"
+#include "lib/parse.asm"
 #include "zasm/parse.asm"
 .equ	SYM_RAMSTART	RAMSTART
 #include "zasm/symbol.asm"
