@@ -112,11 +112,14 @@ printHexPair:
 ;
 ; This routine also takes care of echoing received characters back to the TTY.
 ;
+; This routine doesn't wait after a typed char. If nothing is typed, we return
+; immediately with Z flag unset.
+;
 ; Note that this routine doesn't bother returning the typed character.
 stdioReadC:
 	; Let's wait until something is typed.
 	call	stdioGetC
-	jr	nz, stdioReadC	; nothing typed? loop
+	ret	nz		; nothing typed? nothing to do
 	; got it. Now, is it a CR or LF?
 	cp	ASCII_CR
 	jr	z, .complete	; char is CR? buffer complete!
