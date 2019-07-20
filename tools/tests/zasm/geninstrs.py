@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # Generate almost all possible combination for instructions from instruction
 # tables
+# When zasm supported instructions change, use this script to update
+# allinstrs.asm
 
 import sys
 
@@ -108,6 +110,11 @@ def genargs(argspec):
     grp = argGrpTbl[argspec]
     return [argspecTbl[a] for a in grp]
 
+# process a 'n' arg into an 'e' one
+def eargs(args):
+    newargs = ['$+'+s for s in args[:-1]]
+    return newargs + ['$-'+s for s in args[:-1]]
+
 def p(line):
     if line not in BLACKLIST:
         print(line)
@@ -131,12 +138,16 @@ def main():
         if n in {'BIT', 'SET', 'RES'}:
             # we only want to keep 1, 2, 4
             args1 = args1[:3]
+        if n in {'JR', 'DJNZ'} and a1 == 'n':
+            args1 = eargs(args1)
         if n == 'IM':
             args1 = [0, 1, 2]
         if args1:
             for arg1 in args1:
                 args2 = genargs(a2)
                 if args2:
+                    if n in {'JR', 'DJNZ'} and a2 == 'n':
+                        args2 = eargs(args2)
                     for arg2 in args2:
                         p(f"{n} {arg1}, {arg2}")
                 else:
