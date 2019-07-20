@@ -34,9 +34,8 @@ test:
 	jp	nz, fail
 
 	ld	hl, sFOO
-	call	symFind		; don't match FOOBAR
+	call	symFindVal		; don't match FOOBAR
 	jp	nz, fail
-	call	symGetVal
 	ld	a, d
 	or	a
 	jp	nz, fail

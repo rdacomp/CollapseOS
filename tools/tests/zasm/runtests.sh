@@ -2,7 +2,6 @@
 
 set -e
 
-TMPFILE=$(mktemp)
 KERNEL=../../../kernel
 APPS=../../../apps
 ZASM=../../zasm.sh
@@ -10,9 +9,8 @@ ASMFILE=${APPS}/zasm/instr.asm
 
 cmpas() {
     FN=$1
-    shift 1
     EXPECTED=$(xxd ${FN}.expected)
-    ACTUAL=$(cat ${FN} | $ZASM "$@" | xxd)
+    ACTUAL=$(cat ${FN} | $ZASM "${KERNEL}" "${APPS}" | xxd)
     if [ "$ACTUAL" == "$EXPECTED" ]; then
         echo ok
     else
@@ -24,9 +22,14 @@ cmpas() {
     fi
 }
 
+if [[ ! -z $1 ]]; then
+    cmpas $1
+    exit 0
+fi
+
 for fn in *.asm; do
     echo "Comparing ${fn}"
-    cmpas $fn "${KERNEL}" "${APPS}"
+    cmpas $fn
 done
 
 ./errtests.sh

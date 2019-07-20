@@ -169,24 +169,22 @@ parseNumberOrSymbol:
 	call	parseLiteral
 	ret	z
 	; Not a number. Try PC
-	push	de
+	push	de		; --> lvl 1
 	ld	de, .sDollar
 	call	strcmp
-	pop	de
+	pop	de		; <-- lvl 1
 	jr	z, .returnPC
 	; Not PC either, try symbol
-	call	symSelect
-	call	symFind
+	push	de		; --> lvl 1
+	call	symFindVal	; --> DE
 	jr	nz, .notfound
-	; Found! let's fetch value
-	push	de
-	call	symGetVal
 	; value in DE. We need it in IX
 	push	de \ pop ix
-	pop	de
+	pop	de		; <-- lvl 1
 	cp	a		; ensure Z
 	ret
 .notfound:
+	pop	de		; <-- lvl 1
 	; If not found, check if we're in first pass. If we are, it doesn't
 	; matter that we didn't find our symbol. Return success anyhow.
 	; Otherwise return error. Z is already unset, so in fact, this is the

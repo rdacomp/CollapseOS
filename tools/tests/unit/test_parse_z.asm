@@ -11,8 +11,7 @@ jp	test
 zasmGetPC:
 zasmIsFirstPass:
 symSelect:
-symFind:
-symGetVal:
+symFindVal:
 	jp	fail
 
 testNum:	.db 1

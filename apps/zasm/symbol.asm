@@ -238,12 +238,6 @@ symRegister:
 	ld	a, ERR_DUPSYM
 	jp	unsetZ		; return
 
-; Select global or local registry according to label name in (HL)
-symSelect:
-	call	symIsLabelLocal
-	jp	z, symSelectLocalRegistry
-	jp	symSelectGlobalRegistry
-
 ; Find name (HL) in (SYM_CTX_NAMES) and make (SYM_CTX_PTR) point to the
 ; corresponding entry in (SYM_CTX_VALUES).
 ; If we find something, Z is set, otherwise unset.
@@ -277,7 +271,21 @@ symFind:
 	pop	ix
 	ret
 
-; Return value that (SYM_CTX_PTR) is pointing at in DE.
-symGetVal:
+; For a given symbol name in (HL), find it in the appropriate symbol register
+; and return its value in DE. If (HL) is a local label, the local register is
+; searched. Otherwise, the global one. It is assumed that this routine is
+; always called when the global registry is selected. Therefore, we always
+; reselect it afterwards.
+symFindVal:
+	call	symIsLabelLocal
+	jp	nz, .notLocal
+	call	symSelectLocalRegistry
+.notLocal:
+	call	symFind
+	jr	nz, .end
+	; Found! let's fetch value
+	; Return value that (SYM_CTX_PTR) is pointing at in DE.
 	ld	de, (SYM_CTX_PTR)
-	jp	intoDE
+	call	intoDE
+.end:
+	jp	symSelectGlobalRegistry
