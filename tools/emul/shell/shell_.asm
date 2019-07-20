@@ -27,6 +27,7 @@
 	jp	fsFindFN
 	jp	fsOpen
 	jp	fsGetC
+	jp	fsPutC
 	jp	cpHLDE
 	jp	parseArgs
 	jp	printstr
@@ -37,9 +38,6 @@
 	jp	printcrlf
 	jp	stdioPutC
 	jp	stdioReadLine
-	jp	blkGetC
-	jp	blkSeek
-	jp	blkTell
 
 #include "core.asm"
 #include "err.h"

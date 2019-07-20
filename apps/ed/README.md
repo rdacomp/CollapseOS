@@ -22,8 +22,9 @@ not listed here are either bugs or simply aren't implemented yet.
 
 ## Usage
 
-`ed` is invoked from the shell with no argument. ed takes no argument.
-It reads from the currently selected blkdev and writes to it.
+`ed` is invoked from the shell with a single argument: the name of the file to
+edit. If the file doesn't exist, `ed` errors out. If it exists, a prompt is
+shown.
 
 In normal mode, `ed` waits for a command and executes it. If the command is
 invalid, a line with `?` is printed and `ed` goes back to waiting for a command.

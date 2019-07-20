@@ -40,8 +40,8 @@ bufInit:
 	ld	ix, BUF_LINES
 	ld	bc, 0		; line count
 .loop:
-	call	blkTell		; --> HL
-	call	blkGetC
+	call	ioTell		; --> HL
+	call	ioGetC
 	jr	nz, .loopend
 	ld	(ix), l
 	inc	ix

@@ -31,11 +31,17 @@
 ;
 ; *** Requirements ***
 ; BLOCKDEV_SIZE
+; FS_HANDLE_SIZE
+; _blkGetC
+; _blkPutC
+; _blkSeek
+; _blkTell
 ; addHL
-; blkGetC
-; blkSeek
-; blkTell
 ; cpHLDE
+; fsFindFN
+; fsOpen
+; fsGetC
+; fsPutC
 ; intoHL
 ; printstr
 ; printcrlf
@@ -49,6 +55,9 @@
 .equ	ED_RAMEND	ED_CURLINE+2
 
 edMain:
+	; because ed only takes a single string arg, we can use HL directly
+	call	ioInit
+	ret	nz
 	; diverge from UNIX: start at first line
 	ld	hl, 0
 	ld	(ED_CURLINE), hl
