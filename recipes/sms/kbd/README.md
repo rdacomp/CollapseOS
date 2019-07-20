@@ -77,7 +77,7 @@ machine...
 
 ## Building the PS/2 interface
 
-(schematic incoming, I have yet to scan it.)
+![Schematic](ps2-to-sms.png)
 
 The PS/2-to-AVR part is indentical to the rc2014/ps2 recipe. Refer to this
 recipe.

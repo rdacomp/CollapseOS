@@ -9,8 +9,6 @@ from those machines and drive a PS/2 keyboard directly!
 Have a PS/2 keyboard drive the stdio input of the Collapse OS shell instead of
 the ACIA.
 
-**Status: work in progress**
-
 ## Gathering parts
 
 * A RC2014 Classic that could install the base recipe
