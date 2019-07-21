@@ -36,6 +36,7 @@
 ; fsOpen
 ; fsGetC
 ; fsPutC
+; fsSetSize
 ; intoHL
 ; printstr
 ; printcrlf
@@ -69,6 +70,8 @@ edMain:
 	ld	a, (CMD_TYPE)
 	cp	'q'
 	jr	z, .doQuit
+	cp	'w'
+	jr	z, .doWrite
 	; The rest of the commands need an address
 	call	edReadAddrs
 	jr	nz, .error
@@ -85,6 +88,26 @@ edMain:
 	xor	a
 	ret
 
+.doWrite:
+	ld	a, 3		; seek beginning
+	call	ioSeek
+	ld	de, 0		; cur line
+.writeLoop:
+	push	de \ pop hl
+	call	bufGetLine	; --> buffer in (HL)
+	jr	nz, .writeEnd
+	call	ioPutLine
+	jr	nz, .error
+	inc	de
+	jr	.writeLoop
+.writeEnd:
+	; Set new file size
+	call	ioTell
+	call	ioSetSize
+	; for now, writing implies quitting
+	; TODO: reload buffer
+	xor	a
+	ret
 .doDel:
 	; bufDelLines expects an exclusive upper bound, which is why we inc DE.
 	inc	de
@@ -114,12 +137,12 @@ edMain:
 	jr	.doPrint
 .doPrintEnd:
 	ld	(ED_CURLINE), hl
-	jr	.mainLoop
+	jp	.mainLoop
 .error:
 	ld	a, '?'
 	call	stdioPutC
 	call	printcrlf
-	jr	.mainLoop
+	jp	.mainLoop
 
 
 ; Transform an address "cmd" in IX into an absolute address in HL.

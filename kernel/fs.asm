@@ -425,7 +425,6 @@ fsPlaceH:
 	pop	af
 	ret
 
-; Advance file handle in (IX) by one byte
 ; Sets Z according to whether HL is within bounds for file handle at (IX), that
 ; is, if it is smaller than file size.
 fsWithinBounds:
@@ -441,24 +440,20 @@ fsWithinBounds:
 .outOfBounds:
 	jp	unsetZ			; returns
 
-; Adjust, if needed, file size of handle (IX) to HL+1.
-; This adjustment only happens if this makes file size grow.
-fsAdjustBounds:
-	call	fsWithinBounds
-	ret	z
-	; Not within bounds? let's increase them
-	push	hl
+; Set size of file handle (IX) to value in HL.
+; This writes directly in handle's metadata.
+fsSetSize:
+	push	hl		; --> lvl 1
 	ld	hl, 0
 	call	fsPlaceH	; fs blkdev is now at beginning of content
 	; we need the blkdev to be on filesize's offset
 	ld	hl, FS_METASIZE-FS_META_FSIZE_OFFSET
 	ld	a, BLOCKDEV_SEEK_BACKWARD
 	call	fsblkSeek
-	pop	hl
+	pop	hl		; <-- lvl 1
 	; blkdev is at the right spot, HL is back to its original value, let's
-	; write it.
-	push	hl
-	inc	hl	; We write HL+1, remember
+	; write it both in the metadata block and in its file handle's cache.
+	push	hl		; --> lvl 1
 	; now let's write our new filesize both in blkdev and in file handle's
 	; cache.
 	ld	a, l
@@ -467,7 +462,7 @@ fsAdjustBounds:
 	ld	a, h
 	ld	(ix+5), a
 	call	fsblkPutC
-	pop	hl
+	pop	hl		; <-- lvl 1
 	xor	a	; ensure Z
 	ret
 
@@ -488,7 +483,7 @@ fsGetC:
 	pop	hl
 	ret
 
-; Write byte A in handle (IX) and advance the handle's position.
+; Write byte A in handle (IX) at position HL.
 ; Z is set on success, unset if handle is at the end of the file.
 ; TODO: detect end of block alloc
 fsPutC:
@@ -496,7 +491,11 @@ fsPutC:
 	call	fsPlaceH
 	call	fsblkPutC
 	pop	hl
-	jp	fsAdjustBounds	; returns
+	; if HL is out of bounds, increase bounds
+	call	fsWithinBounds
+	ret	z
+	inc	hl		; our filesize is now HL+1
+	jp	fsSetSize
 
 ; Mount the fs subsystem upon the currently selected blockdev at current offset.
 ; Verify is block is valid and error out if its not, mounting nothing.

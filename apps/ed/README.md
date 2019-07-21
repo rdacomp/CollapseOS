@@ -39,7 +39,8 @@ range is out of bounds.
 * `(addrs)d`: Delete lines specified in `addrs` range.
 * `(addr)a`: Appends a line after `addr`.
 * `(addr)i`: Insert a line before `addr`.
-* `q`: quit `ed`
+* `w`: write to file. For now, `q` is implied in `w`.
+* `q`: quit `ed` without writing to file.
 
 ### Current line
 

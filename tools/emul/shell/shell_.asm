@@ -28,6 +28,7 @@
 	jp	fsOpen
 	jp	fsGetC
 	jp	fsPutC
+	jp	fsSetSize
 	jp	cpHLDE
 	jp	parseArgs
 	jp	printstr

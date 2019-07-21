@@ -25,7 +25,9 @@
 cmdParse:
 	ld	a, (hl)
 	cp	'q'
-	jr	z, .quit
+	jr	z, .simpleCmd
+	cp	'w'
+	jr	z, .simpleCmd
 	ld	ix, CMD_ADDR1
 	call	.readAddr
 	ret	nz
@@ -67,7 +69,7 @@ cmdParse:
 	ld	(CMD_TYPE), a
 	ret			; Z already set
 
-.quit:
+.simpleCmd:
 	; Z already set
 	ld	(CMD_TYPE), a
 	ret

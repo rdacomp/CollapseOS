@@ -32,7 +32,7 @@ ioInit:
 	ld	ix, IO_FILE_HDL
 	jp	fsPutC
 .blkdev:
-	.dw	.fsGetC, unsetZ
+	.dw	.fsGetC, .fsPutC
 
 ioGetC:
 	push	ix
@@ -60,4 +60,34 @@ ioTell:
 	ld	ix, IO_BLK
 	call	_blkTell
 	pop	ix
+	ret
+
+ioSetSize:
+	push	ix
+	ld	ix, IO_FILE_HDL
+	call	fsSetSize
+	pop	ix
+	ret
+
+; Write string (HL) in current file. Ends line with LF.
+ioPutLine:
+	push	hl
+.loop:
+	ld	a, (hl)
+	or	a
+	jr	z, .loopend		; null, we're finished
+	call	ioPutC
+	jr	nz, .error
+	inc	hl
+	jr	.loop
+.loopend:
+	; Wrote the whole line, write ending LF
+	ld	a, 0x0a
+	call	ioPutC
+	jr	z, .end		; success
+	; continue to error
+.error:
+	call	unsetZ
+.end:
+	pop	hl
 	ret
