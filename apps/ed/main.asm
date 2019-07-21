@@ -66,7 +66,7 @@ edMain:
 	; Now, process line.
 	call	printcrlf
 	call	cmdParse
-	jr	nz, .error
+	jp	nz, .error
 	ld	a, (CMD_TYPE)
 	cp	'q'
 	jr	z, .doQ
@@ -84,6 +84,7 @@ edMain:
 	call	cpHLDE
 	pop	hl		; <-- lvl 1
 	jr	z, .error
+	ld	a, (CMD_TYPE)
 	cp	'd'
 	jr	z, .doD
 	cp	'a'
