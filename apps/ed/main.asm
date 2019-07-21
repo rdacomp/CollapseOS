@@ -15,16 +15,10 @@
 ;
 ; That doubly linked list on the z80 would use 7 bytes per line (prev, next,
 ; offset, len), which is a bit much. Moreover, there's that whole "scratchpad
-; being loaded in memory" thing that's a bit iffy. We sacrifice speed for
-; memory usage.
+; being loaded in memory" thing that's a bit iffy.
 ;
-; So here's what we do. First, we have two scratchpads. The first one is the
-; file being read itself. The second one is memory, for modifications we
-; make to the file. When reading the file, we note the offset at which it ends.
-; All offsets under this limit refer to the first scratchpad. Other offsets
-; refer to the second.
-;
-; Then, our line list is just an array of 16-bit offsets. This means that we
+; We sacrifice speed for memory usage by making that linked list into a simple
+; array of pointers to line contents in scratchpad. This means that we
 ; don't have an easy access to line length and we have to move a lot of memory
 ; around whenever we add or delete lines. Hopefully, "LDIR" will be our friend
 ; here...

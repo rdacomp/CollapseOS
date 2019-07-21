@@ -32,7 +32,7 @@ ioInit:
 	ld	ix, IO_FILE_HDL
 	jp	fsPutC
 .blkdev:
-	.dw	.fsGetC, .fsPutC
+	.dw	.fsGetC, unsetZ
 
 ioGetC:
 	push	ix
@@ -60,35 +60,4 @@ ioTell:
 	ld	ix, IO_BLK
 	call	_blkTell
 	pop	ix
-	ret
-
-; Given an offset HL, read the line in IO_LINE, without LF and null terminates
-; it. Make HL point to IO_LINE.
-ioGetLine:
-	push	af
-	push	de
-	push	bc
-	ld	de, 0		; limit ourselves to 16-bit for now
-	xor	a		; absolute seek
-	call	ioSeek
-	ld	hl, IO_LINE
-	ld	b, IO_MAXLEN
-.loop:
-	call	ioGetC
-	jr	nz, .loopend
-	or	a		; null? hum, weird. same as LF
-	jr	z, .loopend
-	cp	0x0a
-	jr	z, .loopend
-	ld	(hl), a
-	inc	hl
-	djnz	.loop
-.loopend:
-	; null-terminate the string
-	xor	a
-	ld	(hl), a
-	ld	hl, IO_LINE
-	pop	bc
-	pop	de
-	pop	af
 	ret

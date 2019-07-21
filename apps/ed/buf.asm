@@ -1,29 +1,19 @@
 ; buf - manage line buffer
 ;
-; Lines in edited file aren't loaded in memory, their offsets is referenced to
-; in this buffer.
-;
-; About scratchpad and offsets. There are two scratchpads: file and memory.
-; The file one is the contents of the active blkdev. The second one is
-; in-memory, for edits. We differentiate between the two with a
-; "scatchpad mask". When the high bits of the offset match the mask, then we
-; know that this offset is from the scratchpad.
-;
 ; *** Consts ***
 ;
 ; Maximum number of lines allowed in the buffer.
 .equ	BUF_MAXLINES	0x800
 ; Size of our scratchpad
 .equ	BUF_PADMAXLEN	0x1000
-; Scratchpad mask (only applies on high byte)
-.equ	BUF_SCRATCHPAD_MASK	0b11110000
 
 ; *** Variables ***
 ; Number of lines currently in the buffer
 .equ	BUF_LINECNT	BUF_RAMSTART
-; List of words pointing to scratchpad offsets
+; List of pointers to strings in scratchpad
 .equ	BUF_LINES	BUF_LINECNT+2
-; Points to the end of the scratchpad
+; Points to the end of the scratchpad, that is, one byte after the last written
+; char in it.
 .equ	BUF_PADEND	BUF_LINES+BUF_MAXLINES*2
 ; The in-memory scratchpad
 .equ	BUF_PAD		BUF_PADEND+2
@@ -35,20 +25,34 @@
 ; On initialization, we read the whole contents of target blkdev and add lines
 ; as we go.
 bufInit:
-	ld	hl, BUF_PAD
-	ld	(BUF_PADEND), hl
-	ld	ix, BUF_LINES
+	ld	hl, BUF_PAD	; running pointer to end of pad
+	ld	de, BUF_PAD	; points to beginning of current line
+	ld	ix, BUF_LINES	; points to current line index
 	ld	bc, 0		; line count
 .loop:
-	call	ioTell		; --> HL
 	call	ioGetC
 	jr	nz, .loopend
-	ld	(ix), l
+	or	a		; null? hum, weird. same as LF
+	jr	z, .lineend
+	cp	0x0a
+	jr	z, .lineend
+	ld	(hl), a
+	inc	hl
+	jr	.loop
+.lineend:
+	; We've just finished reading a line, writing each char in the pad.
+	; Null terminate it.
+	xor	a
+	ld	(hl), a
+	inc	hl
+	; Now, let's register its pointer in BUF_LINES
+	ld	(ix), e
 	inc	ix
-	ld	(ix), h
+	ld	(ix), d
 	inc	ix
 	inc	bc
-	call	ioGetLine
+	ld	(BUF_PADEND), hl
+	ld	de, (BUF_PADEND)
 	jr	.loop
 .loopend:
 	ld	(BUF_LINECNT), bc
@@ -65,45 +69,20 @@ bufLineAddr:
 	pop	de
 	ret
 
-; Read line number specified in HL and loads the I/O buffer with it.
-; Like ioGetLine, sets HL to line buffer pointer.
+; Read line number specified in HL and make HL point to its contents.
 ; Sets Z on success, unset if out of bounds.
 bufGetLine:
-	push	de
+	push	de		; --> lvl 1
 	ld	de, (BUF_LINECNT)
 	call	cpHLDE
-	jr	nc, .outOfBounds	; HL > (BUF_LINECNT)
+	pop	de		; <-- lvl 1
+	jp	nc, unsetZ	; HL > (BUF_LINECNT)
 	call	bufLineAddr
-	; HL now points to seek offset in memory
-	ld	e, (hl)
-	inc	hl
-	ld	d, (hl)
-	; DE has seek offset
-	ex	de, hl
-	pop	de
-	; is it a scratchpad offset?
-	ld	a, h
-	and	BUF_SCRATCHPAD_MASK
-	cp	BUF_SCRATCHPAD_MASK
-	jr	z, .fromScratchpad
-	; not from scratchpad
-	cp	a	; ensure Z
-	jp	ioGetLine	; preserves AF
-.fromScratchpad:
-	; remove scratchpad mask
-	ld	a, BUF_SCRATCHPAD_MASK
-	xor	0xff
-	and	h
-	ld	h, a
-	; HL is now a mask-less offset to BUF_PAD
-	push	de	; --> lvl 1
-	ld	de, BUF_PAD
-	add	hl, de
-	pop	de	; <-- lvl 1
+	; HL now points to an item in BUF_LINES.
+	call	intoHL
+	; Now, HL points to our contents
+	cp	a		; ensure Z
 	ret
-.outOfBounds:
-	pop	de
-	jp	unsetZ
 
 ; Given line indexes in HL and DE where HL < DE < CNT, move all lines between
 ; DE and CNT by an offset of DE-HL. Also, adjust BUF_LINECNT by DE-HL.
@@ -150,7 +129,7 @@ bufDelLines:
 ; Insert string where DE points to memory scratchpad, then insert that line
 ; at index HL, offsetting all lines by 2 bytes.
 bufInsertLine:
-	push	de	; --> lvl 1, scratchpad offset
+	push	de	; --> lvl 1, scratchpad ptr
 	push	hl	; --> lvl 2, insert index
 	; The logic below is mostly copy-pasted from bufDelLines, but with a
 	; LDDR logic (to avoid overwriting). I learned, with some pain involved,
@@ -187,22 +166,15 @@ bufInsertLine:
 	ld	(hl), d
 	ret
 
-; copy string that HL points to to scratchpad and return its seek offset, in HL.
+; copy string that HL points to to scratchpad and return its pointer in
+; scratchpad, in HL.
 bufScratchpadAdd:
 	push	de
 	ld	de, (BUF_PADEND)
 	push	de	; --> lvl 1
 	call	strcpyM
+	inc	de		; pad end is last char + 1
 	ld	(BUF_PADEND), de
 	pop	hl	; <-- lvl 1
-	; we have a memory offset in HL, but it's not what we want! we want a
-	; seek offset stamped with the "scratchpad mask"
-	ld	de, BUF_PAD
-	scf \ ccf
-	sbc	hl, de
-	ld	a, h
-	or	BUF_SCRATCHPAD_MASK
-	ld	h, a
-	; now we're good...
 	pop	de
 	ret
