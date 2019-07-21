@@ -111,6 +111,13 @@ bufDelLines:
 	pop	de	; <-- lvl 2
 	pop	hl	; <-- lvl 1
 	; Line count updated!
+	; One other thing... is BC zero? Because if it is, then we shouldn't
+	; call ldir (otherwise we're on for a veeeery long loop), BC=0 means
+	; that only last lines were deleted. nothing to do.
+	ld	a, b
+	or	c
+	ret	z	; BC==0, return
+
 	; let's have invert HL and DE to match LDIR's signature
 	ex	de, hl
 	; At this point we have higher index in HL, lower index in DE and number
