@@ -129,6 +129,8 @@ bufDelLines:
 ; Insert string where DE points to memory scratchpad, then insert that line
 ; at index HL, offsetting all lines by 2 bytes.
 bufInsertLine:
+	call	bufIndexInBounds
+	jr	nz, .append
 	push	de	; --> lvl 1, scratchpad ptr
 	push	hl	; --> lvl 2, insert index
 	; The logic below is mostly copy-pasted from bufDelLines, but with a
@@ -155,6 +157,7 @@ bufInsertLine:
 	inc	de	; second byte beyond last line
 	; HL = BUF_LINECNT-1, DE = BUF_LINECNT, BC is set. We're good!
 	lddr
+.set:
 	; We still need to increase BUF_LINECNT
 	ld	hl, (BUF_LINECNT)
 	inc	hl
@@ -168,6 +171,16 @@ bufInsertLine:
 	inc	hl
 	ld	(hl), d
 	ret
+.append:
+	; nothing to move, just put the line there. Let's piggy-back on the end
+	; of the regular routine by carefully pushing the right register in the
+	; right place.
+	; But before that, make sure that HL isn't too high. The only place we
+	; can append to is at (BUF_LINECNT)
+	ld	hl, (BUF_LINECNT)
+	push	de		; --> lvl 1
+	push	hl		; --> lvl 2
+	jr	.set
 
 ; copy string that HL points to to scratchpad and return its pointer in
 ; scratchpad, in HL.
@@ -180,4 +193,17 @@ bufScratchpadAdd:
 	ld	(BUF_PADEND), de
 	pop	hl	; <-- lvl 1
 	pop	de
+	ret
+
+; Sets Z according to whether the line index in HL is within bounds.
+bufIndexInBounds:
+	push	de
+	ld	de, (BUF_LINECNT)
+	call	cpHLDE
+	pop	de
+	jr	c, .withinBounds
+	; out of bounds
+	jp	unsetZ
+.withinBounds:
+	cp	a	; ensure Z
 	ret
