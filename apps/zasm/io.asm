@@ -58,7 +58,9 @@
 .equ	IO_INC_LINENO	IO_LINENO+2
 ; Line number (can be top-level or include) when ioSavePos was last called.
 .equ	IO_SAVED_LINENO	IO_INC_LINENO+2
-.equ	IO_RAMEND	IO_SAVED_LINENO+2
+; Handle for the ioSpitBin
+.equ	IO_BIN_HDL	IO_SAVED_LINENO+2
+.equ	IO_RAMEND	IO_BIN_HDL+FS_HANDLE_SIZE
 
 ; *** Code ***
 
@@ -235,6 +237,27 @@ ioOpenInclude:
 	xor	a
 	ld	ix, IO_INCLUDE_BLK
 	call	_blkSeek
+	cp	a		; ensure Z
+	ret
+
+; Open file specified in (HL) and spit its contents through ioPutC
+; Sets Z on success.
+ioSpitBin:
+	call	fsFindFN
+	ret	nz
+	push	hl		; --> lvl 1
+	ld	ix, IO_BIN_HDL
+	call	fsOpen
+	ld	hl, 0
+.loop:
+	ld	ix, IO_BIN_HDL
+	call	fsGetC
+	jr	nz, .loopend
+	call	ioPutC
+	inc	hl
+	jr	.loop
+.loopend:
+	pop	hl		; <-- lvl 1
 	cp	a		; ensure Z
 	ret
 

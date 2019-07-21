@@ -139,15 +139,8 @@ allowed. An included file cannot have an `#inc` directive.
           and output its binary content as is the code has been in the includer
           file.
 
-## Compatibility with scas
-
-This project was initially assembled with [scas][scas], but now that zasm self-
-assembles, it isn't used any more. However, the kernel and zasm code are still
-written to be compatible with scas because scas is still used as a comparison
-tool in tests.
-
-There are, however, features I want to implement in zasm that will break
-compatibility with scas, so in the near future, scas will be left behind.
+**.bin**: Takes a string literal as an argument. Open the file name specified
+          in the argument in the currently active filesystem and outputs its
+          contents directly.
 
 [libz80]: https://github.com/ggambetta/libz80
-[scas]: https://github.com/KnightOS/scas

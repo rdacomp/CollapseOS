@@ -7,6 +7,7 @@
 .equ	D_FIL	0x04
 .equ	D_OUT	0x05
 .equ	D_INC	0x06
+.equ	D_BIN	0x07
 .equ	D_BAD	0xff
 
 ; *** Variables ***
@@ -23,6 +24,7 @@ directiveNames:
 	.db	".FIL"
 	.db	".OUT"
 	.db	"#inc"
+	.db	".BIN"
 
 ; This is a list of handlers corresponding to indexes in directiveNames
 directiveHandlers:
@@ -33,6 +35,7 @@ directiveHandlers:
 	.dw	handleFIL
 	.dw	handleOUT
 	.dw	handleINC
+	.dw	handleBIN
 
 handleDB:
 	push	hl
@@ -254,12 +257,31 @@ handleINC:
 	call	unsetZ
 	ret
 
+handleBIN:
+	call	readWord
+	jr	nz, .badfmt
+	; HL points to scratchpad
+	call	enterDoubleQuotes
+	jr	nz, .badfmt
+	call	ioSpitBin
+	jr	nz, .badfn
+	cp	a		; ensure Z
+	ret
+.badfmt:
+	ld	a, ERR_BAD_FMT
+	jr	.error
+.badfn:
+	ld	a, ERR_FILENOTFOUND
+.error:
+	call	unsetZ
+	ret
+
 ; Reads string in (HL) and returns the corresponding ID (D_*) in A. Sets Z if
 ; there's a match.
 getDirectiveID:
 	push	bc
 	push	de
-	ld	b, D_INC+1		; D_INC is last
+	ld	b, D_BIN+1		; D_BIN is last
 	ld	c, 4
 	ld	de, directiveNames
 	call	findStringInList
