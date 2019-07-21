@@ -147,9 +147,12 @@ bufInsertLine:
 	; when it's time to insert the line in the space we make.
 	ld	hl, (BUF_LINECNT)
 	call	bufLineAddr
+	; HL is pointing to *first byte* after last line. Our source needs to
+	; be the second byte of the last line and our dest is the second byte
+	; after the last line.
 	push	hl \ pop	de
-	dec	hl
-	dec	hl
+	dec	hl	; second byte of last line
+	inc	de	; second byte beyond last line
 	; HL = BUF_LINECNT-1, DE = BUF_LINECNT, BC is set. We're good!
 	lddr
 	; We still need to increase BUF_LINECNT
