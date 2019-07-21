@@ -69,38 +69,44 @@ edMain:
 	jr	nz, .error
 	ld	a, (CMD_TYPE)
 	cp	'q'
-	jr	z, .doQuit
+	jr	z, .doQ
 	cp	'w'
-	jr	z, .doWrite
+	jr	z, .doW
 	; The rest of the commands need an address
 	call	edReadAddrs
 	jr	nz, .error
 	ld	a, (CMD_TYPE)
-	cp	'd'
-	jr	z, .doDel
-	cp	'a'
-	jr	z, .doAppend
 	cp	'i'
-	jr	z, .doInsert
-	jr	.doPrint
+	jr	z, .doI
+	; The rest of the commands don't allow addr == cnt
+	push	hl		; --> lvl 1
+	ld	hl, (BUF_LINECNT)
+	call	cpHLDE
+	pop	hl		; <-- lvl 1
+	jr	z, .error
+	cp	'd'
+	jr	z, .doD
+	cp	'a'
+	jr	z, .doA
+	jr	.doP
 
-.doQuit:
+.doQ:
 	xor	a
 	ret
 
-.doWrite:
+.doW:
 	ld	a, 3		; seek beginning
 	call	ioSeek
 	ld	de, 0		; cur line
-.writeLoop:
+.wLoop:
 	push	de \ pop hl
 	call	bufGetLine	; --> buffer in (HL)
-	jr	nz, .writeEnd
+	jr	nz, .wEnd
 	call	ioPutLine
 	jr	nz, .error
 	inc	de
-	jr	.writeLoop
-.writeEnd:
+	jr	.wLoop
+.wEnd:
 	; Set new file size
 	call	ioTell
 	call	ioSetSize
@@ -108,14 +114,14 @@ edMain:
 	; TODO: reload buffer
 	xor	a
 	ret
-.doDel:
+.doD:
 	; bufDelLines expects an exclusive upper bound, which is why we inc DE.
 	inc	de
 	call	bufDelLines
 	jr	.mainLoop
-.doAppend:
+.doA:
 	inc	de
-.doInsert:
+.doI:
 	call	stdioReadLine	; --> HL
 	call	bufScratchpadAdd	; --> HL
 	; insert index in DE, line offset in HL. We want the opposite.
@@ -124,7 +130,7 @@ edMain:
 	call	printcrlf
 	jr	.mainLoop
 
-.doPrint:
+.doP:
 	push	hl
 	call	bufGetLine
 	jr	nz, .error
@@ -132,10 +138,10 @@ edMain:
 	call	printcrlf
 	pop	hl
 	call	cpHLDE
-	jr	z, .doPrintEnd
+	jr	z, .doPEnd
 	inc	hl
-	jr	.doPrint
-.doPrintEnd:
+	jr	.doP
+.doPEnd:
 	ld	(ED_CURLINE), hl
 	jp	.mainLoop
 .error:
@@ -168,12 +174,10 @@ edResolveAddr:
 edReadAddrs:
 	ld	ix, CMD_ADDR2
 	call	edResolveAddr
-	ex	de, hl
-	ld	hl, (BUF_LINECNT)
-	ex	de, hl		; HL: addr2 DE: cnt
+	ld	de, (BUF_LINECNT)
+	ex	de, hl		; HL: cnt DE: addr2
 	call	cpHLDE
-	jp	nc, unsetZ	; HL (addr2) >= DE (cnt). no good
-	ex	de, hl		; DE: addr2
+	jp	c, unsetZ	; HL (cnt) < DE (addr2). no good
 	ld	ix, CMD_ADDR1
 	call	edResolveAddr
 	ex	de, hl		; HL: addr2, DE: addr1

@@ -29,6 +29,8 @@ bufInit:
 	ld	de, BUF_PAD	; points to beginning of current line
 	ld	ix, BUF_LINES	; points to current line index
 	ld	bc, 0		; line count
+	; init pad end in case we have an empty file.
+	ld	(BUF_PADEND), hl
 .loop:
 	call	ioGetC
 	jr	nz, .loopend
