@@ -36,19 +36,31 @@ kbdGetC:
 	; Do we need to skip it?
 	ex	af, af'		; save fetched KC
 	ld	a, (KBD_PREV_KC)
+	; Whatever the KC, the new A becomes our prev. The easiest way to do
+	; this is to do it now.
+	ex	af, af'		; restore KC
+	ld	(KBD_PREV_KC), a
+	ex	af, af'		; restore prev KC
 	; If F0 (break code) or E0 (extended code), we skip this code
 	cp	KBD_KC_BREAK
-	jr	z, .skip
+	jr	z, .break
 	cp	KBD_KC_EXT
-	jr	z, .skip
+	jr	z, .ignore
 	ex	af, af'		; restore saved KC
-	ld	(KBD_PREV_KC), a
 	cp	0x80
-	jr	nc, .outOfBounds
-	; No need to skip, code within bounds, we have something! Let's see if
-	; there's a ASCII code associated to it.
+	jr	nc, .ignore
+	; No need to skip, code within bounds, we have something!
+	call	.isShift
+	jr	z, .shiftPressed
+	; Let's see if there's a ASCII code associated to it.
 	push	hl		; --> lvl 1
-	ld	hl, kbdScanCodes
+	ld	hl, KBD_SHIFT_ON
+	bit	0, (hl)
+	ld	hl, kbdScanCodes	; no flag changed
+	jr	z, .shiftNotPressed
+	; Shift is being pressed. Use Shifted table.
+	ld	hl, kbdScanCodesS
+.shiftNotPressed:
 	call	addHL
 	ld	a, (hl)
 	pop	hl		; <-- lvl 1
@@ -57,13 +69,22 @@ kbdGetC:
 	; We have something!
 	cp	a		; ensure Z
 	ret
-.outOfBounds:
-	; A scan code over 0x80 is out of bounds. Ignore.
+.shiftPressed:
+	ld	a, 1
+	ld	(KBD_SHIFT_ON), a
+	jr	.ignore		; to actual char to return
+.break:
+	ex	af, af'		; restore saved KC
+	call	.isShift
+	jr	nz, .ignore
+	; We had a shift break, update status
 	xor	a
-	jp	unsetZ
-.skip:
+	ld	(KBD_SHIFT_ON), a
+	; continue to .ignore
+.ignore:
+	; A scan code over 0x80 is out of bounds or prev KC tell us we should
+	; skip. Ignore.
 	xor	a
-	ld	(KBD_PREV_KC), a
 	jp	unsetZ
 .nothing:
 	; We have nothing. Before we go further, we'll wait a bit to give our
@@ -77,6 +98,12 @@ kbdGetC:
 	djnz	.wait
 	pop	bc
 	jp	unsetZ
+; Whether KC in A is L or R shift
+.isShift:
+	cp	KBD_KC_LSHIFT
+	ret	z
+	cp	KBD_KC_RSHIFT
+	ret
 
 ; A list of the values associated with the 0x80 possible scan codes of the set
 ; 2 of the PS/2 keyboard specs. 0 means no value. That value is a character than
@@ -94,6 +121,25 @@ kbdScanCodes:
 .db   0,',','k','i','o','0','9',  0,  0,'.','/','l', 59,'p','-',  0
 ; 0x50 13 = RETURN 39 = '
 .db   0,  0, 39,  0,'[','=',  0,  0,  0,  0, 13,']',  0,'\',  0,  0
+; 0x60 8 = BKSP
+.db   0,  0,  0,  0,  0,  0,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0
+; 0x70 27 = ESC
+.db   0,  0,  0,  0,  0,  0, 27,  0,  0,  0,  0,  0,  0,  0,  0,  0
+
+; Same values, but shifted
+kbdScanCodesS:
+; 0x00    1   2   3   4   5   6   7   8   9   a   b   c   d   e   f
+.db   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  9,'~',  0
+; 0x10 9 = TAB
+.db   0,  0,  0,  0,  0,'Q','!',  0,  0,  0,'Z','S','A','W','@',  0
+; 0x20 32 = SPACE
+.db   0,'C','X','D','E','$','#',  0,  0, 32,'V','F','T','R','%',  0
+; 0x30
+.db   0,'N','B','H','G','Y','^',  0,  0,  0,'M','J','U','&','*',  0
+; 0x40 59 = ;
+.db   0,'<','K','I','O',')','(',  0,  0,'>','?','L',':','P','_',  0
+; 0x50 13 = RETURN 39 = '
+.db   0,  0, 39,  0,'{','+',  0,  0,  0,  0, 13,'}',  0,'|',  0,  0
 ; 0x60 8 = BKSP
 .db   0,  0,  0,  0,  0,  0,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0
 ; 0x70 27 = ESC
