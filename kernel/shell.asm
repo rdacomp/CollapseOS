@@ -100,9 +100,23 @@ shellParse:
 	push	hl
 	push	ix
 
+	; Before looking for a suitable command, let's make the cmd line more
+	; usable by replacing the first ' ' with a null char. This way, cmp is
+	; easy to make.
+	push	hl		; --> lvl 1
+	ld	a, ' '
+	call	findchar
+	jr	z, .hasArgs
+	; no arg, (HL) is zero to facilitate processing later, add a second
+	; null next to that one to indicate unambiguously that we have no args.
+	inc	hl
+.hasArgs:
+	xor	a
+	ld	(hl), a
+	pop	hl		; <-- lvl 1, beginning of cmd
+
 	ld	de, shellCmdTbl
-	ld	a, SHELL_CMD_COUNT
-	ld	b, a
+	ld	b, SHELL_CMD_COUNT
 
 .loop:
 	push	de		; we need to keep that table entry around...
@@ -131,13 +145,9 @@ shellParse:
 	call	intoDE		; Jump from the table entry to the cmd addr.
 
 	; advance the HL pointer to the beginning of the args.
-	ld	a, ' '
+	xor	a
 	call	findchar
-	or	a		; end of string? don't increase HL
-	jr	z, .noargs
-	inc	hl		; char after space
-
-.noargs:
+	inc	hl		; beginning of args
 	; Now, let's have DE point to the argspecs
 	ld	a, 4
 	call	addDE

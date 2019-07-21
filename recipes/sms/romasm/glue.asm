@@ -123,7 +123,7 @@ f1PutC:
 	jp	fsPutC
 
 edCmd:
-	.db	"eded", 0b1001, 0, 0
+	.db	"ed", 0, 0, 0b1001, 0, 0
 	push	hl \ pop ix
 	ld	l, (ix)
 	ld	h, (ix+1)

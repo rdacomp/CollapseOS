@@ -19,30 +19,18 @@
 .equ	PGM_RAMEND	PGM_HANDLE+FS_HANDLE_SIZE
 
 ; Routine suitable to plug into SHELL_CMDHOOK. HL points to the full cmdline.
-; We can mutate it because the shell doesn't do anything with it afterwards.
+; which has been processed to replace the first ' ' with a null char.
 pgmShellHook:
 	call	fsIsOn
 	jr	nz, .noFile
-	; first first space and replace it with zero so that we have something
-	; suitable for fsFindFN.
-	push	hl	; remember beginning
-	ld	a, ' '
-	call	findchar
-	jr	nz, .noarg	; if we have no arg, we want DE to point to the
-				; null char. Also, we have no replacement to
-				; make
-	; replace space with nullchar
-	xor	a
-	ld	(hl), a
-	inc	hl		; make HL point to the beginning of args
-.noarg:
-	ex	de, hl	; DE now points to the beginning of args or to \0 if
-			; no args
-	pop	hl	; HL points to cmdname, properly null-terminated
+	; (HL) is suitable for a direct fsFindFN call
 	call	fsFindFN
 	jr	nz, .noFile
-	; We have a file! Load it and run it.
-	ex	de, hl	; but first, make HL point to unparsed args.
+	; We have a file! Advance HL to args
+	xor	a
+	call	findchar
+	inc	hl		; beginning of args
+	; Alright, ready to run!
 	jp	pgmRun
 .noFile:
 	ld	a, SHELL_ERR_IO_ERROR
