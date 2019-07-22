@@ -36,11 +36,8 @@
 .equ	SYM_LOC_VALUES		SYM_NAMES+SYM_BUFSIZE
 .equ	SYM_LOC_NAMES		SYM_LOC_VALUES+SYM_LOC_MAXCOUNT*2
 
-; Pointer to the active registry
-.equ	SYM_CTX			SYM_LOC_NAMES+SYM_LOC_BUFSIZE
-
 ; Pointer, in the value list, to the result of the last _symFind
-.equ	SYM_CTX_PTR		SYM_CTX+2
+.equ	SYM_CTX_PTR		SYM_LOC_NAMES+SYM_LOC_BUFSIZE
 .equ	SYM_RAMEND		SYM_CTX_PTR+2
 
 ; *** Registries ***
@@ -79,20 +76,6 @@ symInit:
 	ld	(SYM_NAMES), a
 	ld	(SYM_LOC_NAMES), a
 	; Continue to symSelectGlobalRegistry
-
-symSelectGlobalRegistry:
-	push	hl
-	ld	hl, SYM_GLOBAL_REGISTRY
-	ld	(SYM_CTX), hl
-	pop	hl
-	ret
-
-symSelectLocalRegistry:
-	push	hl
-	ld	hl, SYM_LOCAL_REGISTRY
-	ld	(SYM_CTX), hl
-	pop	hl
-	ret
 
 ; Sets Z according to whether label in (HL) is local (starts with a dot)
 symIsLabelLocal:
@@ -147,18 +130,30 @@ _symNamesEnd:
 	pop	iy
 	ret
 
+symRegisterGlobal:
+	push	ix
+	ld	ix, SYM_GLOBAL_REGISTRY
+	call	symRegister
+	pop	ix
+	ret
+
+symRegisterLocal:
+	push	ix
+	ld	ix, SYM_LOCAL_REGISTRY
+	call	symRegister
+	pop	ix
+	ret
+
 ; Register label in (HL) (minus the ending ":") into the symbol registry and
 ; set its value in that registry to DE.
 ; If successful, Z is set and A is the symbol index. Otherwise, Z is unset and
 ; A is an error code (ERR_*).
 symRegister:
-	push	ix		; --> lvl 1
-	ld	ix, (SYM_CTX)
 	call	_symFind
 	jr	z, .alreadyThere
 
-	push	hl	; --> lvl 2. it's the symbol to add
-	push	de	; --> lvl 3. it's our value.
+	push	hl	; --> lvl 1. it's the symbol to add
+	push	de	; --> lvl 2. it's our value.
 
 
 	; First, let's get our strlen
@@ -169,16 +164,16 @@ symRegister:
 	jr	nz, .outOfMemory
 
 	; Is our new name going to make us go out of bounds?
-	push	hl		; --> lvl 4
-	push	de		; --> lvl 5
+	push	hl		; --> lvl 3
+	push	de		; --> lvl 4
 	ld	e, (ix+2)
 	ld	d, (ix+3)
 	; DE --> names end
 	ld	a, c
 	call	addHL
 	call	cpHLDE
-	pop	de		; <-- lvl 5
-	pop	hl		; <-- lvl 4
+	pop	de		; <-- lvl 4
+	pop	hl		; <-- lvl 3
 	jr	nc, .outOfMemory	; HL >= DE
 
 	; Success. At this point, we have:
@@ -189,11 +184,11 @@ symRegister:
 
 	; Let's start with the value.
 	push	hl \ pop ix	; save HL for later
-	pop	hl		; <-- lvl 3. value to register
+	pop	hl		; <-- lvl 2. value to register
 	call	writeHLinDE	; write value where it goes.
 
 	; Good! now, the string.
-	pop	hl		; <-- lvl 2. string to register
+	pop	hl		; <-- lvl 1. string to register
 	push	ix \ pop de	; string destination
 	; Copy HL into DE until we reach null char
 	call	strcpyM
@@ -202,16 +197,14 @@ symRegister:
 	; list. DE is already correctly placed, A is already zero
 	ld	(de), a
 
-	pop	ix		; <-- lvl 1
 	cp	a		; ensure Z
 	ret
 
 .outOfMemory:
 	ld	a, ERR_OOM
 	call	unsetZ
-	pop	de		; <-- lvl 3
-	pop	hl		; <-- lvl 2
-	pop	ix		; <-- lvl 1
+	pop	de		; <-- lvl 2
+	pop	hl		; <-- lvl 1
 	ret
 
 .alreadyThere:
@@ -231,9 +224,6 @@ symRegister:
 	; symbol names. So, if we end up in .alreadyThere during first pass,
 	; then it's an error condition. If it's not first pass, then we need
 	; to update our value.
-
-	; Let's pop our lvl 1 IX now, we don't need it any more.
-	pop	ix		; <-- lvl 1
 
 	call	zasmIsFirstPass
 	jr	z, .duplicateError

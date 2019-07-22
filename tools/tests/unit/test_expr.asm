@@ -63,11 +63,11 @@ test:
 	call	symInit
 	ld	hl, sFOO
 	ld	de, 0x4000
-	call	symRegister
+	call	symRegisterGlobal
 	jp	nz, fail
 	ld	hl, sBAR
 	ld	de, 0x20
-	call	symRegister
+	call	symRegisterGlobal
 	jp	nz, fail
 
 	ld	hl, s3

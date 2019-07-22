@@ -142,7 +142,7 @@ handleEQU:
 	jr	nz, .badarg
 	ld	hl, DIREC_SCRATCHPAD
 	push	ix \ pop de
-	call	symRegister	; A and Z set
+	call	symRegisterGlobal	; A and Z set
 	jr	.end
 .badfmt:
 	ld	a, ERR_BAD_FMT

@@ -164,6 +164,7 @@ _parseLabel:
 	call	symIsLabelLocal
 	jr	z, .success		; local? don't do anything.
 
+	ld	ix, SYM_GLOBAL_REGISTRY
 	call	zasmIsFirstPass
 	jr	z, .registerLabel	; When we encounter a label in the first
 					; pass, we register it in the symbol
@@ -174,6 +175,7 @@ _parseLabel:
 	call	_beginLocalPass
 	jr	.success
 .processLocalPass:
+	ld	ix, SYM_LOCAL_REGISTRY
 	call	symIsLabelLocal
 	jr	z, .registerLabel	; local label? all good, register it
 					; normally
@@ -209,12 +211,10 @@ _beginLocalPass:
 	; Empty local label registry
 	xor	a
 	ld	(SYM_LOC_NAMES), a
-	call	symSelectLocalRegistry
 	ret
 
 
 _endLocalPass:
-	call	symSelectGlobalRegistry
 	; recall I/O pos
 	call	ioRecallPos
 	; recall PC

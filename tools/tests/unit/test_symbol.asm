@@ -26,11 +26,11 @@ test:
 	call	symInit
 	ld	hl, sFOOBAR
 	ld	de, 42
-	call	symRegister
+	call	symRegisterGlobal
 	jp	nz, fail
 	ld	hl, sFOO
 	ld	de, 43
-	call	symRegister
+	call	symRegisterGlobal
 	jp	nz, fail
 
 	ld	hl, sFOO
