@@ -127,22 +127,22 @@ edCmd:
 	push	hl \ pop ix
 	ld	l, (ix)
 	ld	h, (ix+1)
-	jp	0x1800
+	jp	0x1900
 
 zasmCmd:
 	.db	"zasm", 0b1001, 0, 0
 	push	hl \ pop ix
 	ld	l, (ix)
 	ld	h, (ix+1)
-	jp	0x1c00
+	jp	0x1d00
 
-; last time I checked, PC at this point was 0x175a. Let's give us a nice margin
+; last time I checked, PC at this point was 0x183c. Let's give us a nice margin
 ; for the start of ed.
-.fill 0x1800-$
+.fill 0x1900-$
 .bin "ed.bin"
 
-; Last check: 0x1b4e
-.fill 0x1c00-$
+; Last check: 0x1c4e
+.fill 0x1d00-$
 .bin "zasm.bin"
 
 .fill 0x7ff0-$

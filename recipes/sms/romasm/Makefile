@@ -2,8 +2,8 @@ ZASM = ../../../tools/zasm.sh
 KERNEL = ../../../kernel
 APPS = ../../../apps
 
-.PHONY: all
-all: os.sms ed.bin
+.PHONY: all clean
+all: os.sms
 
 ed.bin: $(APPS)/ed/glue.asm
 	echo ".equ USER_CODE ED_CODE" | cat user-tmpl.h - > user.h
@@ -16,3 +16,5 @@ zasm.bin: $(APPS)/zasm/glue.asm
 os.sms: glue.asm ed.bin zasm.bin
 	$(ZASM) $(KERNEL) ed.bin zasm.bin < $< > $@
 
+clean:
+	rm -f os.sms ed.bin zasm.bin
