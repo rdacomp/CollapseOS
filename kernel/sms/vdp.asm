@@ -9,6 +9,8 @@
 ; bottom of the screen, but for now, when the end of the screen is reached, we
 ; wrap up to the top.
 ;
+; When reaching a new line, we clear that line and the next to help readability.
+;
 ; *** Consts ***
 ;
 .equ	VDP_CTLPORT	0xbf
@@ -92,6 +94,9 @@ vdpSpitC:
 	ld	b, 0		; we push rotated bits from VDP_LINE into B so
 				; that we'll already have our low bits from the
 				; second byte we'll send right after.
+	; Here, we're fitting a 5-bit line, and a 5-bit column on 16-bit, right
+	; aligned. On top of that, our righmost bit is taken because our target
+	; cell is 2-bytes wide and our final number is a VRAM address.
 	ld	a, (VDP_LINE)
 	sla	a		; should always push 0, so no pushing in B
 	sla	a		; same
@@ -172,14 +177,22 @@ vdpLF:
 	; clear the first char of the line.
 	push	af
 	ld	a, (VDP_LINE)
-	inc	a
-	cp	24
-	jr	nz, .norollover
-	; bottom reached, roll over to top of screen
-	xor	a
-.norollover:
+	call	.incA
+	call	vdpClrLine
+	; Also clear the line after this one
+	push	af		; --> lvl 1
+	call	.incA
+	call	vdpClrLine
+	pop	af		; <-- lvl 1
 	ld	(VDP_LINE), a
 	pop	af
+	ret
+.incA:
+	inc	a
+	cp	24
+	ret	nz	; no rollover
+	; bottom reached, roll over to top of screen
+	xor	a
 	ret
 
 vdpBS:
@@ -213,6 +226,33 @@ vdpClrPos:
 	push	af
 	xor	a		; space
 	call	vdpSpitC
+	pop	af
+	ret
+
+; Clear line number A
+vdpClrLine:
+	; see comments in vdpSpitC for VRAM details.
+	push	af
+	; first, get the two LSB at MSB pos.
+	rrca \ rrca
+	push	af	; --> lvl 1
+	and	0b11000000
+	; That's our first address byte
+	out	(VDP_CTLPORT), a
+	pop	af	; <-- lvl 1
+	; Then, get those 3 other bits at LSB pos. Our popped A has already
+	; done 2 RRCA, which means that everything is in place.
+	and	0b00000111
+	or	0x78
+	out	(VDP_CTLPORT), a
+	; We're at the right place. Let's just spit 32*2 null bytes
+	xor	a
+	push	bc	; --> lvl 1
+	ld	b, 64
+.loop:
+	out	(VDP_DATAPORT), a
+	djnz	.loop
+	pop	bc	; <-- lvl 1
 	pop	af
 	ret
 
