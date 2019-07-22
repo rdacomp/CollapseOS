@@ -36,9 +36,7 @@
 .equ	SYM_LOC_VALUES		SYM_NAMES+SYM_BUFSIZE
 .equ	SYM_LOC_NAMES		SYM_LOC_VALUES+SYM_LOC_MAXCOUNT*2
 
-; Pointer, in the value list, to the result of the last _symFind
-.equ	SYM_CTX_PTR		SYM_LOC_NAMES+SYM_LOC_BUFSIZE
-.equ	SYM_RAMEND		SYM_CTX_PTR+2
+.equ	SYM_RAMEND		SYM_LOC_NAMES+SYM_LOC_BUFSIZE
 
 ; *** Registries ***
 ; A symbol registry is a 6 bytes record with points to names and values of
@@ -149,11 +147,11 @@ symRegisterLocal:
 ; If successful, Z is set and A is the symbol index. Otherwise, Z is unset and
 ; A is an error code (ERR_*).
 symRegister:
-	call	_symFind
-	jr	z, .alreadyThere
-
 	push	hl	; --> lvl 1. it's the symbol to add
 	push	de	; --> lvl 2. it's our value.
+
+	call	_symFind
+	jr	z, .alreadyThere
 
 
 	; First, let's get our strlen
@@ -227,25 +225,24 @@ symRegister:
 
 	call	zasmIsFirstPass
 	jr	z, .duplicateError
-	; Second pass. Don't error out, just update value
-	push	hl		; --> lvl 1
-	ld	hl, (SYM_CTX_PTR)
-	ex	de, hl
+	; Second pass. Don't error out, just update value, which DE points to.
+	pop	hl		; <-- lvl 2, the value to register
 	call	writeHLinDE
 	pop	hl		; <-- lvl 1
 	cp	a		; ensure Z
 	ret
 .duplicateError:
+	pop	de		; <-- lvl 2
+	pop	hl		; <-- lvl 1
 	ld	a, ERR_DUPSYM
 	jp	unsetZ		; return
 
-; Assuming that IX points to a register context, find name HL in its names and
-; make the context pointer point to the corresponding entry in its values.
+; Assuming that IX points to a registry, find name HL in its names and make DE
+; point to the corresponding entry in its values.
 ; If we find something, Z is set, otherwise unset.
 _symFind:
 	push	iy
 	push	hl
-	push	de
 
 	ex	de, hl		; it's easier if HL is haystack and DE is
 				; needle.
@@ -269,11 +266,10 @@ _symFind:
 	call	unsetZ
 	jr	.end
 .match:
-	push	iy \ pop hl
-	ld	(SYM_CTX_PTR), hl
+	push	iy \ pop de
+	; DE has our result
 	cp	a		; ensure Z
 .end:
-	pop	de
 	pop	hl
 	pop	iy
 	ret
@@ -293,8 +289,7 @@ symFindVal:
 	call	_symFind
 	jr	nz, .end
 	; Found! let's fetch value
-	; Return value that (SYM_CTX_PTR) is pointing at in DE.
-	ld	de, (SYM_CTX_PTR)
+	; DE is pointing to our result
 	call	intoDE
 .end:
 	pop	ix
