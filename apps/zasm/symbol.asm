@@ -36,20 +36,28 @@
 .equ	SYM_LOC_VALUES		SYM_NAMES+SYM_BUFSIZE
 .equ	SYM_LOC_NAMES		SYM_LOC_VALUES+SYM_LOC_MAXCOUNT*2
 
-; Pointer to the currently selected registry
-.equ	SYM_CTX_NAMES		SYM_LOC_NAMES+SYM_LOC_BUFSIZE
-.equ	SYM_CTX_NAMESEND	SYM_CTX_NAMES+2
-.equ	SYM_CTX_VALUES		SYM_CTX_NAMESEND+2
-; Pointer, in (SYM_CTX_VALUES), to the result of the last symFind
-.equ	SYM_CTX_PTR		SYM_CTX_VALUES+2
+; Pointer to the active registry
+.equ	SYM_CTX			SYM_LOC_NAMES+SYM_LOC_BUFSIZE
 
+; Pointer, in the value list, to the result of the last _symFind
+.equ	SYM_CTX_PTR		SYM_CTX+2
 .equ	SYM_RAMEND		SYM_CTX_PTR+2
 
+; *** Registries ***
+; A symbol registry is a 6 bytes record with points to names and values of
+; one of the register.
+; It's 3 pointers: names, names end, values
+
+SYM_GLOBAL_REGISTRY:
+	.dw	SYM_NAMES, SYM_NAMES+SYM_BUFSIZE, SYM_VALUES
+
+SYM_LOCAL_REGISTRY:
+	.dw	SYM_LOC_NAMES, SYM_LOC_NAMES+SYM_LOC_BUFSIZE, SYM_LOC_VALUES
 ; *** Code ***
 
-; Advance HL to the beginning of the next symbol name in SYM_NAMES except if
-; (HL) is already zero, meaning we're at the end of the chain. In this case,
-; do nothing.
+; Assuming that HL points in to a symbol name list, advance HL to the beginning
+; of the next symbol name except if (HL) is already zero, meaning we're at the
+; end of the chain. In this case, do nothing.
 ; Sets Z if it succeeded, unset it if there is no next.
 _symNext:
 	xor	a
@@ -73,31 +81,17 @@ symInit:
 	; Continue to symSelectGlobalRegistry
 
 symSelectGlobalRegistry:
-	push	af
 	push	hl
-	ld	hl, SYM_NAMES
-	ld	(SYM_CTX_NAMES), hl
-	ld	hl, SYM_NAMES+SYM_BUFSIZE
-	ld	(SYM_CTX_NAMESEND), hl
-	ld	hl, SYM_VALUES
-	ld	(SYM_CTX_VALUES), hl
+	ld	hl, SYM_GLOBAL_REGISTRY
+	ld	(SYM_CTX), hl
 	pop	hl
-	pop	af
 	ret
 
 symSelectLocalRegistry:
-	push	af
 	push	hl
-	ld	hl, SYM_LOC_NAMES
-	ld	(SYM_CTX_NAMES), hl
-	ld	hl, SYM_LOC_NAMES+SYM_LOC_BUFSIZE
-	ld	(SYM_CTX_NAMESEND), hl
-	ld	hl, SYM_LOC_VALUES
-	ld	(SYM_CTX_VALUES), hl
-	ld	a, h
-	ld	a, l
+	ld	hl, SYM_LOCAL_REGISTRY
+	ld	(SYM_CTX), hl
 	pop	hl
-	pop	af
 	ret
 
 ; Sets Z according to whether label in (HL) is local (starts with a dot)
@@ -106,43 +100,51 @@ symIsLabelLocal:
 	cp	(hl)
 	ret
 
-; Place HL at the end of (SYM_CTX_NAMES) end (that is, at the point where we
-; have two consecutive null chars and DE at the corresponding position in
-; SYM_CTX_VALUES).
+; Given a registry in (IX), place HL at the end of its names that is, at the
+; point where we have two consecutive null chars and DE at the corresponding
+; position in its values.
 ; If we're within bounds, Z is set, otherwise unset.
-symNamesEnd:
-	push	ix
+_symNamesEnd:
+	push	iy
 	push	bc
 
-	ld	ix, (SYM_CTX_VALUES)
-	ld	hl, (SYM_CTX_NAMES)
-	ld	de, (SYM_CTX_NAMESEND)
+	; IY --> values
+	ld	l, (ix+4)
+	ld	h, (ix+5)
+	push	hl \ pop iy
+	; HL --> names
+	ld	l, (ix)
+	ld	h, (ix+1)
+	; DE --> names end
+	ld	e, (ix+2)
+	ld	d, (ix+3)
 .loop:
 	call	_symNext
 	jr	nz, .success	; We've reached the end of the chain.
-	inc	ix
-	inc	ix
+	inc	iy
+	inc	iy
 	; Are we out of bounds name-wise?
 	call	cpHLDE
 	jr	nc, .outOfBounds	; HL >= DE
-	; are we out of bounds value-wise? check if IX == (SYM_CTX_NAMES)
+	; are we out of bounds value-wise? check if IY == (IX)'s names
 	; Is is assumed that values are placed right before names
 	push	hl
-	push	ix \ pop bc
-	ld	hl, (SYM_CTX_NAMES)
+	push	iy \ pop bc
+	ld	l, (ix)
+	ld	h, (ix+1)
 	sbc	hl, bc
 	pop	hl
-	jr	z, .outOfBounds		; IX == (SYM_CTX_NAMES)
+	jr	z, .outOfBounds		; IY == (IX)'s names
 	jr	.loop
 .outOfBounds:
 	call	unsetZ
 	jr	.end
 .success:
-	push	ix \ pop de	; our values pos goes in DE
+	push	iy \ pop de	; our values pos goes in DE
 	cp	a		; ensure Z
 .end:
 	pop	bc
-	pop	ix
+	pop	iy
 	ret
 
 ; Register label in (HL) (minus the ending ":") into the symbol registry and
@@ -150,29 +152,33 @@ symNamesEnd:
 ; If successful, Z is set and A is the symbol index. Otherwise, Z is unset and
 ; A is an error code (ERR_*).
 symRegister:
-	call	symFind
+	push	ix		; --> lvl 1
+	ld	ix, (SYM_CTX)
+	call	_symFind
 	jr	z, .alreadyThere
 
-	push	hl	; will be used during processing. it's the symbol to add
-	push	de	; will be used during processing. it's our value.
+	push	hl	; --> lvl 2. it's the symbol to add
+	push	de	; --> lvl 3. it's our value.
 
 
 	; First, let's get our strlen
 	call	strlen
 	ld	c, a		; save that strlen for later
 
-	call	symNamesEnd
+	call	_symNamesEnd
 	jr	nz, .outOfMemory
 
 	; Is our new name going to make us go out of bounds?
-	push	hl
-	push	de
-		ld	de, (SYM_CTX_NAMESEND)
-		ld	a, c
-		call	addHL
-		call	cpHLDE
-	pop	de
-	pop	hl
+	push	hl		; --> lvl 4
+	push	de		; --> lvl 5
+	ld	e, (ix+2)
+	ld	d, (ix+3)
+	; DE --> names end
+	ld	a, c
+	call	addHL
+	call	cpHLDE
+	pop	de		; <-- lvl 5
+	pop	hl		; <-- lvl 4
 	jr	nc, .outOfMemory	; HL >= DE
 
 	; Success. At this point, we have:
@@ -183,11 +189,11 @@ symRegister:
 
 	; Let's start with the value.
 	push	hl \ pop ix	; save HL for later
-	pop	hl		; value to register
+	pop	hl		; <-- lvl 3. value to register
 	call	writeHLinDE	; write value where it goes.
 
 	; Good! now, the string.
-	pop	hl		; string to register
+	pop	hl		; <-- lvl 2. string to register
 	push	ix \ pop de	; string destination
 	; Copy HL into DE until we reach null char
 	call	strcpyM
@@ -196,15 +202,16 @@ symRegister:
 	; list. DE is already correctly placed, A is already zero
 	ld	(de), a
 
+	pop	ix		; <-- lvl 1
 	cp	a		; ensure Z
-	; Nothing to pop. We've already popped our stack in the lines above.
 	ret
 
 .outOfMemory:
 	ld	a, ERR_OOM
 	call	unsetZ
-	pop	de
-	pop	hl
+	pop	de		; <-- lvl 3
+	pop	hl		; <-- lvl 2
+	pop	ix		; <-- lvl 1
 	ret
 
 .alreadyThere:
@@ -224,51 +231,61 @@ symRegister:
 	; symbol names. So, if we end up in .alreadyThere during first pass,
 	; then it's an error condition. If it's not first pass, then we need
 	; to update our value.
+
+	; Let's pop our lvl 1 IX now, we don't need it any more.
+	pop	ix		; <-- lvl 1
+
 	call	zasmIsFirstPass
 	jr	z, .duplicateError
 	; Second pass. Don't error out, just update value
-	push	hl
+	push	hl		; --> lvl 1
 	ld	hl, (SYM_CTX_PTR)
 	ex	de, hl
 	call	writeHLinDE
-	pop	hl
+	pop	hl		; <-- lvl 1
 	cp	a		; ensure Z
 	ret
 .duplicateError:
 	ld	a, ERR_DUPSYM
 	jp	unsetZ		; return
 
-; Find name (HL) in (SYM_CTX_NAMES) and make (SYM_CTX_PTR) point to the
-; corresponding entry in (SYM_CTX_VALUES).
+; Assuming that IX points to a register context, find name HL in its names and
+; make the context pointer point to the corresponding entry in its values.
 ; If we find something, Z is set, otherwise unset.
-symFind:
-	push	ix
+_symFind:
+	push	iy
 	push	hl
 	push	de
 
 	ex	de, hl		; it's easier if HL is haystack and DE is
 				; needle.
-	ld	ix, (SYM_CTX_VALUES)
-	ld	hl, (SYM_CTX_NAMES)
+	; IY --> values
+	ld	l, (ix+4)
+	ld	h, (ix+5)
+	push	hl \ pop iy
+	; HL --> names
+	ld	l, (ix)
+	ld	h, (ix+1)
 .loop:
 	call	strcmp
 	jr	z, .match
 	; ok, next!
 	call	_symNext
 	jr	nz, .nomatch	; end of the chain, nothing found
-	inc	ix
-	inc	ix
+	inc	iy
+	inc	iy
 	jr	.loop
 .nomatch:
 	call	unsetZ
 	jr	.end
 .match:
-	ld	(SYM_CTX_PTR), ix
+	push	iy \ pop hl
+	ld	(SYM_CTX_PTR), hl
 	cp	a		; ensure Z
 .end:
 	pop	de
 	pop	hl
-	pop	ix
+	pop	iy
 	ret
 
 ; For a given symbol name in (HL), find it in the appropriate symbol register
@@ -277,15 +294,18 @@ symFind:
 ; always called when the global registry is selected. Therefore, we always
 ; reselect it afterwards.
 symFindVal:
+	push	ix
+	ld	ix, SYM_GLOBAL_REGISTRY
 	call	symIsLabelLocal
 	jp	nz, .notLocal
-	call	symSelectLocalRegistry
+	ld	ix, SYM_LOCAL_REGISTRY
 .notLocal:
-	call	symFind
+	call	_symFind
 	jr	nz, .end
 	; Found! let's fetch value
 	; Return value that (SYM_CTX_PTR) is pointing at in DE.
 	ld	de, (SYM_CTX_PTR)
 	call	intoDE
 .end:
-	jp	symSelectGlobalRegistry
+	pop	ix
+	ret
