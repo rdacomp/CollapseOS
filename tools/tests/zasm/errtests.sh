@@ -55,5 +55,5 @@ chkerr "#inc foo" 19
 chkerr "ld a, 0x100" 20
 chkerr ".db 0x100" 20
 chkerr "#inc \"doesnotexist\"" 21
-chkerr ".equ foo 42 \\ .equ foo 42" 22
+chkerr "foo:\\foo:" 22
 chkoom

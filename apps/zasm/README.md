@@ -115,6 +115,10 @@ allowed. An included file cannot have an `#inc` directive.
 **.equ**: Binds a symbol named after the first parameter to the value of the
           expression written as the second parameter. Example:
           `.equ foo 0x42+'A'`
+          
+          If the symbol specified has already been defined, no error occur and
+          the first value defined stays intact. This allows for "user override"
+          of programs.
 
 **.fill**: Outputs the number of null bytes specified by its argument, an
            expression. Often used with `$` to fill our binary up to a certain

@@ -149,6 +149,13 @@ handleEQU:
 	ld	hl, DIREC_SCRATCHPAD
 	push	ix \ pop de
 	call	symRegisterConst	; A and Z set
+	jr	z, .end			; success
+	; register ended up in error. We need to figure which error. If it's
+	; a duplicate error, we ignore it and return success because, as per
+	; ".equ" policy, it's fine to define the same const twice. The first
+	; value has precedence.
+	cp	ERR_DUPSYM
+	; whatever the value of Z, it's the good one, return
 	jr	.end
 .badfmt:
 	ld	a, ERR_BAD_FMT
