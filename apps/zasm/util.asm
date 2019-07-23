@@ -24,6 +24,12 @@ subDEFromHL:
 	pop	af
 	ret
 
+; make Z the opposite of what it is now
+toggleZ:
+	jp	z, unsetZ
+	cp	a
+	ret
+
 ; Returns length of string at (HL) in A.
 ; Doesn't include null termination.
 strlen:

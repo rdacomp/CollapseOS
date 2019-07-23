@@ -12,131 +12,72 @@
 
 ; *** Constants ***
 ; Maximum number of symbols we can have in the global and consts registry
-.equ	SYM_MAXCOUNT		0x100
+.equ	SYM_MAXCOUNT		0xff
 ; Maximum number of symbols we can have in the local registry
 .equ	SYM_LOC_MAXCOUNT	0x40
+; Size of each record in registry
+.equ	SYM_RECSIZE		3
 
 ; Size of the symbol name buffer size. This is a pool. There is no maximum name
 ; length for a single symbol, just a maximum size for the whole pool.
 ; Global labels and consts have the same buf size
 .equ	SYM_BUFSIZE		0x1000
+.equ	SYM_REGSIZE		SYM_BUFSIZE+1+SYM_MAXCOUNT*SYM_RECSIZE
 
 ; Size of the names buffer for the local context registry
 .equ	SYM_LOC_BUFSIZE		0x200
+.equ	SYM_LOC_REGSIZE		SYM_LOC_BUFSIZE+1+SYM_LOC_MAXCOUNT*SYM_RECSIZE
 
 ; *** Variables ***
+; A registry has three parts: record count (byte) record list and names pool.
+; A record is a 3 bytes structure:
+; 1b - name length
+; 2b - value associated to symbol
+;
+; We know we're at the end of the record list when we hit a 0-length one.
+;
+; The names pool is a list of strings, not null-terminated, associated with
+; the value.
+;
+; It is assumed that the registry is aligned in memory in that order:
+; names pool, rec count, reclist
+
 ; Global labels registry
-
-; Each symbol is mapped to a word value saved here.
-.equ	SYM_GLOB_VALUES		SYM_RAMSTART
-
-; A list of symbol names separated by null characters. When we encounter a
-; symbol name and want to get its value, we search the name here, retrieve the
-; index of the name, then go get the value at that index in SYM_GLOB_VALUES.
-.equ	SYM_GLOB_NAMES		SYM_GLOB_VALUES+SYM_MAXCOUNT*2
-
-; Registry for local labels. Wiped out after each context change.
-.equ	SYM_LOC_VALUES		SYM_GLOB_NAMES+SYM_BUFSIZE
-.equ	SYM_LOC_NAMES		SYM_LOC_VALUES+SYM_LOC_MAXCOUNT*2
-
-; Registry for constants
-.equ	SYM_CONST_VALUES	SYM_LOC_NAMES+SYM_LOC_BUFSIZE
-.equ	SYM_CONST_NAMES		SYM_CONST_VALUES+SYM_MAXCOUNT*2
-.equ	SYM_RAMEND		SYM_CONST_NAMES+SYM_BUFSIZE
+.equ	SYM_GLOB_REG		SYM_RAMSTART
+.equ	SYM_LOC_REG		SYM_GLOB_REG+SYM_REGSIZE
+.equ	SYM_CONST_REG		SYM_LOC_REG+SYM_LOC_REGSIZE
+.equ	SYM_RAMEND		SYM_CONST_REG+SYM_REGSIZE
 
 ; *** Registries ***
-; A symbol registry is a 6 bytes record with points to names and values of
-; one of the register.
-; It's 3 pointers: names, names end, values
+; A symbol registry is a 5 bytes record with points to the name pool then the
+; records list of the register and then the max record count.
 
 SYM_GLOBAL_REGISTRY:
-	.dw	SYM_GLOB_NAMES, SYM_GLOB_NAMES+SYM_BUFSIZE, SYM_GLOB_VALUES
+	.dw	SYM_GLOB_REG, SYM_GLOB_REG+SYM_BUFSIZE
+	.db	SYM_MAXCOUNT
 
 SYM_LOCAL_REGISTRY:
-	.dw	SYM_LOC_NAMES, SYM_LOC_NAMES+SYM_LOC_BUFSIZE, SYM_LOC_VALUES
+	.dw	SYM_LOC_REG, SYM_LOC_REG+SYM_LOC_BUFSIZE
+	.db	SYM_LOC_MAXCOUNT
 
 SYM_CONST_REGISTRY:
-	.dw	SYM_CONST_NAMES, SYM_CONST_NAMES+SYM_BUFSIZE, SYM_CONST_VALUES
+	.dw	SYM_CONST_REG, SYM_CONST_REG+SYM_BUFSIZE
+	.db	SYM_MAXCOUNT
 
 ; *** Code ***
 
-; Assuming that HL points in to a symbol name list, advance HL to the beginning
-; of the next symbol name except if (HL) is already zero, meaning we're at the
-; end of the chain. In this case, do nothing.
-; Sets Z if it succeeded, unset it if there is no next.
-_symNext:
-	xor	a
-	cp	(hl)
-	jr	nz, .do		; (HL) is not zero? we can advance.
-	; (HL) is zero? we're at the end of the chain.
-	call	unsetZ
-	ret
-.do:
-	; A is already 0
-	call	findchar	; find next null char
-	; go to the char after it.
-	inc	hl
-	cp	a		; ensure Z
-	ret
-
 symInit:
-	xor	a
-	ld	(SYM_GLOB_NAMES), a
-	ld	(SYM_LOC_NAMES), a
-	ld	(SYM_CONST_NAMES), a
-	; Continue to symSelectGlobalRegistry
+	ld	ix, SYM_GLOBAL_REGISTRY
+	call	symClear
+	ld	ix, SYM_LOCAL_REGISTRY
+	call	symClear
+	ld	ix, SYM_CONST_REGISTRY
+	jp	symClear
 
 ; Sets Z according to whether label in (HL) is local (starts with a dot)
 symIsLabelLocal:
 	ld	a, '.'
 	cp	(hl)
-	ret
-
-; Given a registry in (IX), place HL at the end of its names that is, at the
-; point where we have two consecutive null chars and DE at the corresponding
-; position in its values.
-; If we're within bounds, Z is set, otherwise unset.
-_symNamesEnd:
-	push	iy
-	push	bc
-
-	; IY --> values
-	ld	l, (ix+4)
-	ld	h, (ix+5)
-	push	hl \ pop iy
-	; HL --> names
-	ld	l, (ix)
-	ld	h, (ix+1)
-	; DE --> names end
-	ld	e, (ix+2)
-	ld	d, (ix+3)
-.loop:
-	call	_symNext
-	jr	nz, .success	; We've reached the end of the chain.
-	inc	iy
-	inc	iy
-	; Are we out of bounds name-wise?
-	call	cpHLDE
-	jr	nc, .outOfBounds	; HL >= DE
-	; are we out of bounds value-wise? check if IY == (IX)'s names
-	; Is is assumed that values are placed right before names
-	push	hl
-	push	iy \ pop bc
-	ld	l, (ix)
-	ld	h, (ix+1)
-	sbc	hl, bc
-	pop	hl
-	jr	z, .outOfBounds		; IY == (IX)'s names
-	jr	.loop
-.outOfBounds:
-	call	unsetZ
-	jr	.end
-.success:
-	push	iy \ pop de	; our values pos goes in DE
-	cp	a		; ensure Z
-.end:
-	pop	bc
-	pop	iy
 	ret
 
 symRegisterGlobal:
@@ -160,110 +101,115 @@ symRegisterConst:
 	pop	ix
 	ret
 
-; Register label in (HL) (minus the ending ":") into the symbol registry and
-; set its value in that registry to DE.
-; If successful, Z is set and A is the symbol index. Otherwise, Z is unset and
-; A is an error code (ERR_*).
+; Register label in (HL) (minus the ending ":") into the symbol registry in IX
+; and set its value in that registry to the value specified in DE.
+; If successful, Z is set. Otherwise, Z is unset and A is an error code (ERR_*).
 symRegister:
 	push	hl	; --> lvl 1. it's the symbol to add
-	push	de	; --> lvl 2. it's our value.
 
-	call	_symFind
-	jr	z, .duplicateError
-
+	call	_symIsFull
+	jr	z, .outOfMemory
 
 	; First, let's get our strlen
 	call	strlen
 	ld	c, a		; save that strlen for later
 
-	call	_symNamesEnd
-	jr	nz, .outOfMemory
+	call	_symFind
+	jr	z, .duplicateError
 
 	; Is our new name going to make us go out of bounds?
-	push	hl		; --> lvl 3
-	push	de		; --> lvl 4
-	ld	e, (ix+2)
-	ld	d, (ix+3)
+	push	hl		; --> lvl 2
+	push	de		; --> lvl 3
+	ld	e, (ix+2)	; DE --> pointer to record list, which is also
+	ld	d, (ix+3)	; the end of names pool
 	; DE --> names end
 	ld	a, c
 	call	addHL
 	call	cpHLDE
-	pop	de		; <-- lvl 4
-	pop	hl		; <-- lvl 3
+	pop	de		; <-- lvl 3
+	pop	hl		; <-- lvl 2
 	jr	nc, .outOfMemory	; HL >= DE
 
 	; Success. At this point, we have:
 	; HL -> where we want to add the string
-	; DE -> where the value goes
-	; SP -> value to register
-	; SP+2 -> string to register
+	; IY -> target record where the value goes
+	; DE -> value to register
+	; SP -> string to register
 
-	; Let's start with the value.
-	push	hl \ pop ix	; save HL for later
-	pop	hl		; <-- lvl 2. value to register
-	call	writeHLinDE	; write value where it goes.
+	; Let's start with the record
+	ld	(iy), c		; strlen
+	ld	(iy+1), e
+	ld	(iy+2), d
 
-	; Good! now, the string.
+	; Good! now, the string. Destination is in HL, source is in SP
+	ex	de, hl		; dest is in DE
 	pop	hl		; <-- lvl 1. string to register
-	push	ix \ pop de	; string destination
 	; Copy HL into DE until we reach null char
 	call	strcpyM
 
-	; We need to add a second null char to indicate the end of the name
-	; list. DE is already correctly placed, A is already zero
-	ld	(de), a
-
-	cp	a		; ensure Z
+	; Last thing: increase record count
+	ld	l, (ix+2)
+	ld	h, (ix+3)
+	inc	(hl)
+	xor	a		; sets Z
 	ret
 
 .outOfMemory:
-	ld	a, ERR_OOM
-	call	unsetZ
-	pop	de		; <-- lvl 2
 	pop	hl		; <-- lvl 1
-	ret
+	ld	a, ERR_OOM
+	jp	unsetZ
 
 .duplicateError:
-	pop	de		; <-- lvl 2
 	pop	hl		; <-- lvl 1
 	ld	a, ERR_DUPSYM
 	jp	unsetZ		; return
 
-; Assuming that IX points to a registry, find name HL in its names and make DE
-; point to the corresponding entry in its values.
+; Assuming that IX points to a registry, find name HL in its names and make IY
+; point to the corresponding record. If it doesn't find anything, IY will
+; conveniently point to the next record after the last, and HL to the next
+; name insertion point.
 ; If we find something, Z is set, otherwise unset.
 _symFind:
-	push	iy
-	push	hl
+	push	de
+	push	bc
 
-	ex	de, hl		; it's easier if HL is haystack and DE is
-				; needle.
-	; IY --> values
-	ld	l, (ix+4)
-	ld	h, (ix+5)
+	call	strlen
+	ld	c, a		; save strlen
+
+	ex	de, hl		; easier if needle is in DE
+
+	; IY --> records
+	ld	l, (ix+2)
+	ld	h, (ix+3)
+	; first byte is count
+	ld	b, (hl)
+	inc	hl		; first record
 	push	hl \ pop iy
 	; HL --> names
 	ld	l, (ix)
 	ld	h, (ix+1)
+	; do we have an empty reclist?
+	xor	a
+	cp	b
+	jr	z, .nothing	; zero count? nothing
 .loop:
-	call	strcmp
-	jr	z, .match
+	ld	a, (iy)		; name len
+	cp	c
+	jr	nz, .skip	; different strlen, can't possibly match. skip
+	call	strncmp
+	jr	z, .end		; match! Z already set, IY and HL placed.
+.skip:
 	; ok, next!
-	call	_symNext
-	jr	nz, .nomatch	; end of the chain, nothing found
-	inc	iy
-	inc	iy
-	jr	.loop
-.nomatch:
+	ld	a, (iy)		; name len again
+	call	addHL		; advance HL by A chars
+	inc	iy \ inc iy \ inc iy
+	djnz	.loop
+	; end of the chain, nothing found
+.nothing:
 	call	unsetZ
-	jr	.end
-.match:
-	push	iy \ pop de
-	; DE has our result
-	cp	a		; ensure Z
 .end:
-	pop	hl
-	pop	iy
+	pop	bc
+	pop	de
 	ret
 
 ; For a given symbol name in (HL), find it in the appropriate symbol register
@@ -276,16 +222,18 @@ symFindVal:
 	call	symIsLabelLocal
 	jr	z, .local
 	; global. Let's try labels first, then consts
+	push	hl		; --> lvl 1. we'll need it again if not found.
 	ld	ix, SYM_GLOBAL_REGISTRY
 	call	_symFind
+	pop	hl		; <-- lvl 1
 	jr	z, .found
 	ld	ix, SYM_CONST_REGISTRY
 	call	_symFind
 	jr	nz, .end
 .found:
 	; Found! let's fetch value
-	; DE is pointing to our result
-	call	intoDE
+	ld	e, (iy+1)
+	ld	d, (iy+2)
 	jr	.end
 .local:
 	ld	ix, SYM_LOCAL_REGISTRY
@@ -300,10 +248,24 @@ symFindVal:
 symClear:
 	push	af
 	push	hl
-	ld	l, (ix)
-	ld	h, (ix+1)
+	ld	l, (ix+2)
+	ld	h, (ix+3)
+	; HL --> reclist count
 	xor	a
 	ld	(hl), a
 	pop	hl
 	pop	af
 	ret
+
+; Returns whether register in IX has reached its capacity.
+; Sets Z if full, unset if not.
+_symIsFull:
+	push	hl
+	ld	l, (ix+2)
+	ld	h, (ix+3)
+	ld	l, (hl)		; record count
+	ld	a, (ix+4)	; max record count
+	cp	l
+	pop	hl
+	ret
+

@@ -8,18 +8,14 @@ jp	test
 .equ	SYM_RAMSTART	RAMSTART
 #include "zasm/symbol.asm"
 
-; Pretend that we aren't in first pass
-zasmIsFirstPass:
-	jp	unsetZ
-
 testNum:	.db 1
 
 sFOO:		.db "FOO", 0
 sFOOBAR:	.db "FOOBAR", 0
+sOther:		.db "Other", 0
 
 test:
-	ld	hl, 0xffff
-	ld	sp, hl
+	ld	sp, 0xffff
 
 	; Check that we compare whole strings (a prefix will not match a longer
 	; string).
@@ -44,14 +40,18 @@ test:
 	jp	nz, fail
 	call	nexttest
 
+	ld	hl, sOther
+	call	symFindVal
+	jp	z, fail
+	call	nexttest
+
 	; success
 	xor	a
 	halt
 
 nexttest:
-	ld	a, (testNum)
-	inc	a
-	ld	(testNum), a
+	ld	hl, testNum
+	inc	(hl)
 	ret
 
 fail:
