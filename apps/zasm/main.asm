@@ -64,6 +64,10 @@ zasmMain:
 	call	ioPrintLN
 	xor	a
 	ld	(ZASM_FIRST_PASS), a
+	; before parsing the file for the second pass, let's clear the const
+	; registry. See comment in handleEQU.
+	ld	ix, SYM_CONST_REGISTRY
+	call	symClear
 	call	zasmParseFile
 .end:
 	jp	ioLineNo		; --> HL, --> DE, returns
@@ -209,9 +213,8 @@ _beginLocalPass:
 	; Set local pass
 	ld	(ZASM_LOCAL_PASS), a
 	; Empty local label registry
-	xor	a
-	ld	(SYM_LOC_NAMES), a
-	ret
+	ld	ix, SYM_LOCAL_REGISTRY
+	jp	symClear
 
 
 _endLocalPass:

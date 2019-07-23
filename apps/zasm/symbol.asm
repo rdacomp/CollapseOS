@@ -169,7 +169,7 @@ symRegister:
 	push	de	; --> lvl 2. it's our value.
 
 	call	_symFind
-	jr	z, .alreadyThere
+	jr	z, .duplicateError
 
 
 	; First, let's get our strlen
@@ -223,32 +223,6 @@ symRegister:
 	pop	hl		; <-- lvl 1
 	ret
 
-.alreadyThere:
-	; We are in a tricky situation with regards to our handling of the
-	; duplicate symbol error. Normally, it should be straightforward: We
-	; only register labels during first pass and evaluate constants during
-	; the second. Easy.
-	; We can *almost* do that... but we have ".org". .org affects label
-	; values and supports expressions, which means that we have to evaluate
-	; constants during first pass. But because we can possibly have forward
-	; references in ".equ", some constants are going to have a bad value.
-	; Therefore, we really can't evaluate all constants during the first
-	; pass.
-	; With this situation, how do you manage detection of duplicate symbols?
-	; By limiting the "duplicate error" condition to the first pass. During,
-	; first pass, sure, we don't have our proper values, but we have all our
-	; symbol names. So, if we end up in .alreadyThere during first pass,
-	; then it's an error condition. If it's not first pass, then we need
-	; to update our value.
-
-	call	zasmIsFirstPass
-	jr	z, .duplicateError
-	; Second pass. Don't error out, just update value, which DE points to.
-	pop	hl		; <-- lvl 2, the value to register
-	call	writeHLinDE
-	pop	hl		; <-- lvl 1
-	cp	a		; ensure Z
-	ret
 .duplicateError:
 	pop	de		; <-- lvl 2
 	pop	hl		; <-- lvl 1
@@ -320,4 +294,16 @@ symFindVal:
 	; continue to end
 .end:
 	pop	ix
+	ret
+
+; Clear registry at IX
+symClear:
+	push	af
+	push	hl
+	ld	l, (ix)
+	ld	h, (ix+1)
+	xor	a
+	ld	(hl), a
+	pop	hl
+	pop	af
 	ret

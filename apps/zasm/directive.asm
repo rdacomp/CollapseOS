@@ -122,6 +122,12 @@ handleDW:
 handleEQU:
 	call	zasmIsLocalPass	; Are we in local pass? Then ignore all .equ.
 	jr	z, .skip		; they mess up duplicate symbol detection.
+	; We register constants on both first and second pass for one little
+	; reason: .org. Normally, we'd register constants on second pass only
+	; so that we have values for forward label references, but we need .org
+	; to be effective during the first pass and .org needs to support
+	; expressions. So, we double-parse .equ, clearing the const registry
+	; before the second pass.
 	push	hl
 	push	de
 	push	bc
