@@ -180,6 +180,7 @@ parseArg:
 	; note: the "-" part isn't supported yet.
 	inc	hl	; (HL) now points to X or Y
 	ld	a, (hl)
+	call	upcase
 	inc	hl	; advance HL to the number part
 	inc	hl	; this is the number
 	cp	'Y'
