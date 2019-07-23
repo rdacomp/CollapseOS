@@ -64,18 +64,19 @@
 .dw	f0GetC, f0PutC
 .dw	f1GetC, f1PutC
 
-#include "blockdev_cmds.asm"
 
 .equ	FS_RAMSTART	BLOCKDEV_RAMEND
 .equ	FS_HANDLE_COUNT	2
 #include "fs.asm"
-#include "fs_cmds.asm"
 
 .equ	SHELL_RAMSTART	FS_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT 11
 #include "shell.asm"
 .dw	edCmd, zasmCmd, fnewCmd, fdelCmd, fopnCmd, flsCmd, fsOnCmd, blkBselCmd
 .dw	blkSeekCmd, blkLoadCmd, blkSaveCmd
+
+#include "blockdev_cmds.asm"
+#include "fs_cmds.asm"
 
 init:
 	di
