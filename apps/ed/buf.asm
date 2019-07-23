@@ -1,12 +1,5 @@
 ; buf - manage line buffer
 ;
-; *** Consts ***
-;
-; Maximum number of lines allowed in the buffer.
-.equ	BUF_MAXLINES	0x800
-; Size of our scratchpad
-.equ	BUF_PADMAXLEN	0x1000
-
 ; *** Variables ***
 ; Number of lines currently in the buffer
 .equ	BUF_LINECNT	BUF_RAMSTART
@@ -14,11 +7,11 @@
 .equ	BUF_LINES	BUF_LINECNT+2
 ; Points to the end of the scratchpad, that is, one byte after the last written
 ; char in it.
-.equ	BUF_PADEND	BUF_LINES+BUF_MAXLINES*2
+.equ	BUF_PADEND	BUF_LINES+ED_BUF_MAXLINES*2
 ; The in-memory scratchpad
 .equ	BUF_PAD		BUF_PADEND+2
 
-.equ	BUF_RAMEND	BUF_PAD+BUF_PADMAXLEN
+.equ	BUF_RAMEND	BUF_PAD+ED_BUF_PADMAXLEN
 
 ; *** Code ***
 

@@ -1,4 +1,13 @@
 #include "user.h"
+
+; *** Overridable consts ***
+; Maximum number of lines allowed in the buffer.
+.equ	ED_BUF_MAXLINES		0x800
+; Size of our scratchpad
+.equ	ED_BUF_PADMAXLEN	0x1000
+
+; ******
+
 #include "err.h"
 .org	USER_CODE
 
@@ -14,4 +23,3 @@
 #include "ed/cmd.asm"
 .equ	ED_RAMSTART	CMD_RAMEND
 #include "ed/main.asm"
-
