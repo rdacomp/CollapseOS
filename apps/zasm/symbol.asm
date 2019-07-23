@@ -5,28 +5,18 @@
 ; Local labels during the "official" first pass are ignored. To register them
 ; in the global registry during that pass would be wasteful in terms of memory.
 ;
-; What we don instead is set up a separate register for them and have a "second
+; What we do instead is set up a separate register for them and have a "second
 ; first pass" whenever we encounter a new context. That is, we wipe the local
 ; registry, parse the code until the next global symbol (or EOF), then rewind
 ; and continue second pass as usual.
 
 ; *** Constants ***
-; Maximum number of symbols we can have in the global and consts registry
-.equ	SYM_MAXCOUNT		0xff
-; Maximum number of symbols we can have in the local registry
-.equ	SYM_LOC_MAXCOUNT	0x40
 ; Size of each record in registry
 .equ	SYM_RECSIZE		3
 
-; Size of the symbol name buffer size. This is a pool. There is no maximum name
-; length for a single symbol, just a maximum size for the whole pool.
-; Global labels and consts have the same buf size
-.equ	SYM_BUFSIZE		0x1000
-.equ	SYM_REGSIZE		SYM_BUFSIZE+1+SYM_MAXCOUNT*SYM_RECSIZE
+.equ	SYM_REGSIZE		ZASM_REG_BUFSZ+1+ZASM_REG_MAXCNT*SYM_RECSIZE
 
-; Size of the names buffer for the local context registry
-.equ	SYM_LOC_BUFSIZE		0x200
-.equ	SYM_LOC_REGSIZE		SYM_LOC_BUFSIZE+1+SYM_LOC_MAXCOUNT*SYM_RECSIZE
+.equ	SYM_LOC_REGSIZE		ZASM_LREG_BUFSZ+1+ZASM_LREG_MAXCNT*SYM_RECSIZE
 
 ; *** Variables ***
 ; A registry has three parts: record count (byte) record list and names pool.
@@ -53,16 +43,16 @@
 ; records list of the register and then the max record count.
 
 SYM_GLOBAL_REGISTRY:
-	.dw	SYM_GLOB_REG, SYM_GLOB_REG+SYM_BUFSIZE
-	.db	SYM_MAXCOUNT
+	.dw	SYM_GLOB_REG, SYM_GLOB_REG+ZASM_REG_BUFSZ
+	.db	ZASM_REG_MAXCNT
 
 SYM_LOCAL_REGISTRY:
-	.dw	SYM_LOC_REG, SYM_LOC_REG+SYM_LOC_BUFSIZE
-	.db	SYM_LOC_MAXCOUNT
+	.dw	SYM_LOC_REG, SYM_LOC_REG+ZASM_LREG_BUFSZ
+	.db	ZASM_LREG_MAXCNT
 
 SYM_CONST_REGISTRY:
-	.dw	SYM_CONST_REG, SYM_CONST_REG+SYM_BUFSIZE
-	.db	SYM_MAXCOUNT
+	.dw	SYM_CONST_REG, SYM_CONST_REG+ZASM_REG_BUFSZ
+	.db	ZASM_REG_MAXCNT
 
 ; *** Code ***
 

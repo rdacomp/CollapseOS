@@ -44,9 +44,25 @@
 ; FS_HANDLE_SIZE
 ; BLOCKDEV_SIZE
 
-; *** Variables ***
-
 #include "user.h"
+
+; *** Overridable consts ***
+; Maximum number of symbols we can have in the global and consts registry
+.equ	ZASM_REG_MAXCNT		0xff
+
+; Maximum number of symbols we can have in the local registry
+.equ	ZASM_LREG_MAXCNT	0x40
+
+; Size of the symbol name buffer size. This is a pool. There is no maximum name
+; length for a single symbol, just a maximum size for the whole pool.
+; Global labels and consts have the same buf size
+.equ	ZASM_REG_BUFSZ		0x1000
+
+; Size of the names buffer for the local context registry
+.equ	ZASM_LREG_BUFSZ		0x200
+
+; ******
+
 #include "err.h"
 .org	USER_CODE
 
@@ -69,4 +85,3 @@ jp	zasmMain
 #include "zasm/symbol.asm"
 .equ	ZASM_RAMSTART	SYM_RAMEND
 #include "zasm/main.asm"
-

@@ -8,6 +8,12 @@
 .equ    ED_BUF_MAXLINES 0x100
 .equ    ED_BUF_PADMAXLEN 0x800
 
+; Make zasm fit in SMS's memory
+.equ	ZASM_REG_MAXCNT		0x80
+.equ	ZASM_LREG_MAXCNT	0x10
+.equ	ZASM_REG_BUFSZ		0x800
+.equ	ZASM_LREG_BUFSZ		0x100
+
 ; *** JUMP TABLE ***
 .equ	strncmp			0x03
 .equ	addDE			0x06

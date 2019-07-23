@@ -1,4 +1,9 @@
 .equ	RAMSTART	0x4000
+.equ	ZASM_REG_MAXCNT		0xff
+.equ	ZASM_LREG_MAXCNT	0x40
+.equ	ZASM_REG_BUFSZ		0x1000
+.equ	ZASM_LREG_BUFSZ		0x200
+
 jp	test
 
 #include "core.asm"
