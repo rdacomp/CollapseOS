@@ -5,6 +5,7 @@ jp	test
 #include "zasm/util.asm"
 
 testNum:	.db 1
+sFoo:		.db "foo", 0
 
 test:
 	ld	hl, 0xffff
@@ -15,6 +16,12 @@ test:
 	call	multDEBC
 	ld	a, l
 	cp	48
+	jp	nz, fail
+	call	nexttest
+
+	ld	hl, sFoo
+	call	strlen
+	cp	3
 	jp	nz, fail
 	call	nexttest
 

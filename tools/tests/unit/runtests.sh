@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 set -e
 
@@ -9,12 +9,21 @@ RUNBIN="${TOOLS}/emul/runbin/runbin"
 KERNEL="${BASE}/kernel"
 APPS="${BASE}/apps"
 
-for fn in *.asm; do
-    echo "Running test ${fn}"
-    if ! ${ZASM} "${KERNEL}" "${APPS}" < ${fn} | ${RUNBIN}; then
+chk() {
+    echo "Running test $1"
+    if ! ${ZASM} "${KERNEL}" "${APPS}" < $1 | ${RUNBIN}; then
         echo "failed with code ${PIPESTATUS[1]}"
         exit 1
     fi
+}
+
+if [[ ! -z $1 ]]; then
+    chk $1
+    exit 0
+fi
+
+for fn in *.asm; do
+    chk "${fn}"
 done
 
 echo "All tests passed!"

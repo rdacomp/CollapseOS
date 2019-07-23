@@ -25,6 +25,7 @@ subDEFromHL:
 	ret
 
 ; Returns length of string at (HL) in A.
+; Doesn't include null termination.
 strlen:
 	push	bc
 	push	hl
