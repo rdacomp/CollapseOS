@@ -11,32 +11,38 @@
 ; and continue second pass as usual.
 
 ; *** Constants ***
-; Maximum number of symbols we can have in the global registry
-.equ	SYM_MAXCOUNT		0x200
+; Maximum number of symbols we can have in the global and consts registry
+.equ	SYM_MAXCOUNT		0x100
 ; Maximum number of symbols we can have in the local registry
 .equ	SYM_LOC_MAXCOUNT	0x40
 
 ; Size of the symbol name buffer size. This is a pool. There is no maximum name
 ; length for a single symbol, just a maximum size for the whole pool.
-.equ	SYM_BUFSIZE		0x2000
+; Global labels and consts have the same buf size
+.equ	SYM_BUFSIZE		0x1000
 
 ; Size of the names buffer for the local context registry
 .equ	SYM_LOC_BUFSIZE		0x200
 
 ; *** Variables ***
+; Global labels registry
+
 ; Each symbol is mapped to a word value saved here.
-.equ	SYM_VALUES		SYM_RAMSTART
+.equ	SYM_GLOB_VALUES		SYM_RAMSTART
 
 ; A list of symbol names separated by null characters. When we encounter a
 ; symbol name and want to get its value, we search the name here, retrieve the
-; index of the name, then go get the value at that index in SYM_VALUES.
-.equ	SYM_NAMES		SYM_VALUES+SYM_MAXCOUNT*2
+; index of the name, then go get the value at that index in SYM_GLOB_VALUES.
+.equ	SYM_GLOB_NAMES		SYM_GLOB_VALUES+SYM_MAXCOUNT*2
 
 ; Registry for local labels. Wiped out after each context change.
-.equ	SYM_LOC_VALUES		SYM_NAMES+SYM_BUFSIZE
+.equ	SYM_LOC_VALUES		SYM_GLOB_NAMES+SYM_BUFSIZE
 .equ	SYM_LOC_NAMES		SYM_LOC_VALUES+SYM_LOC_MAXCOUNT*2
 
-.equ	SYM_RAMEND		SYM_LOC_NAMES+SYM_LOC_BUFSIZE
+; Registry for constants
+.equ	SYM_CONST_VALUES	SYM_LOC_NAMES+SYM_LOC_BUFSIZE
+.equ	SYM_CONST_NAMES		SYM_CONST_VALUES+SYM_MAXCOUNT*2
+.equ	SYM_RAMEND		SYM_CONST_NAMES+SYM_BUFSIZE
 
 ; *** Registries ***
 ; A symbol registry is a 6 bytes record with points to names and values of
@@ -44,10 +50,14 @@
 ; It's 3 pointers: names, names end, values
 
 SYM_GLOBAL_REGISTRY:
-	.dw	SYM_NAMES, SYM_NAMES+SYM_BUFSIZE, SYM_VALUES
+	.dw	SYM_GLOB_NAMES, SYM_GLOB_NAMES+SYM_BUFSIZE, SYM_GLOB_VALUES
 
 SYM_LOCAL_REGISTRY:
 	.dw	SYM_LOC_NAMES, SYM_LOC_NAMES+SYM_LOC_BUFSIZE, SYM_LOC_VALUES
+
+SYM_CONST_REGISTRY:
+	.dw	SYM_CONST_NAMES, SYM_CONST_NAMES+SYM_BUFSIZE, SYM_CONST_VALUES
+
 ; *** Code ***
 
 ; Assuming that HL points in to a symbol name list, advance HL to the beginning
@@ -71,8 +81,9 @@ _symNext:
 
 symInit:
 	xor	a
-	ld	(SYM_NAMES), a
+	ld	(SYM_GLOB_NAMES), a
 	ld	(SYM_LOC_NAMES), a
+	ld	(SYM_CONST_NAMES), a
 	; Continue to symSelectGlobalRegistry
 
 ; Sets Z according to whether label in (HL) is local (starts with a dot)
@@ -138,6 +149,13 @@ symRegisterGlobal:
 symRegisterLocal:
 	push	ix
 	ld	ix, SYM_LOCAL_REGISTRY
+	call	symRegister
+	pop	ix
+	ret
+
+symRegisterConst:
+	push	ix
+	ld	ix, SYM_CONST_REGISTRY
 	call	symRegister
 	pop	ix
 	ret
@@ -281,16 +299,25 @@ _symFind:
 ; reselect it afterwards.
 symFindVal:
 	push	ix
-	ld	ix, SYM_GLOBAL_REGISTRY
 	call	symIsLabelLocal
-	jp	nz, .notLocal
-	ld	ix, SYM_LOCAL_REGISTRY
-.notLocal:
+	jr	z, .local
+	; global. Let's try labels first, then consts
+	ld	ix, SYM_GLOBAL_REGISTRY
+	call	_symFind
+	jr	z, .found
+	ld	ix, SYM_CONST_REGISTRY
 	call	_symFind
 	jr	nz, .end
+.found:
 	; Found! let's fetch value
 	; DE is pointing to our result
 	call	intoDE
+	jr	.end
+.local:
+	ld	ix, SYM_LOCAL_REGISTRY
+	call	_symFind
+	jr	z, .found
+	; continue to end
 .end:
 	pop	ix
 	ret
