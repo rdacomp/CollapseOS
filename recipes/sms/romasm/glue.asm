@@ -54,6 +54,7 @@
 #include "stdio.asm"
 
 .equ	MMAP_START	0xd800
+.equ	MMAP_LEN	RAMEND-MMAP_START
 #include "mmap.asm"
 
 .equ	BLOCKDEV_RAMSTART	STDIO_RAMEND
@@ -94,16 +95,19 @@ init:
 	inc	hl
 	ld	a, 'S'
 	ld	(hl), a
-	call	fsInit
-	xor	a
-	call	blkSel
-
-	call	kbdInit
-	call	vdpInit
 
 	ld	hl, kbdGetC
 	ld	de, vdpPutC
 	call	stdioInit
+	call	fsInit
+	xor	a
+	ld	de, BLOCKDEV_SEL
+	call	blkSel
+	call	fsOn
+
+	call	kbdInit
+	call	vdpInit
+
 	call	shellInit
 	jp	shellLoop
 
