@@ -84,13 +84,22 @@ subHL:
 
 ; Compare HL with DE and sets Z and C in the same way as a regular cp X where
 ; HL is A and DE is X.
+; A is preserved through some register hocus pocus: having cpHLDE destroying
+; A bit me too many times.
 cpHLDE:
+	push	bc
+	ld	b, a	; preserve A
 	ld	a, h
 	cp	d
-	ret	nz	; if not equal, flags are correct
+	jr	nz, .end ; if not equal, flags are correct
 	ld	a, l
 	cp	e
-	ret		; flags are correct
+	; flags are correct
+.end:
+	; restore A but don't touch flags
+	ld	a, b
+	pop	bc
+	ret
 
 ; Write the contents of HL in (DE)
 writeHLinDE:
