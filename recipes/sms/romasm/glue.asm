@@ -1,5 +1,6 @@
 ; 8K of onboard RAM
 .equ	RAMSTART	0xc000
+.equ	USER_RAMSTART	0xc200
 ; Memory register at the end of RAM. Must not overwrite
 .equ	RAMEND		0xddd0
 
@@ -53,8 +54,9 @@
 .equ	STDIO_RAMSTART	VDP_RAMEND
 #include "stdio.asm"
 
-.equ	MMAP_START	0xd800
-.equ	MMAP_LEN	RAMEND-MMAP_START
+.equ	MMAP_START	0xd700
+; 0x180 is to leave some space for the stack
+.equ	MMAP_LEN	RAMEND-MMAP_START-0x180
 #include "mmap.asm"
 
 .equ	BLOCKDEV_RAMSTART	STDIO_RAMEND
@@ -71,13 +73,19 @@
 #include "fs.asm"
 
 .equ	SHELL_RAMSTART	FS_RAMEND
-.equ	SHELL_EXTRA_CMD_COUNT 11
+.equ	SHELL_EXTRA_CMD_COUNT 10
 #include "shell.asm"
-.dw	edCmd, zasmCmd, fnewCmd, fdelCmd, fopnCmd, flsCmd, fsOnCmd, blkBselCmd
+.dw	edCmd, zasmCmd, fnewCmd, fdelCmd, fopnCmd, flsCmd, blkBselCmd
 .dw	blkSeekCmd, blkLoadCmd, blkSaveCmd
 
 #include "blockdev_cmds.asm"
 #include "fs_cmds.asm"
+
+.equ	PGM_RAMSTART		SHELL_RAMEND
+.equ	PGM_CODEADDR		USER_RAMSTART
+#include "pgm.asm"
+
+.out	PGM_RAMEND
 
 init:
 	di
@@ -109,6 +117,8 @@ init:
 	call	vdpInit
 
 	call	shellInit
+	ld	hl, pgmShellHook
+	ld	(SHELL_CMDHOOK), hl
 	jp	shellLoop
 
 f0GetC:

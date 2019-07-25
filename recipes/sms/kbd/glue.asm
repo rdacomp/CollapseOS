@@ -1,7 +1,7 @@
 ; 8K of onboard RAM
 .equ	RAMSTART	0xc000
 ; Memory register at the end of RAM. Must not overwrite
-.equ	RAMEND		0xfdd0
+.equ	RAMEND		0xddd0
 
 	jp	init
 
@@ -14,7 +14,7 @@
 
 #include "sms/kbd.asm"
 .equ	KBD_RAMSTART	RAMSTART
-.equ	KBD_FETCHKC	smskbdFetchKCA
+.equ	KBD_FETCHKC	smskbdFetchKCB
 #include "kbd.asm"
 
 .equ	VDP_RAMSTART	KBD_RAMEND

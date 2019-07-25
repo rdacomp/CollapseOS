@@ -18,6 +18,7 @@ This recipe is for installing a minimal Collapse OS system on the SMS. There
 are other recipes related to the SMS:
 
 * [Interfacing a PS/2 keyboard](kbd/README.md)
+* [zasm and ed from ROM](romasm/README.md)
 
 ## Gathering parts
 
