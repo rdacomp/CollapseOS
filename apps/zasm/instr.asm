@@ -68,6 +68,15 @@
 .equ	I_SUB	0x3b
 .equ	I_XOR	0x3c
 
+; *** Variables ***
+; Args are 3 bytes: argspec, then values of numerical constants (when that's
+; appropriate)
+.equ	INS_CURARG1	INS_RAMSTART
+.equ	INS_CURARG2	INS_CURARG1+3
+.equ	INS_UPCODE	INS_CURARG2+3
+.equ	INS_RAMEND	INS_UPCODE+4
+
+; *** Code ***
 ; Checks whether A is 'N' or 'M'
 checkNOrM:
 	cp	'N'
@@ -365,11 +374,11 @@ matchPrimaryRow:
 	cp	(ix)
 	jr	nz, .end
 	; name matches, let's see the rest
-	ld	hl, curArg1
+	ld	hl, INS_CURARG1
 	ld	a, (ix+1)
 	call	matchArg
 	jr	nz, .end
-	ld	hl, curArg2
+	ld	hl, INS_CURARG2
 	ld	a, (ix+2)
 	call	matchArg
 .end:
@@ -391,13 +400,13 @@ handleJPIX:
 handleJPIY:
 	ld	a, 0xfd
 handleJPIXY:
-	ld	(instrUpcode), a
-	ld	a, (curArg1+1)
+	ld	(INS_UPCODE), a
+	ld	a, (INS_CURARG1+1)
 	cp	0		; numerical argument *must* be zero
 	jr	nz, .error
 	; ok, we're good
 	ld	a, 0xe9		; second upcode
-	ld	(instrUpcode+1), a
+	ld	(INS_UPCODE+1), a
 	ld	c, 2
 	ret
 .error:
@@ -407,7 +416,7 @@ handleJPIXY:
 ; Handle the first argument of BIT. Sets Z if first argument is valid, unset it
 ; if there's an error.
 handleBIT:
-	ld	a, (curArg1+1)
+	ld	a, (INS_CURARG1+1)
 	cp	8
 	jr	nc, .error	; >= 8? error
 	; We're good
@@ -429,13 +438,13 @@ _handleBITHL:
 	call	handleBIT
 	ret	nz		; error
 	ld	a, 0xcb		; first upcode
-	ld	(instrUpcode), a
-	ld	a, (curArg1+1)	; 0-7
+	ld	(INS_UPCODE), a
+	ld	a, (INS_CURARG1+1)	; 0-7
 	rla
 	rla
 	rla
 	or	b		; 2nd upcode
-	ld	(instrUpcode+1), a
+	ld	(INS_UPCODE+1), a
 	ld	c, 2
 	ret
 
@@ -463,19 +472,19 @@ handleRESIY:
 	ld	a, 0xfd
 	ld	b, 0b10000110
 _handleBITIXY:
-	ld	(instrUpcode), a	; first upcode
+	ld	(INS_UPCODE), a	; first upcode
 	call	handleBIT
 	ret	nz		; error
 	ld	a, 0xcb		; 2nd upcode
-	ld	(instrUpcode+1), a
-	ld	a, (curArg2+1)	; IXY displacement
-	ld	(instrUpcode+2), a
-	ld	a, (curArg1+1)	; 0-7
+	ld	(INS_UPCODE+1), a
+	ld	a, (INS_CURARG2+1)	; IXY displacement
+	ld	(INS_UPCODE+2), a
+	ld	a, (INS_CURARG1+1)	; 0-7
 	rla
 	rla
 	rla
 	or	b		; 4th upcode
-	ld	(instrUpcode+3), a
+	ld	(INS_UPCODE+3), a
 	ld	c, 4
 	ret
 
@@ -491,13 +500,13 @@ _handleBITR:
 	call	handleBIT
 	ret	nz		; error
 	; get group value
-	ld	a, (curArg2+1)	; group value
+	ld	a, (INS_CURARG2+1)	; group value
 	ld	c, a
 	; write first upcode
 	ld	a, 0xcb		; first upcode
-	ld	(instrUpcode), a
+	ld	(INS_UPCODE), a
 	; get bit value
-	ld	a, (curArg1+1)	; 0-7
+	ld	a, (INS_CURARG1+1)	; 0-7
 	rla
 	rla
 	rla
@@ -505,12 +514,12 @@ _handleBITR:
 	; and we want to OR them together
 	or	c		; Now we have our ORed value
 	or	b		; and with our "base" value and we're good!
-	ld	(instrUpcode+1), a
+	ld	(INS_UPCODE+1), a
 	ld	c, 2
 	ret
 
 handleIM:
-	ld	a, (curArg1+1)
+	ld	a, (INS_CURARG1+1)
 	cp	0
 	jr	z, .im0
 	cp	1
@@ -529,9 +538,9 @@ handleIM:
 .im2:
 	ld	a, 0x5e
 .proceed:
-	ld	(instrUpcode+1), a
+	ld	(INS_UPCODE+1), a
 	ld	a, 0xed
-	ld	(instrUpcode), a
+	ld	(INS_UPCODE), a
 	ld	c, 2
 	ret
 
@@ -541,13 +550,13 @@ handleLDIXn:
 handleLDIYn:
 	ld	a, 0xfd
 handleLDIXYn:
-	ld	(instrUpcode), a
+	ld	(INS_UPCODE), a
 	ld	a, 0x36		; second upcode
-	ld	(instrUpcode+1), a
-	ld	a, (curArg1+1)	; IXY displacement
-	ld	(instrUpcode+2), a
-	ld	a, (curArg2+1)	; N
-	ld	(instrUpcode+3), a
+	ld	(INS_UPCODE+1), a
+	ld	a, (INS_CURARG1+1)	; IXY displacement
+	ld	(INS_UPCODE+2), a
+	ld	a, (INS_CURARG2+1)	; N
+	ld	(INS_UPCODE+3), a
 	ld	c, 4
 	ret
 
@@ -557,12 +566,12 @@ handleLDIXr:
 handleLDIYr:
 	ld	a, 0xfd
 handleLDIXYr:
-	ld	(instrUpcode), a
-	ld	a, (curArg2+1)	; group value
+	ld	(INS_UPCODE), a
+	ld	a, (INS_CURARG2+1)	; group value
 	or	0b01110000	; second upcode
-	ld	(instrUpcode+1), a
-	ld	a, (curArg1+1)	; IXY displacement
-	ld	(instrUpcode+2), a
+	ld	(INS_UPCODE+1), a
+	ld	a, (INS_CURARG1+1)	; IXY displacement
+	ld	(INS_UPCODE+2), a
 	ld	c, 3
 	ret
 
@@ -572,34 +581,34 @@ handleLDrIX:
 handleLDrIY:
 	ld	a, 0xfd
 handleLDrIXY:
-	ld	(instrUpcode), a
-	ld	a, (curArg1+1)	; group value
+	ld	(INS_UPCODE), a
+	ld	a, (INS_CURARG1+1)	; group value
 	rla \ rla \ rla
 	or	0b01000110	; second upcode
-	ld	(instrUpcode+1), a
-	ld	a, (curArg2+1)	; IXY displacement
-	ld	(instrUpcode+2), a
+	ld	(INS_UPCODE+1), a
+	ld	a, (INS_CURARG2+1)	; IXY displacement
+	ld	(INS_UPCODE+2), a
 	ld	c, 3
 	ret
 
 handleLDrr:
 	; first argument is displaced by 3 bits, second argument is not
 	; displaced and we or that with a leading 0b01000000
-	ld	a, (curArg1+1)	; group value
+	ld	a, (INS_CURARG1+1)	; group value
 	rla
 	rla
 	rla
 	ld	c, a		; store it
-	ld	a, (curArg2+1)	; other group value
+	ld	a, (INS_CURARG2+1)	; other group value
 	or	c
 	or	0b01000000
-	ld	(instrUpcode), a
+	ld	(INS_UPCODE), a
 	ld	c, 1
 	ret
 
 ; Compute the upcode for argspec row at (DE) and arguments in curArg{1,2} and
-; writes the resulting upcode in instrUpcode. A is the number if bytes written
-; to instrUpcode.
+; writes the resulting upcode in INS_UPCODE. A is the number if bytes written
+; to INS_UPCODE.
 ; A is zero on error. The only thing that can go wrong in this routine is
 ; overflow.
 getUpcode:
@@ -617,14 +626,14 @@ getUpcode:
 	ld	l, (ix+4)
 	ld	h, (ix+5)
 	call	callHL
-	; We have our result written in instrUpcode and C is set.
+	; We have our result written in INS_UPCODE and C is set.
 	jp	.end
 
 .normalInstr:
 	; we begin by writing our "base upcode", which can be one or two bytes
 	ld	a, (ix+4)	; first upcode
-	ld	(instrUpcode), a
-	ld	de, instrUpcode	; from this point, DE points to "where we are"
+	ld	(INS_UPCODE), a
+	ld	de, INS_UPCODE	; from this point, DE points to "where we are"
 				; in terms of upcode writing.
 	inc	de		; make DE point to where we should write next.
 
@@ -656,10 +665,10 @@ getUpcode:
 	jr	nz, .writeExtraBytes	; not a group? nothing to do. go to
 					; next step: write extra bytes
 	; Second arg is group
-	ld	hl, curArg2
+	ld	hl, INS_CURARG2
 	jr	.isGroup
 .firstArgIsGroup:
-	ld	hl, curArg1
+	ld	hl, INS_CURARG1
 .isGroup:
 	; A is a group, good, now let's get its value. HL is pointing to
 	; the argument. Our group value is at (HL+1).
@@ -681,11 +690,11 @@ getUpcode:
 	bit	6, (ix+3)
 	jr	z, .firstUpcode	; not set: first upcode
 	or	(ix+5)		; second upcode
-	ld	(instrUpcode+1), a
+	ld	(INS_UPCODE+1), a
 	jr	.writeExtraBytes
 .firstUpcode:
 	or	(ix+4)		; first upcode
-	ld	(instrUpcode), a
+	ld	(INS_UPCODE), a
 	jr	.writeExtraBytes
 .writeExtraBytes:
 	; Good, we are probably finished here for many primary opcodes. However,
@@ -693,15 +702,15 @@ getUpcode:
 	; if that's the case here, we need to write it too.
 	; We still have our instruction row in IX and we have DE pointing to
 	; where we should write next (which could be the second or the third
-	; byte of instrUpcode).
+	; byte of INS_UPCODE).
 	ld	a, (ix+1)	; first argspec
-	ld	hl, curArg1
+	ld	hl, INS_CURARG1
 	call	checkNOrM
 	jr	z, .withWord
 	call	checknmxy
 	jr	z, .withByte
 	ld	a, (ix+2)	; second argspec
-	ld	hl, curArg2
+	ld	hl, INS_CURARG2
 	call	checkNOrM
 	jr	z, .withWord
 	call	checknmxy
@@ -823,18 +832,18 @@ parseInstruction:
 	; Let's keep a copy in a more cosy register.
 	ld	c, a
 	xor	a
-	ld	(curArg1), a
-	ld	(curArg2), a
+	ld	(INS_CURARG1), a
+	ld	(INS_CURARG2), a
 	call	readWord
 	jr	nz, .nomorearg
-	ld	de, curArg1
+	ld	de, INS_CURARG1
 	call	processArg
 	jr	nz, .error	; A is set to error
 	call	readComma
 	jr	nz, .nomorearg
 	call	readWord
 	jr	nz, .badfmt
-	ld	de, curArg2
+	ld	de, INS_CURARG2
 	call	processArg
 	jr	nz, .error	; A is set to error
 .nomorearg:
@@ -858,7 +867,7 @@ parseInstruction:
 	or	a	; is zero?
 	jr	z, .overflow
 	ld	b, a		; save output byte count
-	ld	hl, instrUpcode
+	ld	hl, INS_UPCODE
 .loopWrite:
 	ld	a, (hl)
 	call	ioPutC
@@ -1206,15 +1215,3 @@ instrTBl:
 	.db I_XOR, 'l', 0,   0,    0xae		, 0	; XOR (HL)
 	.db I_XOR, 0xb, 0,   0,    0b10101000	, 0	; XOR r
 	.db I_XOR, 'n', 0,   0,    0xee		, 0	; XOR n
-
-
-; *** Variables ***
-; Args are 3 bytes: argspec, then values of numerical constants (when that's
-; appropriate)
-curArg1:
-	.db	0, 0, 0
-curArg2:
-	.db	0, 0, 0
-
-instrUpcode:
-	.db	0, 0, 0, 0
