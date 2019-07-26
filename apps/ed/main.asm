@@ -116,6 +116,7 @@ edMain:
 	xor	a
 	ret
 .doD:
+	ld	(ED_CURLINE), de
 	; bufDelLines expects an exclusive upper bound, which is why we inc DE.
 	inc	de
 	call	bufDelLines
@@ -127,6 +128,7 @@ edMain:
 	call	bufScratchpadAdd	; --> HL
 	; insert index in DE, line offset in HL. We want the opposite.
 	ex	de, hl
+	ld	(ED_CURLINE), hl
 	call	bufInsertLine
 	call	printcrlf
 	jr	.mainLoop
