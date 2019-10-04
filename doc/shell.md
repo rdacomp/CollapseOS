@@ -35,6 +35,9 @@ table describes those codes:
 | `04` | Unsupported command       |
 | `05` | I/O error                 |
 
+Applications have their own error codes as well. If you see an error code that
+isn't in this list, it's an application-specific error code.
+
 ## mptr
 
 The shell has a global memory pointer (let's call it `memptr`) that is used by
@@ -83,7 +86,7 @@ in your glue code a `jp printstr` at `0x0004`:
 
     > mptr a000
     A000
-    > load 6
+    > poke 6
     Hello\0 (you can send a null char through a terminal with CTRL+@)
     > mptr 0004
     0004

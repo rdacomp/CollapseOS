@@ -1,8 +1,8 @@
 # Using block devices
 
 The `blockdev.asm` part manage what we call "block devices", an abstraction over
-something that we can read a byte to, write a byte to and seek into (select at
-which offset we will read/write to next).
+something that we can read a byte to, write a byte to, optionally at arbitrary
+offsets.
 
 A Collapse OS system can define up to `0xff` devices. Those definitions are made
 in the glue code, so they are static.
@@ -13,29 +13,33 @@ Definition of block devices happen at include time. It would look like:
     BLOCKDEV_COUNT .equ 1
     #include "blockdev.asm"
     ; List of devices
-    .dw	aciaGetC, aciaPutC, 0
+    .dw	aciaGetC, aciaPutC
     [...]
 
 That tells `blockdev` that we're going to set up one device, that its GetC and
-PutC are the ones defined by `acia.asm` and that it has no Seek.
+PutC are the ones defined by `acia.asm`.
 
-blockdev routines defined as zero are dummies (we don't actually call `0x0000`).
+If your block device is read-only or write-only, use dummy routines. `unsetZ`
+is a good choice since it will return with the `Z` flag set, indicating an
+error (dummy methods aren't supposed to be called).
+
+Each defined block device, in addition to its routine definition, holds a
+seek pointer. This seek pointer is used in shell commands described below.
 
 ## Routine definitions
 
-Parts that implement GetC, PutC and Seek do so in a loosely-coupled manner, but
+Parts that implement GetC and PutC do so in a loosely-coupled manner, but
 they should try to adhere to the convention, that is:
 
-**GetC**: Get a character at current position, advance the position by 1, then
-          return the fetched character in register `A`. If no input is
-          available, block until it is (in other words, we always get a valid
-          character).
+**GetC**: Get the character at position specified by `HL`. If it supports 32-bit
+          addressing, `DE` contains the high-order bytes. Return the result in
+          `A`. If there's an error (for example, address out of range), set `Z`.
+          This routine is not expected to block. We expect the result to be
+          immediate.
 
-**PutC**: The opposite of GetC. Write the character in `A` at current position
-          and advance. If it can't write, block until it can.
-
-**Seek**: Set current position (word) to value in register `HL`.
-
+**PutC**: The opposite of GetC. Write the character in `A` at specified
+          position. `Z` set on error.
+          
 ## Shell usage
 
 `blockdev.asm` supplies 4 shell commands that you can graft to your shell thus:
@@ -49,9 +53,10 @@ they should try to adhere to the convention, that is:
 
 ### bsel
 
-`bsel` select the active block device. For now, this only affects `load`. It
-receives one argument, the device index. `bsel 0` selects the first defined
-device, `bsel 1`, the second, etc. Error `0x04` when argument is out of bounds.
+`bsel` select the active block device. This specify a target for `load` and
+`save`. Some applications also use the active blockdev. It receives one
+argument, the device index. `bsel 0` selects the first defined device, `bsel 1`,
+the second, etc. Error `0x04` when argument is out of bounds.
 
 ### seek
 
@@ -69,10 +74,14 @@ active blockdev at its current position. If it hits the end of the blockdev
 before it could load its specified number of bytes, it stops. It only raises an
 error if it couldn't load any byte.
 
+It moves the device's position to the byte after the last loaded byte.
+
 ### save
 
 `save` is the opposite of `load`. It writes the specified number of bytes from
 memory to the active blockdev at its current position.
+
+It moves the device's position to the byte after the last written byte.
 
 ### Example
 
