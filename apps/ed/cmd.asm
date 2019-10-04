@@ -7,8 +7,7 @@
 .equ	ABSOLUTE	0
 ; handles +, - and ".". For +, easy. For -, addr is negative. For ., it's 0.
 .equ	RELATIVE	1
-.equ	BOF		2
-.equ	EOF		3
+.equ	EOF		2
 
 ; *** Variables ***
 
@@ -86,6 +85,10 @@ cmdParse:
 	jr	z, .plusOrMinus
 	cp	'-'
 	jr	z, .plusOrMinus
+	cp	'.'
+	jr	z, .dot
+	cp	'$'
+	jr	z, .eof
 	call	parseDecimalDigit
 	jr	c, .notHandled
 	; straight number
@@ -95,14 +98,22 @@ cmdParse:
 	ret	nz
 	dec	de	; from 1-based to 0-base
 	jr	.end
+.dot:
+	inc	hl	; advance cmd cursor
+	; the rest is the same as .notHandled
 .notHandled:
-	; something else. Something we don't handle. Our addr is therefore "."
+	; something else. It's probably our command. Our addr is therefore "."
 	ld	a, RELATIVE
 	ld	(ix), a
 	xor	a		; sets Z
 	ld	(ix+1), a
 	ld	(ix+2), a
 	ret
+.eof:
+	inc	hl		; advance cmd cursor
+	ld	a, EOF
+	ld	(ix), a
+	ret			; Z set during earlier CP
 .plusOrMinus:
 	push	af		; preserve that + or -
 	ld	a, RELATIVE

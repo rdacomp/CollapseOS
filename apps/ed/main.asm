@@ -14,8 +14,7 @@
 ; That's on a resourceful UNIX system.
 ;
 ; That doubly linked list on the z80 would use 7 bytes per line (prev, next,
-; offset, len), which is a bit much. Moreover, there's that whole "scratchpad
-; being loaded in memory" thing that's a bit iffy.
+; offset, len), which is a bit much.
 ;
 ; We sacrifice speed for memory usage by making that linked list into a simple
 ; array of pointers to line contents in scratchpad. This means that we
@@ -159,6 +158,8 @@ edResolveAddr:
 	ld	a, (ix)
 	cp	RELATIVE
 	jr	z, .relative
+	cp	EOF
+	jr	z, .eof
 	; absolute
 	ld	l, (ix+1)
 	ld	h, (ix+2)
@@ -170,6 +171,10 @@ edResolveAddr:
 	ld	d, (ix+2)
 	add	hl, de
 	pop	de
+	ret
+.eof:
+	ld	hl, (BUF_LINECNT)
+	dec	hl
 	ret
 
 ; Read absolute addr1 in HL and addr2 in DE. Also, check bounds and set Z if

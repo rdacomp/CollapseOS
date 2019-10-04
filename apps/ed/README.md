@@ -63,3 +63,7 @@ Addresses can be expressed relatively to the current line with `+` and `-`.
 lines before current line and ending 2 lines after it`.
 
 `+` alone means `+1`, `-` means `-1`.
+
+`.` means current line. It can usually be ommitted. `p` is the same as `.p`.
+
+`$` means the last line of the buffer.
