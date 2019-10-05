@@ -43,15 +43,6 @@ updatebootstrap: $(ZASMBIN) $(INCCFS)
 	$(ZASMSH) $(KERNEL) < zasm/glue.asm > zasm/kernel.bin
 	$(ZASMSH) $(KERNEL) $(APPS) zasm/user.h < $(APPS)/zasm/glue.asm > zasm/zasm.bin
 
-# Sometimes, when developing zasm, stuff get messed up and it's hard to unmess
-# because zasm's brake-up ends up in its bootstrap bins. Sure, we can revert
-# from git, but if we're in the middle of some work, it's inconvenient. As long
-# as we don't diverge from scas's syntax, it can come to the recue!
-.PHONY: rescue
-rescue:
-	scas -o zasm/kernel.bin -I $(KERNEL) zasm/glue.asm
-	scas -o zasm/zasm.bin -I $(APPS) -I $(KERNEL) -I zasm $(APPS)/zasm/glue.asm
-
 .PHONY: clean
 clean:
 	rm -f $(TARGETS) $(SHELLAPPS) {zasm,shell}/*-bin.h

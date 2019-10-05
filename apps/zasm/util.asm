@@ -52,6 +52,16 @@ strlen:
 	pop	bc
 	ret
 
+; Sets Z if string at (HL) is one character long
+strIs1L:
+	xor	a
+	cp	(hl)
+	jp	z, unsetZ	; empty string
+	inc	hl
+	cp	(hl)		; Z has proper value
+	dec	hl		; doesn't touch Z
+	ret
+
 ; Compares strings pointed to by HL and DE up to A count of characters in a
 ; case-insensitive manner.
 ; If equal, Z is set. If not equal, Z is reset.

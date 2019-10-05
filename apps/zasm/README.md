@@ -1,8 +1,7 @@
 # z80 assembler
 
-This is probably the most critical part of the Collapse OS project. If this app
-can be brought to completion, it pretty much makes the project a success because
-it ensures self-reproduction.
+This is probably the most critical part of the Collapse OS project because it
+ensures its self-reproduction.
 
 ## Running on a "modern" machine
 
@@ -91,6 +90,12 @@ Expressions can't contain spaces.
 The `$` is a special symbol that can be placed in any expression and evaluated
 as the current output offset. That is, it's the value that a label would have if
 it was placed there.
+
+## The Last Value
+
+Whenever a `.equ` directive is evaluated, its resulting value is saved in a
+special "last value" register that can then be used in any expression. This
+is very useful for variable definitions and for jump tables.
 
 ## Includes
 

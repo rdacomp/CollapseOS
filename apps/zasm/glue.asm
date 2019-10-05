@@ -76,12 +76,12 @@ jp	zasmMain
 .equ	TOK_RAMSTART	IO_RAMEND
 #include "zasm/tok.asm"
 #include "lib/parse.asm"
-#include "zasm/parse.asm"
-#include "zasm/expr.asm"
 .equ	INS_RAMSTART	TOK_RAMEND
 #include "zasm/instr.asm"
 .equ	DIREC_RAMSTART	INS_RAMEND
 #include "zasm/directive.asm"
+#include "zasm/parse.asm"
+#include "zasm/expr.asm"
 .equ	SYM_RAMSTART	DIREC_RAMEND
 #include "zasm/symbol.asm"
 .equ	ZASM_RAMSTART	SYM_RAMEND

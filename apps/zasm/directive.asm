@@ -11,7 +11,9 @@
 .equ	D_BAD	0xff
 
 ; *** Variables ***
-.equ	DIREC_SCRATCHPAD	DIREC_RAMSTART
+; Result of the last .equ evaluation. Used for "@" symbol.
+.equ	DIREC_LASTVAL		DIREC_RAMSTART
+.equ	DIREC_SCRATCHPAD	DIREC_LASTVAL+2
 .equ	DIREC_RAMEND		DIREC_SCRATCHPAD+SCRATCHPAD_SIZE
 ; *** CODE ***
 
@@ -148,6 +150,8 @@ handleEQU:
 	jr	nz, .badarg
 	ld	hl, DIREC_SCRATCHPAD
 	push	ix \ pop de
+	; Save value in "@" special variable
+	ld	(DIREC_LASTVAL), de
 	call	symRegisterConst	; A and Z set
 	jr	z, .end			; success
 	; register ended up in error. We need to figure which error. If it's

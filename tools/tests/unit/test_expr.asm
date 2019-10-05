@@ -4,6 +4,9 @@
 .equ	ZASM_REG_BUFSZ		0x1000
 .equ	ZASM_LREG_BUFSZ		0x200
 
+; declare DIREC_LASTVAL manually so that we don't have to include directive.asm
+.equ	DIREC_LASTVAL	RAMSTART
+
 jp	test
 
 #include "core.asm"
@@ -13,7 +16,7 @@ jp	test
 #include "zasm/const.asm"
 #include "lib/parse.asm"
 #include "zasm/parse.asm"
-.equ	SYM_RAMSTART	RAMSTART
+.equ	SYM_RAMSTART	DIREC_LASTVAL+2
 #include "zasm/symbol.asm"
 #include "zasm/expr.asm"
 

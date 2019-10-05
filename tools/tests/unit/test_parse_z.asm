@@ -1,3 +1,7 @@
+.equ	RAMSTART	0x4000
+; declare DIREC_LASTVAL manually so that we don't have to include directive.asm
+.equ	DIREC_LASTVAL	RAMSTART
+
 jp	test
 
 #include "core.asm"
@@ -77,6 +81,13 @@ test:
 	jp	nz, fail
 	ld	a, l
 	cp	0b01010101
+	jp	nz, fail
+	call	nexttest
+
+.equ	FOO		0x42
+.equ	BAR		@+1
+	ld	a, BAR
+	cp	0x43
 	jp	nz, fail
 	call	nexttest
 

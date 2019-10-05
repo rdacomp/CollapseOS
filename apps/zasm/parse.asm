@@ -168,13 +168,19 @@ parseLiteral:
 parseNumberOrSymbol:
 	call	parseLiteral
 	ret	z
-	; Not a number. Try PC
-	push	de		; --> lvl 1
-	ld	de, .sDollar
-	call	strcmp
-	pop	de		; <-- lvl 1
+	; Not a number.
+	; Is str a single char? If yes, maybe it's a special symbol.
+	call	strIs1L
+	jr	nz, .symbol	; nope
+	ld	a, (hl)
+	cp	'$'
 	jr	z, .returnPC
-	; Not PC either, try symbol
+	cp	'@'
+	jr	nz, .symbol
+	; last val
+	ld	ix, (DIREC_LASTVAL)
+	ret
+.symbol:
 	push	de		; --> lvl 1
 	call	symFindVal	; --> DE
 	jr	nz, .notfound
@@ -197,5 +203,3 @@ parseNumberOrSymbol:
 	push	hl \ pop ix
 	pop	hl
 	ret
-.sDollar:
-	.db	'$', 0
