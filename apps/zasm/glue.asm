@@ -47,19 +47,25 @@
 .inc "user.h"
 
 ; *** Overridable consts ***
+; NOTE: These limits below are designed to be *just* enough for zasm to assemble
+; itself. Considering that this app is Collapse OS' biggest app, it's safe to
+; assume that it will be enough for many many use cases. If you need to compile
+; apps with lots of big symbols, you'll need to adjust these.
+; With these default settings, zasm runs with less than 0x1800 bytes of RAM!
+
 ; Maximum number of symbols we can have in the global and consts registry
 .equ	ZASM_REG_MAXCNT		0xff
 
 ; Maximum number of symbols we can have in the local registry
-.equ	ZASM_LREG_MAXCNT	0x40
+.equ	ZASM_LREG_MAXCNT	0x20
 
 ; Size of the symbol name buffer size. This is a pool. There is no maximum name
 ; length for a single symbol, just a maximum size for the whole pool.
 ; Global labels and consts have the same buf size
-.equ	ZASM_REG_BUFSZ		0x1000
+.equ	ZASM_REG_BUFSZ		0x700
 
 ; Size of the names buffer for the local context registry
-.equ	ZASM_LREG_BUFSZ		0x200
+.equ	ZASM_LREG_BUFSZ		0x100
 
 ; ******
 
