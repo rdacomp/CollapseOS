@@ -17,16 +17,16 @@
 .equ	DIREC_RAMEND		DIREC_SCRATCHPAD+SCRATCHPAD_SIZE
 ; *** CODE ***
 
-; 4 bytes per row, fill with zero
+; 3 bytes per row, fill with zero
 directiveNames:
-	.db	".DB", 0
-	.db	".DW", 0
-	.db	".EQU"
-	.db	".ORG"
-	.db	".FIL"
-	.db	".OUT"
-	.db	".INC"
-	.db	".BIN"
+	.db	"DB", 0
+	.db	"DW", 0
+	.db	"EQU"
+	.db	"ORG"
+	.db	"FIL"
+	.db	"OUT"
+	.db	"INC"
+	.db	"BIN"
 
 ; This is a list of handlers corresponding to indexes in directiveNames
 directiveHandlers:
@@ -296,14 +296,20 @@ handleBIN:
 ; Reads string in (HL) and returns the corresponding ID (D_*) in A. Sets Z if
 ; there's a match.
 getDirectiveID:
+	ld	a, (hl)
+	cp	'.'
+	ret	nz
+	push	hl
 	push	bc
 	push	de
+	inc	hl
 	ld	b, D_BIN+1		; D_BIN is last
-	ld	c, 4
+	ld	c, 3
 	ld	de, directiveNames
 	call	findStringInList
 	pop	de
 	pop	bc
+	pop	hl
 	ret
 
 ; Parse directive specified in A (D_* const) with args in I/O and act in
