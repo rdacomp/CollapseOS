@@ -6,12 +6,12 @@
 
 jp	test
 
-#include "core.asm"
-#include "lib/util.asm"
-#include "zasm/util.asm"
-#include "zasm/const.asm"
+.inc "core.asm"
+.inc "lib/util.asm"
+.inc "zasm/util.asm"
+.inc "zasm/const.asm"
 .equ	SYM_RAMSTART	RAMSTART
-#include "zasm/symbol.asm"
+.inc "zasm/symbol.asm"
 
 testNum:	.db 1
 

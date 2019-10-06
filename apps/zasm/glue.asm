@@ -44,7 +44,7 @@
 ; FS_HANDLE_SIZE
 ; BLOCKDEV_SIZE
 
-#include "user.h"
+.inc "user.h"
 
 ; *** Overridable consts ***
 ; Maximum number of symbols we can have in the global and consts registry
@@ -63,26 +63,26 @@
 
 ; ******
 
-#include "err.h"
+.inc "err.h"
 .org	USER_CODE
 
 jp	zasmMain
 
-#include "zasm/const.asm"
-#include "lib/util.asm"
-#include "zasm/util.asm"
+.inc "zasm/const.asm"
+.inc "lib/util.asm"
+.inc "zasm/util.asm"
 .equ	IO_RAMSTART	USER_RAMSTART
-#include "zasm/io.asm"
+.inc "zasm/io.asm"
 .equ	TOK_RAMSTART	IO_RAMEND
-#include "zasm/tok.asm"
-#include "lib/parse.asm"
+.inc "zasm/tok.asm"
+.inc "lib/parse.asm"
 .equ	INS_RAMSTART	TOK_RAMEND
-#include "zasm/instr.asm"
+.inc "zasm/instr.asm"
 .equ	DIREC_RAMSTART	INS_RAMEND
-#include "zasm/directive.asm"
-#include "zasm/parse.asm"
-#include "zasm/expr.asm"
+.inc "zasm/directive.asm"
+.inc "zasm/parse.asm"
+.inc "zasm/expr.asm"
 .equ	SYM_RAMSTART	DIREC_RAMEND
-#include "zasm/symbol.asm"
+.inc "zasm/symbol.asm"
 .equ	ZASM_RAMSTART	SYM_RAMEND
-#include "zasm/main.asm"
+.inc "zasm/main.asm"

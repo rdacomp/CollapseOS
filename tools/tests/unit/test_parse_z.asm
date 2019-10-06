@@ -4,12 +4,12 @@
 
 jp	test
 
-#include "core.asm"
-#include "parse.asm"
-#include "lib/util.asm"
-#include "zasm/util.asm"
-#include "lib/parse.asm"
-#include "zasm/parse.asm"
+.inc "core.asm"
+.inc "parse.asm"
+.inc "lib/util.asm"
+.inc "zasm/util.asm"
+.inc "lib/parse.asm"
+.inc "zasm/parse.asm"
 
 ; mocks. aren't used in tests
 zasmGetPC:

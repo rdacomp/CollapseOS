@@ -11,35 +11,35 @@ jp	init
 .fill	0x38-$
 jp	aciaInt
 
-#include "err.h"
-#include "core.asm"
-#include "parse.asm"
+.inc "err.h"
+.inc "core.asm"
+.inc "parse.asm"
 .equ	ACIA_RAMSTART	RAMSTART
-#include "acia.asm"
+.inc "acia.asm"
 
 .equ	MMAP_START	0xd000
-#include "mmap.asm"
+.inc "mmap.asm"
 
 .equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
 .equ	BLOCKDEV_COUNT		1
-#include "blockdev.asm"
+.inc "blockdev.asm"
 ; List of devices
 .dw	mmapGetC, mmapPutC
 
 .equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
-#include "stdio.asm"
+.inc "stdio.asm"
 
 .equ	AT28W_RAMSTART	STDIO_RAMEND
-#include "at28w/main.asm"
+.inc "at28w/main.asm"
 
 .equ	SHELL_RAMSTART	AT28W_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT 5
-#include "shell.asm"
+.inc "shell.asm"
 ; Extra cmds
 .dw	a28wCmd
 .dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
 
-#include "blockdev_cmds.asm"
+.inc "blockdev_cmds.asm"
 
 init:
 	di

@@ -217,7 +217,7 @@ shellPrintErr:
 ; Extra commands: Other parts might define new commands. You can add these
 ;                 commands to your shell. First, set SHELL_EXTRA_CMD_COUNT to
 ;                 the number of extra commands to add, then add a ".dw"
-;                 directive *just* after your '#include "shell.asm"'. Voila!
+;                 directive *just* after your '.inc "shell.asm"'. Voila!
 ;
 
 ; Set memory pointer to the specified address (word).

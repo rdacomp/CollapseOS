@@ -1,6 +1,6 @@
 jp	test
 
-#include "core.asm"
+.inc "core.asm"
 
 testNum:	.db 1
 

@@ -1,4 +1,4 @@
-#include "user.h"
+.inc "user.h"
 
 ; *** Overridable consts ***
 ; Maximum number of lines allowed in the buffer.
@@ -8,18 +8,18 @@
 
 ; ******
 
-#include "err.h"
+.inc "err.h"
 .org	USER_CODE
 
 	jp	edMain
 
-#include "lib/util.asm"
-#include "lib/parse.asm"
+.inc "lib/util.asm"
+.inc "lib/parse.asm"
 .equ	IO_RAMSTART	USER_RAMSTART
-#include "ed/io.asm"
+.inc "ed/io.asm"
 .equ	BUF_RAMSTART	IO_RAMEND
-#include "ed/buf.asm"
+.inc "ed/buf.asm"
 .equ	CMD_RAMSTART	BUF_RAMEND
-#include "ed/cmd.asm"
+.inc "ed/cmd.asm"
 .equ	ED_RAMSTART	CMD_RAMEND
-#include "ed/main.asm"
+.inc "ed/main.asm"

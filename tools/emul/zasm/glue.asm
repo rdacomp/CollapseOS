@@ -33,23 +33,23 @@ jp	_blkSeek
 jp	_blkTell
 jp	printstr
 
-#include "core.asm"
-#include "err.h"
-#include "parse.asm"
+.inc "core.asm"
+.inc "err.h"
+.inc "parse.asm"
 .equ	BLOCKDEV_RAMSTART	RAMSTART
 .equ	BLOCKDEV_COUNT		3
-#include "blockdev.asm"
+.inc "blockdev.asm"
 ; List of devices
 .dw	emulGetC, unsetZ
 .dw	unsetZ, emulPutC
 .dw	fsdevGetC, fsdevPutC
 
 .equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
-#include "stdio.asm"
+.inc "stdio.asm"
 
 .equ	FS_RAMSTART	STDIO_RAMEND
 .equ	FS_HANDLE_COUNT	0
-#include "fs.asm"
+.inc "fs.asm"
 
 init:
 	di

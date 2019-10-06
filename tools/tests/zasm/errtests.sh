@@ -50,10 +50,10 @@ chkerr ".equ" 19
 chkerr ".equ foo" 19
 chkerr ".org" 19
 chkerr ".fill" 19
-chkerr "#inc" 19
-chkerr "#inc foo" 19
+chkerr ".inc" 19
+chkerr ".inc foo" 19
 chkerr "ld a, 0x100" 20
 chkerr ".db 0x100" 20
-chkerr "#inc \"doesnotexist\"" 21
+chkerr ".inc \"doesnotexist\"" 21
 chkerr "foo:\\foo:" 22
 chkoom

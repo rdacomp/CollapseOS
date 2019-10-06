@@ -25,7 +25,7 @@ directiveNames:
 	.db	".ORG"
 	.db	".FIL"
 	.db	".OUT"
-	.db	"#inc"
+	.db	".INC"
 	.db	".BIN"
 
 ; This is a list of handlers corresponding to indexes in directiveNames

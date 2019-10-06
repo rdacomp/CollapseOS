@@ -1,4 +1,4 @@
-#include "user.h"
+.inc "user.h"
 .org	USER_CODE
 
 	ld	hl, sAwesome

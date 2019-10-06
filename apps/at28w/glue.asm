@@ -14,11 +14,11 @@
 ;
 ; *** Includes ***
 
-#include "user.h"
-#include "err.h"
+.inc "user.h"
+.inc "err.h"
 .org	USER_CODE
 .equ	AT28W_RAMSTART	USER_RAMSTART
 
 jp	at28wMain
 
-#include "at28w/main.asm"
+.inc "at28w/main.asm"

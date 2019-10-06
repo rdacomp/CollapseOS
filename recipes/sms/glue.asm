@@ -8,22 +8,22 @@
 .fill 0x66-$
 	retn
 
-#include "err.h"
-#include "core.asm"
-#include "parse.asm"
+.inc "err.h"
+.inc "core.asm"
+.inc "parse.asm"
 
 .equ	PAD_RAMSTART	RAMSTART
-#include "sms/pad.asm"
+.inc "sms/pad.asm"
 
 .equ	VDP_RAMSTART	PAD_RAMEND
-#include "sms/vdp.asm"
+.inc "sms/vdp.asm"
 
 .equ	STDIO_RAMSTART	VDP_RAMEND
-#include "stdio.asm"
+.inc "stdio.asm"
 
 .equ	SHELL_RAMSTART	STDIO_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT 0
-#include "shell.asm"
+.inc "shell.asm"
 
 init:
 	di

@@ -12,9 +12,9 @@
 ;
 ; *** Includes ***
 
-#include "user.h"
+.inc "user.h"
 .org	USER_CODE
 
 jp	memtMain
 
-#include "memt/main.asm"
+.inc "memt/main.asm"

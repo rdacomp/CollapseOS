@@ -39,29 +39,29 @@
 .fill 0x66-$
 	retn
 
-#include "err.h"
-#include "core.asm"
-#include "parse.asm"
+.inc "err.h"
+.inc "core.asm"
+.inc "parse.asm"
 
-#include "sms/kbd.asm"
+.inc "sms/kbd.asm"
 .equ	KBD_RAMSTART	RAMSTART
 .equ	KBD_FETCHKC	smskbdFetchKCB
-#include "kbd.asm"
+.inc "kbd.asm"
 
 .equ	VDP_RAMSTART	KBD_RAMEND
-#include "sms/vdp.asm"
+.inc "sms/vdp.asm"
 
 .equ	STDIO_RAMSTART	VDP_RAMEND
-#include "stdio.asm"
+.inc "stdio.asm"
 
 .equ	MMAP_START	0xd700
 ; 0x180 is to leave some space for the stack
 .equ	MMAP_LEN	RAMEND-MMAP_START-0x180
-#include "mmap.asm"
+.inc "mmap.asm"
 
 .equ	BLOCKDEV_RAMSTART	STDIO_RAMEND
 .equ	BLOCKDEV_COUNT		3
-#include "blockdev.asm"
+.inc "blockdev.asm"
 ; List of devices
 .dw	mmapGetC, mmapPutC
 .dw	f0GetC, f0PutC
@@ -70,20 +70,20 @@
 
 .equ	FS_RAMSTART	BLOCKDEV_RAMEND
 .equ	FS_HANDLE_COUNT	2
-#include "fs.asm"
+.inc "fs.asm"
 
 .equ	SHELL_RAMSTART	FS_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT 10
-#include "shell.asm"
+.inc "shell.asm"
 .dw	edCmd, zasmCmd, fnewCmd, fdelCmd, fopnCmd, flsCmd, blkBselCmd
 .dw	blkSeekCmd, blkLoadCmd, blkSaveCmd
 
-#include "blockdev_cmds.asm"
-#include "fs_cmds.asm"
+.inc "blockdev_cmds.asm"
+.inc "fs_cmds.asm"
 
 .equ	PGM_RAMSTART		SHELL_RAMEND
 .equ	PGM_CODEADDR		USER_RAMSTART
-#include "pgm.asm"
+.inc "pgm.asm"
 
 .out	PGM_RAMEND
 

@@ -8,24 +8,24 @@
 .fill 0x66-$
 	retn
 
-#include "err.h"
-#include "core.asm"
-#include "parse.asm"
+.inc "err.h"
+.inc "core.asm"
+.inc "parse.asm"
 
-#include "sms/kbd.asm"
+.inc "sms/kbd.asm"
 .equ	KBD_RAMSTART	RAMSTART
 .equ	KBD_FETCHKC	smskbdFetchKCB
-#include "kbd.asm"
+.inc "kbd.asm"
 
 .equ	VDP_RAMSTART	KBD_RAMEND
-#include "sms/vdp.asm"
+.inc "sms/vdp.asm"
 
 .equ	STDIO_RAMSTART	VDP_RAMEND
-#include "stdio.asm"
+.inc "stdio.asm"
 
 .equ	SHELL_RAMSTART	STDIO_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT 0
-#include "shell.asm"
+.inc "shell.asm"
 
 init:
 	di

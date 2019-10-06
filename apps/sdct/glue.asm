@@ -18,10 +18,10 @@
 ;
 ; *** Includes ***
 
-#include "user.h"
+.inc "user.h"
 .org	USER_CODE
 .equ	SDCT_RAMSTART	USER_RAMSTART
 
 jp	sdctMain
 
-#include "sdct/main.asm"
+.inc "sdct/main.asm"

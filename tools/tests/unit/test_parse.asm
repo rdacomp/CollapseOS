@@ -1,7 +1,7 @@
 jp	test
 
-#include "core.asm"
-#include "parse.asm"
+.inc "core.asm"
+.inc "parse.asm"
 
 zasmGetPC:
 	ret

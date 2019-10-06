@@ -9,16 +9,16 @@
 
 jp	test
 
-#include "core.asm"
-#include "parse.asm"
-#include "lib/util.asm"
-#include "zasm/util.asm"
-#include "zasm/const.asm"
-#include "lib/parse.asm"
-#include "zasm/parse.asm"
+.inc "core.asm"
+.inc "parse.asm"
+.inc "lib/util.asm"
+.inc "zasm/util.asm"
+.inc "zasm/const.asm"
+.inc "lib/parse.asm"
+.inc "zasm/parse.asm"
 .equ	SYM_RAMSTART	DIREC_LASTVAL+2
-#include "zasm/symbol.asm"
-#include "zasm/expr.asm"
+.inc "zasm/symbol.asm"
+.inc "zasm/expr.asm"
 
 ; Pretend that we aren't in first pass
 zasmIsFirstPass:

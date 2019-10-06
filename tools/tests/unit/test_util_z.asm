@@ -1,8 +1,8 @@
 jp	test
 
-#include "core.asm"
-#include "parse.asm"
-#include "zasm/util.asm"
+.inc "core.asm"
+.inc "parse.asm"
+.inc "zasm/util.asm"
 
 testNum:	.db 1
 sFoo:		.db "foo", 0

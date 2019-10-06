@@ -20,44 +20,44 @@ jp	sdcSendRecv
 .fill	0x38-$
 jp	aciaInt
 
-#include "err.h"
-#include "core.asm"
-#include "parse.asm"
+.inc "err.h"
+.inc "core.asm"
+.inc "parse.asm"
 .equ	ACIA_RAMSTART	RAMSTART
-#include "acia.asm"
+.inc "acia.asm"
 .equ	BLOCKDEV_RAMSTART	ACIA_RAMEND
 .equ	BLOCKDEV_COUNT		2
-#include "blockdev.asm"
+.inc "blockdev.asm"
 ; List of devices
 .dw	sdcGetC, sdcPutC
 .dw	blk2GetC, blk2PutC
 
 
 .equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
-#include "stdio.asm"
+.inc "stdio.asm"
 
 .equ	FS_RAMSTART	STDIO_RAMEND
 .equ	FS_HANDLE_COUNT	1
-#include "fs.asm"
+.inc "fs.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT	11
-#include "shell.asm"
+.inc "shell.asm"
 .dw	sdcInitializeCmd, sdcFlushCmd
 .dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
-#include "blockdev_cmds.asm"
-#include "fs_cmds.asm"
+.inc "blockdev_cmds.asm"
+.inc "fs_cmds.asm"
 
 .equ	PGM_RAMSTART		SHELL_RAMEND
-#include "pgm.asm"
+.inc "pgm.asm"
 
 .equ	SDC_RAMSTART	PGM_RAMEND
 .equ	SDC_PORT_CSHIGH	6
 .equ	SDC_PORT_CSLOW	5
 .equ	SDC_PORT_SPI	4
-#include "sdc.asm"
+.inc "sdc.asm"
 
 init:
 	di

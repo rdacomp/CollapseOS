@@ -11,18 +11,18 @@ jp	init
 .fill	0x38-$
 jp	aciaInt
 
-#include "err.h"
-#include "core.asm"
-#include "parse.asm"
+.inc "err.h"
+.inc "core.asm"
+.inc "parse.asm"
 .equ	ACIA_RAMSTART	RAMSTART
-#include "acia.asm"
+.inc "acia.asm"
 
 .equ	STDIO_RAMSTART	ACIA_RAMEND
-#include "stdio.asm"
+.inc "stdio.asm"
 
 .equ	SHELL_RAMSTART	STDIO_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT 0
-#include "shell.asm"
+.inc "shell.asm"
 
 init:
 	di

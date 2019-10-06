@@ -99,7 +99,7 @@ is very useful for variable definitions and for jump tables.
 
 ## Includes
 
-The `#inc` directive is special. It takes a string literal as an argument and
+The `.inc` directive is special. It takes a string literal as an argument and
 opens, in the currently active filesystem, the file with the specified name.
 
 It then proceeds to parse that file as if its content had been copy/pasted in
@@ -108,7 +108,7 @@ elsewhere. Constants too. An exception is local labels: a local namespace always
 ends at the end of an included file.
 
 There an important limitation with includes: only one level of includes is
-allowed. An included file cannot have an `#inc` directive.
+allowed. An included file cannot have an `.inc` directive.
 
 ## Directives
 
@@ -143,7 +143,7 @@ allowed. An included file cannot have an `#inc` directive.
           RAM constants, etc. The value is only outputted during the second
           pass.
 
-**#inc**: Takes a string literal as an argument. Open the file name specified
+**.inc**: Takes a string literal as an argument. Open the file name specified
           in the argument in the currently active filesystem, parse that file
           and output its binary content as is the code has been in the includer
           file.

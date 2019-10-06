@@ -40,13 +40,13 @@
 	jp	stdioPutC
 	jp	stdioReadLine
 
-#include "core.asm"
-#include "err.h"
-#include "parse.asm"
+.inc "core.asm"
+.inc "err.h"
+.inc "parse.asm"
 
 .equ	BLOCKDEV_RAMSTART	RAMSTART
 .equ	BLOCKDEV_COUNT		4
-#include "blockdev.asm"
+.inc "blockdev.asm"
 ; List of devices
 .dw	fsdevGetC, fsdevPutC
 .dw	stdoutGetC, stdoutPutC
@@ -55,27 +55,27 @@
 
 
 .equ	MMAP_START	0xe000
-#include "mmap.asm"
+.inc "mmap.asm"
 
 .equ	STDIO_RAMSTART	BLOCKDEV_RAMEND
-#include "stdio.asm"
+.inc "stdio.asm"
 
 .equ	FS_RAMSTART	STDIO_RAMEND
 .equ	FS_HANDLE_COUNT	2
-#include "fs.asm"
+.inc "fs.asm"
 
 .equ	SHELL_RAMSTART		FS_RAMEND
 .equ	SHELL_EXTRA_CMD_COUNT	9
-#include "shell.asm"
+.inc "shell.asm"
 .dw	blkBselCmd, blkSeekCmd, blkLoadCmd, blkSaveCmd
 .dw	fsOnCmd, flsCmd, fnewCmd, fdelCmd, fopnCmd
 
-#include "blockdev_cmds.asm"
-#include "fs_cmds.asm"
+.inc "blockdev_cmds.asm"
+.inc "fs_cmds.asm"
 
 .equ	PGM_RAMSTART		SHELL_RAMEND
 .equ	PGM_CODEADDR		USERCODE
-#include "pgm.asm"
+.inc "pgm.asm"
 
 ;.out	PGM_RAMEND
 
