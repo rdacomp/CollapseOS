@@ -34,7 +34,7 @@ SR latch.
 In this recipe, I do have a SR latch on hand, so I'll use it. `TH` triggering
 will also trigger that latch, indicating to the MCU that it can load the next
 character in the '164. When it's done, we signal the SMS that the next char is
-ready by reseting the latch. That means that we have to hook the latch's output
+ready by resetting the latch. That means that we have to hook the latch's output
 to `TR`.
 
 Nibble selection on `TH` doesn't involve the AVR at all. All 8 bits are
@@ -79,7 +79,7 @@ machine...
 
 ![Schematic](ps2-to-sms.png)
 
-The PS/2-to-AVR part is indentical to the rc2014/ps2 recipe. Refer to this
+The PS/2-to-AVR part is identical to the rc2014/ps2 recipe. Refer to this
 recipe.
 
 We control the '164 from the AVR in a similar way to what we did in rc2014/ps2,

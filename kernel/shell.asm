@@ -47,7 +47,7 @@
 ; Pointer to a hook to call when a cmd name isn't found
 .equ	SHELL_CMDHOOK	SHELL_CMD_ARGS+PARSE_ARG_MAXCOUNT
 
-; Pointer to a routine to call at each shell loop interation
+; Pointer to a routine to call at each shell loop iteration
 .equ	SHELL_LOOPHOOK	SHELL_CMDHOOK+2
 .equ	SHELL_RAMEND	SHELL_LOOPHOOK+2
 

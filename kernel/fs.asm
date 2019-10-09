@@ -322,7 +322,7 @@ fsIsValid:
 	pop	hl
 	ret
 
-; Returns wheter current block is deleted in Z flag.
+; Returns whether current block is deleted in Z flag.
 fsIsDeleted:
 	ld	a, (FS_META+FS_META_FNAME_OFFSET)
 	cp	0	; Z flag is our answer
