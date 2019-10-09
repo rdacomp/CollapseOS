@@ -895,7 +895,7 @@ parseInstruction:
 
 
 ; In instruction metadata below, argument types arge indicated with a single
-; char mnemonic that is called "argspec". This is the table of correspondance.
+; char mnemonic that is called "argspec". This is the table of correspondence.
 ; Single letters are represented by themselves, so we don't need as much
 ; metadata.
 ; Special meaning:

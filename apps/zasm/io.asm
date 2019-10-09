@@ -1,6 +1,6 @@
 ; I/Os in zasm
 ;
-; As a general rule, I/O in zasm is pretty straightfoward. We receive, as a
+; As a general rule, I/O in zasm is pretty straightforward. We receive, as a
 ; parameter, two blockdevs: One that we can read and seek and one that we can
 ; write to (we never seek into it).
 ;

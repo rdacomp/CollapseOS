@@ -46,7 +46,7 @@ For example, a label placed at the beginning of the file is associated with
 offset 0. If placed right after a first instruction that is 2 bytes wide, then
 the label is going to be bound to 2.
 
-Those labels can then be referenced wherever a constant is expeced. They can
+Those labels can then be referenced wherever a constant is expected. They can
 also be referenced where a relative reference is expected (`jr` and `djnz`).
 
 Labels can be forward-referenced, that is, you can reference a label that is
@@ -128,7 +128,7 @@ allowed. An included file cannot have an `.inc` directive.
 **.fill**: Outputs the number of null bytes specified by its argument, an
            expression. Often used with `$` to fill our binary up to a certain
            offset. For example, if we want to place an instruction exactly at
-           byte 0x38, we would preceed it with `.fill 0x38-$`.
+           byte 0x38, we would precede it with `.fill 0x38-$`.
 
 **.org**: Sets the Program Counter to the value of the argument, an expression.
           For example, a label being defined right after a `.org 0x400`, would
