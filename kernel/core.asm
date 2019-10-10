@@ -27,34 +27,29 @@ addDE:
 noop:				; piggy backing on the first "ret" we have
 	ret
 
-; copy (DE) into DE, little endian style (addresses in z80 are always have
-; their LSB before their MSB)
-intoDE:
-	push	af
-	ld	a, (de)
-	inc	de
-	ex	af, af'
-	ld	a, (de)
-	ld	d, a
-	ex	af, af'
-	ld	e, a
-	pop	af
+; copy (HL) into DE, then exchange the two, utilising the optimised HL instructions. 
+; ld must be done little endian, so least significant byte first.
+intoHL:
+	push 	de
+	ld 	e, (hl)
+	inc 	hl
+	ld 	d, (hl)
+	ex 	de, hl
+	pop 	de
 	ret
 
-intoHL:
-	push	de
-	ex	de, hl
-	call	intoDE
-	ex	de, hl
-	pop	de
+intoDE:
+	ex 	de, hl
+	call 	intoHL
+	ex 	de, hl		; de preserved by intoHL, so no push/pop needed
 	ret
 
 intoIX:
-	push	de
-	push	ix \ pop de
-	call	intoDE
-	push	de \ pop ix
-	pop	de
+	push 	ix
+	ex 	(sp), hl	;swap hl with ix, on the stack
+	call 	intoHL
+	ex 	(sp), hl	;restore hl from stack
+	pop 	ix
 	ret
 
 ; add the value of A into HL
